@@ -268,14 +268,14 @@ export default function ConsolidatedShipmentDetailDrawer({
             <Button
               type="button"
               variant="ghost"
-              className="px-3 py-2 text-[15px] font-medium uppercase tracking-[0.46px] text-black/60 hover:bg-transparent hover:text-black/80"
+              className="px-3 py-2 text-[15px] font-medium tracking-[0.46px] text-black/60 hover:bg-transparent hover:text-black/80"
               onClick={closeDrawer}
             >
               Cancel
             </Button>
             <Button
               type="button"
-              className="bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium uppercase tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0]"
+              className="bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0]"
               onClick={closeDrawer}
             >
               Close
