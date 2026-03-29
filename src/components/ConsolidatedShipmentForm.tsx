@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { X, ArrowLeft, Plus, ScanLine, Check } from 'lucide-react';
+import { X, ArrowLeft, Plus, Scan, Check } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -520,7 +520,7 @@ export default function ConsolidatedShipmentForm({
         {!isShippedOrPacked && (
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white">
             <div className="flex items-center gap-3 border-b border-[rgba(0,0,0,0.12)] px-3 py-3">
-              <ScanLine className="h-6 w-6 shrink-0 text-gray-500" />
+              <Scan className="h-6 w-6 shrink-0 text-gray-500" />
               <Input
                 value={orderInput}
                 onChange={(e) => setOrderInput(e.target.value)}
@@ -701,7 +701,7 @@ export default function ConsolidatedShipmentForm({
           <Button
             type="button"
             variant="ghost"
-            className="text-[15px] font-medium uppercase tracking-wide text-[rgba(0,0,0,0.6)]"
+            className="text-[15px] font-medium text-[rgba(0,0,0,0.6)]"
             onClick={onCloseRequest}
           >
             Cancel
@@ -710,7 +710,7 @@ export default function ConsolidatedShipmentForm({
             type="button"
             onClick={handlePack}
             disabled={!canPack}
-            className={`min-w-[88px] text-[15px] font-medium uppercase tracking-wide ${
+            className={`min-w-[88px] text-[15px] font-medium ${
               canPack ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]' : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
             }`}
           >

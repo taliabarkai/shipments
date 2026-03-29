@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Search, Columns3, RefreshCw, X, FileText } from 'lucide-react';
+import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -7,9 +7,27 @@ import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import ColumnSettingsDialog from './ColumnSettingsDialog';
+import MuiPopover from '@mui/material/Popover';
+import MuiBox from '@mui/material/Box';
+import MenuItem from '@mui/material/MenuItem';
+import MuiCheckbox from '@mui/material/Checkbox';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
 import ShipmentDetailsDrawer from './ShipmentDetailsDrawer';
 import svgPaths from '../imports/svg-8i0hxkhc97';
+
+const DEFAULT_SHIPMENTS_COLUMNS = [
+  { id: 'orderId', label: 'Order ID', visible: true },
+  { id: 'packingFacility', label: 'Packing Facility', visible: true },
+  { id: 'destination', label: 'Destination', visible: true },
+  { id: 'carrier', label: 'Carrier', visible: true },
+  { id: 'trackingId', label: 'Tracking ID', visible: true },
+  { id: 'siteId', label: 'Site ID', visible: true },
+  { id: 'documents', label: 'Documents', visible: true },
+  { id: 'orderCost', label: 'Order Cost', visible: true },
+  { id: 'status', label: 'Status', visible: true },
+] as const;
 
 export type ShipmentStatus = 'Label Created' | 'Delivered' | 'Out for Delivery' | 'On the Way';
 
@@ -36,7 +54,8 @@ interface ShipmentsTableProps {
 export default function ShipmentsTable({ shipments, onSectionChange }: ShipmentsTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
-  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
+  const columnMenuOpen = Boolean(columnMenuAnchor);
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [lastUpdated] = useState(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
@@ -51,17 +70,15 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     status: [] as string[],
   });
 
-  const [columns, setColumns] = useState([
-    { id: 'orderId', label: 'Order ID', visible: true },
-    { id: 'packingFacility', label: 'Packing Facility', visible: true },
-    { id: 'destination', label: 'Destination', visible: true },
-    { id: 'carrier', label: 'Carrier', visible: true },
-    { id: 'trackingId', label: 'Tracking ID', visible: true },
-    { id: 'siteId', label: 'Site ID', visible: true },
-    { id: 'documents', label: 'Documents', visible: true },
-    { id: 'orderCost', label: 'Order Cost', visible: true },
-    { id: 'status', label: 'Status', visible: true },
-  ]);
+  const [columns, setColumns] = useState(() => DEFAULT_SHIPMENTS_COLUMNS.map((c) => ({ ...c })));
+
+  const setColumnVisible = (columnId: string, visible: boolean) => {
+    setColumns((prev) => prev.map((col) => (col.id === columnId ? { ...col, visible } : col)));
+  };
+
+  const resetColumnsToDefault = () => {
+    setColumns(DEFAULT_SHIPMENTS_COLUMNS.map((c) => ({ ...c })));
+  };
 
   const visibleColumns = columns.filter(c => c.visible);
 
@@ -276,21 +293,95 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                           </th>
                         );
                       })}
-                      <th className="px-4 py-4 text-right relative w-12">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setShowColumnSettings(true)}
-                            >
-                              <Columns3 className="w-5 h-5" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent side="bottom">
-                            <p>Column Settings</p>
-                          </TooltipContent>
-                        </Tooltip>
+                      <th className="px-2 py-4 text-right w-12 align-middle">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 shrink-0"
+                          aria-label="Column options"
+                          aria-controls={columnMenuOpen ? 'shipments-columns-menu' : undefined}
+                          aria-haspopup="true"
+                          aria-expanded={columnMenuOpen}
+                          onClick={(e) => setColumnMenuAnchor(e.currentTarget)}
+                        >
+                          <MoreVertical className="h-5 w-5 text-gray-600" />
+                        </Button>
+                        <MuiPopover
+                          id="shipments-columns-menu"
+                          anchorEl={columnMenuAnchor}
+                          open={columnMenuOpen}
+                          onClose={(_, reason) => {
+                            if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+                              setColumnMenuAnchor(null);
+                            }
+                          }}
+                          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                          slotProps={{
+                            paper: {
+                              elevation: 8,
+                              sx: {
+                                mt: 0.5,
+                                minWidth: 224,
+                                maxHeight: 400,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                overflow: 'hidden',
+                                borderRadius: 1,
+                              },
+                            },
+                          }}
+                        >
+                          <MuiBox sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 0.5 }}>
+                            {columns.map((col) => (
+                              <MenuItem
+                                key={col.id}
+                                dense
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  setColumnVisible(col.id, !col.visible);
+                                }}
+                                sx={{ py: '2px' }}
+                              >
+                                <ListItemIcon sx={{ minWidth: 40 }}>
+                                  <MuiCheckbox
+                                    size="small"
+                                    checked={col.visible}
+                                    tabIndex={-1}
+                                    disableRipple
+                                    sx={{
+                                      color: 'rgba(0, 0, 0, 0.54)',
+                                      '&.Mui-checked': { color: '#1976d2' },
+                                    }}
+                                  />
+                                </ListItemIcon>
+                                <ListItemText
+                                  primary={col.label}
+                                  primaryTypographyProps={{ variant: 'body2' }}
+                                />
+                              </MenuItem>
+                            ))}
+                          </MuiBox>
+                          <Divider sx={{ flexShrink: 0 }} />
+                          <MenuItem
+                            onClick={() => {
+                              resetColumnsToDefault();
+                              setColumnMenuAnchor(null);
+                            }}
+                            sx={{ py: 1, flexShrink: 0 }}
+                          >
+                            <ListItemText
+                              primary="Reset to default"
+                              primaryTypographyProps={{
+                                variant: 'body2',
+                                fontWeight: 600,
+                                color: 'primary',
+                              }}
+                            />
+                          </MenuItem>
+                        </MuiPopover>
                       </th>
                     </tr>
                   </thead>
@@ -314,7 +405,8 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                               <div className="flex items-center gap-3">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <button 
+                                    <button
+                                      type="button"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         console.log('View Label clicked');
@@ -326,6 +418,23 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                                   </TooltipTrigger>
                                   <TooltipContent side="bottom">
                                     <p>View Label</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        console.log('View Invoice clicked');
+                                      }}
+                                      className="text-gray-600 hover:text-gray-900 transition-colors"
+                                    >
+                                      <Receipt className="w-5 h-5" />
+                                    </button>
+                                  </TooltipTrigger>
+                                  <TooltipContent side="bottom">
+                                    <p>View Invoice</p>
                                   </TooltipContent>
                                 </Tooltip>
                               </div>
@@ -395,12 +504,6 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
           </div>
         </div>
 
-      <ColumnSettingsDialog
-        isOpen={showColumnSettings}
-        onClose={() => setShowColumnSettings(false)}
-        columns={columns}
-        onColumnsChange={setColumns}
-      />
       <ShipmentDetailsDrawer
         open={showDetailsDrawer}
         onClose={() => setShowDetailsDrawer(false)}

@@ -9,13 +9,13 @@ import { Download, Plus, Search, RefreshCw, AlertCircle, FileText, Box, Receipt,
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import Menu from '@mui/material/Menu';
+import MuiPopover from '@mui/material/Popover';
+import MuiBox from '@mui/material/Box';
 import MenuItem from '@mui/material/MenuItem';
 import Checkbox from '@mui/material/Checkbox';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
-import Typography from '@mui/material/Typography';
 import { Checkbox as ShadcnCheckbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
@@ -544,7 +544,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                             >
                               <MoreVertical className="h-5 w-5 text-gray-600" />
                             </Button>
-                            <Menu
+                            <MuiPopover
                               id="consolidated-columns-menu"
                               anchorEl={columnMenuAnchor}
                               open={columnMenuOpen}
@@ -561,56 +561,53 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                   sx: {
                                     mt: 0.5,
                                     minWidth: 224,
+                                    maxHeight: 400,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    overflow: 'hidden',
                                     borderRadius: 1,
-                                    '& .MuiList-root': { py: 0.5 },
                                   },
                                 },
                               }}
                             >
-                              <Typography
-                                variant="subtitle2"
-                                component="div"
-                                sx={{ px: 2, pt: 1.25, pb: 0.5, fontWeight: 600, color: 'text.primary' }}
-                              >
-                                Columns
-                              </Typography>
-                              <Divider />
-                              {columns.map((col) => (
-                                <MenuItem
-                                  key={col.id}
-                                  dense
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    setColumnVisible(col.id, !col.visible);
-                                  }}
-                                  sx={{ py: 0.5 }}
-                                >
-                                  <ListItemIcon sx={{ minWidth: 40 }}>
-                                    <Checkbox
-                                      size="small"
-                                      checked={col.visible}
-                                      tabIndex={-1}
-                                      disableRipple
-                                      sx={{
-                                        color: 'rgba(0, 0, 0, 0.54)',
-                                        '&.Mui-checked': { color: '#1976d2' },
-                                      }}
+                              <MuiBox sx={{ flex: 1, minHeight: 0, overflowY: 'auto', py: 0.5 }}>
+                                {columns.map((col) => (
+                                  <MenuItem
+                                    key={col.id}
+                                    dense
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      setColumnVisible(col.id, !col.visible);
+                                    }}
+                                    sx={{ py: '2px' }}
+                                  >
+                                    <ListItemIcon sx={{ minWidth: 40 }}>
+                                      <Checkbox
+                                        size="small"
+                                        checked={col.visible}
+                                        tabIndex={-1}
+                                        disableRipple
+                                        sx={{
+                                          color: 'rgba(0, 0, 0, 0.54)',
+                                          '&.Mui-checked': { color: '#1976d2' },
+                                        }}
+                                      />
+                                    </ListItemIcon>
+                                    <ListItemText
+                                      primary={col.label}
+                                      primaryTypographyProps={{ variant: 'body2' }}
                                     />
-                                  </ListItemIcon>
-                                  <ListItemText
-                                    primary={col.label}
-                                    primaryTypographyProps={{ variant: 'body2' }}
-                                  />
-                                </MenuItem>
-                              ))}
-                              <Divider />
+                                  </MenuItem>
+                                ))}
+                              </MuiBox>
+                              <Divider sx={{ flexShrink: 0 }} />
                               <MenuItem
                                 onClick={() => {
                                   resetColumnsToDefault();
                                   setColumnMenuAnchor(null);
                                 }}
-                                sx={{ py: 1 }}
+                                sx={{ py: 1, flexShrink: 0 }}
                               >
                                 <ListItemText
                                   primary="Reset to default"
@@ -621,7 +618,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                   }}
                                 />
                               </MenuItem>
-                            </Menu>
+                            </MuiPopover>
                           </th>
                         </tr>
                       </thead>
