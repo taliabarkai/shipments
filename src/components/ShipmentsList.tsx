@@ -9,16 +9,14 @@ import { Download, Plus, Search, RefreshCw, AlertCircle, FileText, Box, Receipt,
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from './ui/dropdown-menu';
-import { Checkbox } from './ui/checkbox';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import Checkbox from '@mui/material/Checkbox';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import Divider from '@mui/material/Divider';
+import Typography from '@mui/material/Typography';
+import { Checkbox as ShadcnCheckbox } from './ui/checkbox';
 import { Label } from './ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import ExpandableSidebar from './ExpandableSidebar';
@@ -55,10 +53,10 @@ const DEFAULT_CONSOLIDATED_COLUMNS: { id: ConsolidatedListColumnId; label: strin
   { id: 'packingFacility', label: 'Packing Facility', visible: true },
   { id: 'destination', label: 'Destination', visible: true },
   { id: 'carrier', label: 'Carrier', visible: true },
+  { id: 'carrierType', label: 'Type', visible: true },
   { id: 'totalValue', label: 'Total value', visible: true },
   { id: 'totalShipments', label: 'Total shipments', visible: false },
   { id: 'trackingId', label: 'Tracking', visible: false },
-  { id: 'carrierType', label: 'Type', visible: false },
   { id: 'createdDate', label: 'Created date', visible: false },
   { id: 'packedDate', label: 'Packed date', visible: false },
   { id: 'shippedDate', label: 'Shipped date', visible: false },
@@ -77,8 +75,7 @@ type EnrichedConsolidated = ConsolidatedShipment & {
 function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolidated[] {
   return shipments.map((s, i) => {
     const displayTotalShipments = s.totalShipments ?? Math.max(1, s.orders.length);
-    const displayCarrierType: ConsolidatedCarrierType | string =
-      s.carrierType ?? (s.destination === '—' ? 'Bulk' : 'Merukazim');
+    const displayCarrierType: ConsolidatedCarrierType | string = s.carrierType ?? 'Merukazim';
     const displayPackedDate =
       s.packedDate ??
       (s.status === 'Draft' ? '—' : `${(i % 12) + 2}/${(i % 27) + 1}/2023`);
@@ -103,7 +100,9 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStatusTab, setSelectedStatusTab] = useState<'All' | ShipmentStatus>('All');
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
-  
+  const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
+  const columnMenuOpen = Boolean(columnMenuAnchor);
+
   const [filters, setFilters] = useState({
     packingFacility: [] as string[],
     destination: [] as string[],
@@ -509,7 +508,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                           <div className="space-y-2 max-h-64 overflow-y-auto">
                                             {filterOptions[filterKey]?.map((value) => (
                                               <div key={value} className="flex items-center space-x-2">
-                                                <Checkbox
+                                                <ShadcnCheckbox
                                                   id={`${column.id}-${value}`}
                                                   checked={filters[filterKey].includes(value)}
                                                   onCheckedChange={() => toggleFilter(filterKey, value)}
@@ -532,36 +531,97 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                             );
                           })}
                           <th className="px-2 py-4 text-right w-12 align-middle">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 shrink-0"
-                                  aria-label="Column options"
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0"
+                              aria-label="Column options"
+                              aria-controls={columnMenuOpen ? 'consolidated-columns-menu' : undefined}
+                              aria-haspopup="true"
+                              aria-expanded={columnMenuOpen}
+                              onClick={(e) => setColumnMenuAnchor(e.currentTarget)}
+                            >
+                              <MoreVertical className="h-5 w-5 text-gray-600" />
+                            </Button>
+                            <Menu
+                              id="consolidated-columns-menu"
+                              anchorEl={columnMenuAnchor}
+                              open={columnMenuOpen}
+                              onClose={(_, reason) => {
+                                if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
+                                  setColumnMenuAnchor(null);
+                                }
+                              }}
+                              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+                              slotProps={{
+                                paper: {
+                                  elevation: 8,
+                                  sx: {
+                                    mt: 0.5,
+                                    minWidth: 224,
+                                    borderRadius: 1,
+                                    '& .MuiList-root': { py: 0.5 },
+                                  },
+                                },
+                              }}
+                            >
+                              <Typography
+                                variant="subtitle2"
+                                component="div"
+                                sx={{ px: 2, pt: 1.25, pb: 0.5, fontWeight: 600, color: 'text.primary' }}
+                              >
+                                Columns
+                              </Typography>
+                              <Divider />
+                              {columns.map((col) => (
+                                <MenuItem
+                                  key={col.id}
+                                  dense
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setColumnVisible(col.id, !col.visible);
+                                  }}
+                                  sx={{ py: 0.5 }}
                                 >
-                                  <MoreVertical className="h-5 w-5 text-gray-600" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-56">
-                                <DropdownMenuLabel>Columns</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {columns.map((col) => (
-                                  <DropdownMenuCheckboxItem
-                                    key={col.id}
-                                    checked={col.visible}
-                                    onCheckedChange={(checked) => setColumnVisible(col.id, Boolean(checked))}
-                                    onSelect={(e) => e.preventDefault()}
-                                  >
-                                    {col.label}
-                                  </DropdownMenuCheckboxItem>
-                                ))}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={resetColumnsToDefault}>
-                                  Reset to default
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                                  <ListItemIcon sx={{ minWidth: 40 }}>
+                                    <Checkbox
+                                      size="small"
+                                      checked={col.visible}
+                                      tabIndex={-1}
+                                      disableRipple
+                                      sx={{
+                                        color: 'rgba(0, 0, 0, 0.54)',
+                                        '&.Mui-checked': { color: '#1976d2' },
+                                      }}
+                                    />
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={col.label}
+                                    primaryTypographyProps={{ variant: 'body2' }}
+                                  />
+                                </MenuItem>
+                              ))}
+                              <Divider />
+                              <MenuItem
+                                onClick={() => {
+                                  resetColumnsToDefault();
+                                  setColumnMenuAnchor(null);
+                                }}
+                                sx={{ py: 1 }}
+                              >
+                                <ListItemText
+                                  primary="Reset to default"
+                                  primaryTypographyProps={{
+                                    variant: 'body2',
+                                    fontWeight: 600,
+                                    color: 'primary',
+                                  }}
+                                />
+                              </MenuItem>
+                            </Menu>
                           </th>
                         </tr>
                       </thead>

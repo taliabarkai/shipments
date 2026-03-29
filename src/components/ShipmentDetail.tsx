@@ -107,8 +107,7 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                   <div>
                     <label className="text-sm text-gray-500 block mb-2">Carrier type</label>
                     <span className="text-lg">
-                      {shipment.carrierType ??
-                        (shipment.destination === '—' ? 'Bulk' : 'Merukazim')}
+                      {shipment.carrierType ?? 'Merukazim'}
                     </span>
                   </div>
 

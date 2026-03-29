@@ -71,7 +71,7 @@ export default function ConsolidatedShipmentCreateDrawer({
         <SheetContent
           hideClose
           side="right"
-          className="flex w-full flex-col gap-0 overflow-hidden border-l bg-white p-0 sm:max-w-[600px]"
+          className="flex h-full min-h-0 w-full flex-col gap-0 overflow-hidden border-l bg-white p-0 sm:max-w-[600px]"
         >
           <SheetHeader className="shrink-0 space-y-0 border-b px-6 py-4 text-left">
             <div className="flex items-start justify-between gap-4 pr-2">

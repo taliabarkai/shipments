@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ShipmentsList from './ShipmentsList';
 import ConsolidatedShipmentScreen from './ConsolidatedShipmentScreen';
 import ConsolidatedShipmentCreateDrawer from './ConsolidatedShipmentCreateDrawer';
@@ -38,12 +38,16 @@ interface ConsolidatedShipmentsAppProps {
 
 type ViewType = 'list' | 'edit';
 
+/** Match `SheetContent` `data-[state=closed]:duration-300` so we unmount after slide-out. */
+const DETAIL_DRAWER_CLOSE_MS = 300;
+
 export default function ConsolidatedShipmentsApp({ onSectionChange }: ConsolidatedShipmentsAppProps = {}) {
   const [currentView, setCurrentView] = useState<ViewType>('list');
   const [selectedShipment, setSelectedShipment] = useState<ConsolidatedShipment | null>(null);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
   const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [detailDrawerShipment, setDetailDrawerShipment] = useState<ConsolidatedShipment | null>(null);
+  const detailDrawerCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [createFormKey, setCreateFormKey] = useState(0);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
@@ -52,7 +56,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133181',
       packingFacility: 'Kiryat Gat',
-      destination: '—',
+      destination: 'United States',
       carrier: 'FedEx',
       carrierType: 'Bulk',
       trackingId: '1Z12345E0',
@@ -116,9 +120,10 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133185',
       packingFacility: 'Kiryat Gat',
-      destination: 'United States',
+      destination: 'GB',
       carrier: 'UPS',
       carrierType: 'Merukazim',
+      shippingRoute: 'UK Standard — hub sort',
       trackingId: '1Z12345E4',
       totalValue: '$19,420.50',
       status: 'Packed',
@@ -128,9 +133,10 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133186',
       packingFacility: 'Thailand',
-      destination: 'United Kingdom',
+      destination: 'UK',
       carrier: 'FedEx',
       carrierType: 'Merukazim',
+      shippingRoute: 'UK Express — 48h',
       trackingId: '1Z12345E5',
       totalValue: '$16,780.30',
       status: 'Packed',
@@ -173,7 +179,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133190',
       packingFacility: 'Kiryat Gat',
-      destination: '—',
+      destination: 'Canada',
       carrier: 'FedEx',
       carrierType: 'Bulk',
       trackingId: '1Z12345E9',
@@ -240,7 +246,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133196',
       packingFacility: 'Hungary',
-      destination: '—',
+      destination: 'Netherlands',
       carrier: 'DHL EU',
       carrierType: 'Bulk',
       trackingId: '1Z12345F5',
@@ -263,7 +269,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133198',
       packingFacility: 'Kiryat Gat',
-      destination: '—',
+      destination: 'Australia',
       carrier: 'UPS',
       carrierType: 'Bulk',
       trackingId: '1Z12345F7',
@@ -274,14 +280,32 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     },
   ]);
 
+  const clearDetailDrawerCloseTimer = () => {
+    if (detailDrawerCloseTimerRef.current) {
+      clearTimeout(detailDrawerCloseTimerRef.current);
+      detailDrawerCloseTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearDetailDrawerCloseTimer(), []);
+
   const handleShipmentClick = (shipment: ConsolidatedShipment) => {
+    clearDetailDrawerCloseTimer();
     setDetailDrawerShipment(shipment);
     setDetailDrawerOpen(true);
   };
 
   const handleDetailDrawerOpenChange = (open: boolean) => {
     setDetailDrawerOpen(open);
-    if (!open) setDetailDrawerShipment(null);
+    if (!open) {
+      clearDetailDrawerCloseTimer();
+      detailDrawerCloseTimerRef.current = setTimeout(() => {
+        setDetailDrawerShipment(null);
+        detailDrawerCloseTimerRef.current = null;
+      }, DETAIL_DRAWER_CLOSE_MS);
+    } else {
+      clearDetailDrawerCloseTimer();
+    }
   };
 
   const handleDetailTrackingCommit = (id: string, trackingId: string) => {

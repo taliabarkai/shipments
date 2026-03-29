@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { X, ArrowLeft, MapPin, Truck, ListChecks, Plus, ScanLine } from 'lucide-react';
+import { X, ArrowLeft, Plus, ScanLine, Check } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -12,16 +12,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import { cn } from './ui/utils';
+import { carrierTypeLabelClass } from './consolidatedShipmentUi';
 import Header from '../imports/Header';
 import {
   BULK_CARRIERS,
   MERUKAZIM_CARRIERS,
   MERUKAZIM_DESTINATIONS,
   SHIPPING_ROUTES,
+  merukazimDestinationKeyFromDestination,
   BULK_DESTINATION_PLACEHOLDER,
   parseCarrierOption,
   findCarrierOptionId,
 } from './consolidatedShipmentConstants';
+
+/** Blocky list-in-frame icon (filled bullets + lines), matches empty-state reference. */
+function EmptyOrdersListIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      className={className}
+      aria-hidden
+    >
+      <rect x="2.5" y="2.5" width="19" height="19" rx="2.5" stroke="currentColor" strokeWidth="2" />
+      <rect x="6" y="6" width="3" height="3" fill="currentColor" />
+      <rect x="11" y="6.5" width="9" height="2" fill="currentColor" />
+      <rect x="6" y="11" width="3" height="3" fill="currentColor" />
+      <rect x="11" y="11.5" width="9" height="2" fill="currentColor" />
+      <rect x="6" y="16" width="3" height="3" fill="currentColor" />
+      <rect x="11" y="16.5" width="9" height="2" fill="currentColor" />
+    </svg>
+  );
+}
 
 export interface Pack {
   id: number;
@@ -88,6 +112,9 @@ export default function ConsolidatedShipmentForm({
     return Boolean(merukazimDestination && shippingRoute);
   }, [parsedCarrier, merukazimDestination, shippingRoute]);
 
+  /** Hide scan until carrier is chosen; Merukazim also needs destination + route (same as detailsComplete). */
+  const showPacksAndScan = detailsComplete;
+
   useEffect(() => {
     if (shipment) {
       setCarrierOptionId(findCarrierOptionId(shipment));
@@ -97,15 +124,12 @@ export default function ConsolidatedShipmentForm({
           shipment.destination &&
           shipment.destination !== BULK_DESTINATION_PLACEHOLDER)
       ) {
-        const destValue =
-          MERUKAZIM_DESTINATIONS.find((d) => d.country === shipment.destination)?.value || '';
-        setMerukazimDestination(destValue);
+        setMerukazimDestination(merukazimDestinationKeyFromDestination(shipment.destination));
       } else {
         setMerukazimDestination('');
       }
       if (shipment.shippingRoute) {
-        const destKey =
-          MERUKAZIM_DESTINATIONS.find((d) => d.country === shipment.destination)?.value || '';
+        const destKey = merukazimDestinationKeyFromDestination(shipment.destination);
         const match = destKey
           ? SHIPPING_ROUTES[destKey]?.find((r) => r.label === shipment.shippingRoute)
           : undefined;
@@ -326,17 +350,16 @@ export default function ConsolidatedShipmentForm({
     <div
       className={
         variant === 'drawer'
-          ? 'rounded-xl bg-[#fafafa] p-4 space-y-4'
-          : 'bg-white rounded-lg border p-6 space-y-4'
+          ? 'flex flex-col gap-6 rounded-xl bg-[#fafafa] p-6'
+          : 'flex flex-col gap-2 rounded-lg border bg-white p-6'
       }
     >
       {variant === 'page' && <h2 className="font-semibold text-lg">Shipment Details</h2>}
 
-      <div className="space-y-2">
+      <div className="flex flex-col gap-2">
         <label
-          className={`mb-0 flex items-center gap-2 ${variant === 'drawer' ? 'text-base font-medium text-[rgba(0,0,0,0.87)]' : 'font-medium block'}`}
+          className={`mb-0 ${variant === 'drawer' ? 'text-base font-medium text-[rgba(0,0,0,0.87)]' : 'font-medium block'}`}
         >
-          <Truck className="w-5 h-5 shrink-0 text-[rgba(0,0,0,0.87)]" />
           Select Carrier
         </label>
         <Select
@@ -347,11 +370,23 @@ export default function ConsolidatedShipmentForm({
           <SelectTrigger
             className={
               variant === 'drawer'
-                ? 'h-14 w-full min-w-0 border-[rgba(0,0,0,0.23)] bg-white'
-                : 'h-10 w-full min-w-0'
+                ? 'h-14 w-full min-w-0 border-[rgba(0,0,0,0.23)] bg-white [&_[data-slot=select-value]]:min-w-0'
+                : 'h-10 w-full min-w-0 [&_[data-slot=select-value]]:min-w-0'
             }
           >
-            <SelectValue placeholder="Select" />
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden pr-1">
+              <SelectValue placeholder="Select" className="min-w-0 flex-1 truncate text-left" />
+              {parsedCarrier && (
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold tracking-tight',
+                    carrierTypeLabelClass(parsedCarrier.type),
+                  )}
+                >
+                  {parsedCarrier.type === 'Merukazim' ? 'Merukazim' : 'Bulk'}
+                </span>
+              )}
+            </div>
           </SelectTrigger>
           <SelectContent>
             <SelectGroup>
@@ -372,22 +407,13 @@ export default function ConsolidatedShipmentForm({
             </SelectGroup>
           </SelectContent>
         </Select>
-        {parsedCarrier && (
-          <p className="text-sm text-[rgba(0,0,0,0.6)]">
-            Carrier Type:{' '}
-            <span className="font-medium text-[rgba(0,0,0,0.87)]">
-              {parsedCarrier.type === 'Merukazim' ? 'Merukazim' : 'Bulk'}
-            </span>
-          </p>
-        )}
       </div>
 
       {parsedCarrier?.type === 'Merukazim' && (
-        <div className="grid grid-cols-1 gap-4 pt-2 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="mb-2 flex items-center gap-2 font-medium">
-              <MapPin className="h-4 w-4" />
-              Destination Country <span className="text-red-500">*</span>
+            <label className="mb-2 block font-medium">
+              Destination Country <span className="text-[rgba(0,0,0,0.87)]">*</span>
             </label>
             <Select
               value={merukazimDestination || undefined}
@@ -407,9 +433,8 @@ export default function ConsolidatedShipmentForm({
             </Select>
           </div>
           <div>
-            <label className="mb-2 flex items-center gap-2 font-medium">
-              <Truck className="h-4 w-4" />
-              Shipping Route <span className="text-red-500">*</span>
+            <label className="mb-2 block font-medium">
+              Shipping Route <span className="text-[rgba(0,0,0,0.87)]">*</span>
             </label>
             <Select
               value={shippingRoute || undefined}
@@ -437,7 +462,16 @@ export default function ConsolidatedShipmentForm({
 
   const packsSection =
     variant === 'drawer' ? (
-      <div className="flex min-h-[280px] flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-[#fafafa] p-6">
+      !showPacksAndScan ? (
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl bg-[#fafafa] p-6 text-center">
+          <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
+            {!parsedCarrier
+              ? 'Select a carrier to scan orders.'
+              : 'Select destination country and shipping route to scan orders.'}
+          </p>
+        </div>
+      ) : (
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-[#fafafa] p-6">
         <div className="flex flex-wrap items-center gap-2">
           {packs.map((pack) => (
             <button
@@ -479,10 +513,7 @@ export default function ConsolidatedShipmentForm({
         </div>
 
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <ListChecks className="h-6 w-6 text-[rgba(0,0,0,0.87)]" />
-            <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Orders</span>
-          </div>
+          <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Orders</span>
           <span className="text-base text-[rgba(0,0,0,0.6)]">{totalScanned} items</span>
         </div>
 
@@ -499,10 +530,10 @@ export default function ConsolidatedShipmentForm({
                 className="border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
               />
             </div>
-            <div className="flex min-h-[200px] flex-1 flex-col overflow-y-auto">
+            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
               {activatePackOrders.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 px-4 py-12">
-                  <ListChecks className="h-12 w-12 text-gray-400" />
+                <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8">
+                  <EmptyOrdersListIcon className="h-12 w-12 text-gray-400" />
                   <p className="text-base text-[rgba(0,0,0,0.6)]">No orders scanned yet</p>
                   <p className="text-sm text-[rgba(0,0,0,0.6)]">Start scanning to add orders</p>
                 </div>
@@ -511,13 +542,21 @@ export default function ConsolidatedShipmentForm({
                   {activatePackOrders.map((order, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between px-3 py-2.5 hover:bg-gray-50"
+                      className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-gray-50"
                     >
-                      <span className="text-sm">{order}</span>
+                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                        <span
+                          className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
+                          aria-hidden
+                        >
+                          <Check className="size-3 text-white" strokeWidth={3} />
+                        </span>
+                        <span className="text-sm font-medium text-[#101828]">{order}</span>
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeOrder(activePack, index)}
-                        className="text-gray-400 hover:text-red-600"
+                        className="shrink-0 text-gray-400 hover:text-gray-600"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -534,6 +573,15 @@ export default function ConsolidatedShipmentForm({
             Orders are locked for this shipment status.
           </div>
         )}
+      </div>
+      )
+    ) : !showPacksAndScan ? (
+      <div className="rounded-lg border bg-white p-6">
+        <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
+          {!parsedCarrier
+            ? 'Select a carrier to scan orders.'
+            : 'Select destination country and shipping route to scan orders.'}
+        </p>
       </div>
     ) : (
       <div className="space-y-4 rounded-lg border bg-white p-6">
@@ -579,10 +627,7 @@ export default function ConsolidatedShipmentForm({
 
         {!isShippedOrPacked && (
           <div>
-            <label className="mb-2 block font-medium">
-              <ListChecks className="mr-2 inline h-4 w-4" />
-              Scan Orders into Pack #{activePack}
-            </label>
+            <label className="mb-2 block font-medium">Scan Orders into Pack #{activePack}</label>
             <div className="flex gap-2">
               <Input
                 value={orderInput}
@@ -612,14 +657,22 @@ export default function ConsolidatedShipmentForm({
               {activatePackOrders.map((order, index) => (
                 <div
                   key={index}
-                  className="group flex items-center justify-between border-b px-4 py-2 last:border-b-0 hover:bg-gray-50"
+                  className="group flex items-center justify-between gap-3 border-b px-4 py-2 last:border-b-0 hover:bg-gray-50"
                 >
-                  <span className="text-sm">{order}</span>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <span
+                      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
+                      aria-hidden
+                    >
+                      <Check className="size-3 text-white" strokeWidth={3} />
+                    </span>
+                    <span className="text-sm font-medium text-[#101828]">{order}</span>
+                  </div>
                   {!isShippedOrPacked && (
                     <button
                       type="button"
                       onClick={() => removeOrder(activePack, index)}
-                      className="text-gray-400 opacity-0 transition-opacity hover:text-red-600 group-hover:opacity-100"
+                      className="shrink-0 text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -638,13 +691,13 @@ export default function ConsolidatedShipmentForm({
 
   if (variant === 'drawer') {
     return (
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 pt-2">
-          {carrierSection}
-          {packsSection}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
+          <div className="shrink-0">{carrierSection}</div>
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{packsSection}</div>
         </div>
 
-        <div className="mt-auto flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
           <Button
             type="button"
             variant="ghost"

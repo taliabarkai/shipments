@@ -10,13 +10,12 @@ import type { DrawerTimelineItem } from './shipmentDrawerSections';
 export interface ConsolidatedDocumentRow {
   id: string;
   label: string;
-  available: boolean;
 }
 
 const DEFAULT_DOCS: ConsolidatedDocumentRow[] = [
-  { id: 'label', label: 'Shipping label', available: true },
-  { id: 'manifest', label: 'Manifest', available: true },
-  { id: 'invoice', label: 'Commercial invoice', available: false },
+  { id: 'label', label: 'Shipping label' },
+  { id: 'manifest', label: 'Manifest' },
+  { id: 'invoice', label: 'Commercial invoice' },
 ];
 
 const DOC_VIEW_TITLES = ['View Label', 'View Manifest', 'View Invoice'] as const;
@@ -153,8 +152,9 @@ export default function ConsolidatedShipmentDetailDrawer({
       <SheetContent
         side="right"
         className="flex h-full w-full max-w-[540px] flex-col gap-0 border-l border-black/12 p-0 sm:max-w-[540px]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <SheetHeader className="shrink-0 space-y-2 border-b border-black/12 px-6 py-6 text-left">
+        <SheetHeader className="shrink-0 gap-1 border-b border-black/12 px-6 py-6 text-left">
           <SheetTitle className="text-base font-medium leading-6 tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
             Consolidated Shipment Details
           </SheetTitle>
@@ -190,7 +190,7 @@ export default function ConsolidatedShipmentDetailDrawer({
                 Shipping Information
               </h3>
               <div className="flex flex-col gap-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
                     Tracking ID
                   </span>
@@ -201,6 +201,7 @@ export default function ConsolidatedShipmentDetailDrawer({
                       onChange={(e) => setTrackingDraft(e.target.value)}
                       onBlur={() => onTrackingIdCommit(shipment.id, trackingDraft.trim())}
                       placeholder="Enter tracking number"
+                      autoFocus={false}
                       className="h-auto min-h-[40px] rounded border border-[rgba(0,0,0,0.23)] bg-white px-3 py-2 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2]"
                     />
                   </div>
@@ -247,19 +248,15 @@ export default function ConsolidatedShipmentDetailDrawer({
                     >
                       <Icon className="size-5 shrink-0 text-[#101828]" aria-hidden />
                       <span className="text-sm leading-5 tracking-tight text-[#101828]">{viewTitle}</span>
-                      {doc.available ? (
-                        <button
-                          type="button"
-                          className="text-xs font-semibold tracking-tight text-[#1976d2] underline decoration-solid underline-offset-2 hover:text-[#1565c0]"
-                          onClick={() => {
-                            console.log('Download', doc.id, shipment.id);
-                          }}
-                        >
-                          Download
-                        </button>
-                      ) : (
-                        <span className="text-xs font-medium tracking-tight text-gray-500">Unavailable</span>
-                      )}
+                      <button
+                        type="button"
+                        className="text-xs font-semibold tracking-tight text-[#1976d2] underline decoration-solid underline-offset-2 hover:text-[#1565c0]"
+                        onClick={() => {
+                          console.log('Download', doc.id, shipment.id);
+                        }}
+                      >
+                        Download
+                      </button>
                     </div>
                   );
                 })}

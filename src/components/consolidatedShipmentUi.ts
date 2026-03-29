@@ -6,7 +6,14 @@ import type {
 
 /** Matches ShipmentsList enrichment: explicit carrierType, else Bulk when destination is em dash. */
 export function displayCarrierType(s: ConsolidatedShipment): ConsolidatedCarrierType | string {
-  return s.carrierType ?? (s.destination === '—' ? 'Bulk' : 'Merukazim');
+  return s.carrierType ?? 'Merukazim';
+}
+
+/** Pill surface for Bulk / Merukazim — same as ConsolidatedShipmentForm carrier trigger. */
+export function carrierTypeLabelClass(type: ConsolidatedCarrierType | string): string {
+  if (type === 'Bulk') return 'bg-sky-100 text-sky-900';
+  if (type === 'Merukazim') return 'bg-pink-100 text-pink-900';
+  return 'bg-gray-100 text-gray-800';
 }
 
 /** Badge classes for status chips — keep in sync with ShipmentsList table cells. */

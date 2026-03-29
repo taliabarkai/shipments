@@ -18,38 +18,33 @@ export const MERUKAZIM_CARRIERS = [
   { id: 'dhl-royal-hu', name: 'DHL Royal HU' },
 ] as const;
 
+/** Merukazim: destination country is GB or UK only (distinct selectable values). */
 export const MERUKAZIM_DESTINATIONS = [
-  { value: 'gb', label: 'GB / United Kingdom', country: 'United Kingdom' },
-  { value: 'us', label: 'US / United States', country: 'United States' },
-  { value: 'de', label: 'DE / Germany', country: 'Germany' },
-  { value: 'fr', label: 'FR / France', country: 'France' },
-  { value: 'ca', label: 'CA / Canada', country: 'Canada' },
-  { value: 'au', label: 'AU / Australia', country: 'Australia' },
+  { value: 'gb', label: 'GB', country: 'GB' },
+  { value: 'uk', label: 'UK', country: 'UK' },
 ] as const;
+
+/** Resolve stored destination string to Merukazim select value (handles legacy `United Kingdom`). */
+export function merukazimDestinationKeyFromDestination(destination: string): string {
+  const match = MERUKAZIM_DESTINATIONS.find((d) => d.country === destination);
+  if (match) return match.value;
+  if (destination === 'United Kingdom') return 'gb';
+  return '';
+}
 
 export const SHIPPING_ROUTES: Record<string, { value: string; label: string }[]> = {
   gb: [
     { value: 'gb-std', label: 'UK Standard — hub sort' },
     { value: 'gb-exp', label: 'UK Express — 48h' },
   ],
-  us: [
-    { value: 'us-east', label: 'US East Coast linehaul' },
-    { value: 'us-west', label: 'US West Coast linehaul' },
-    { value: 'us-central', label: 'US Central hub' },
+  uk: [
+    { value: 'uk-std', label: 'UK Standard — hub sort' },
+    { value: 'uk-exp', label: 'UK Express — 48h' },
   ],
-  de: [
-    { value: 'de-de', label: 'DE Domestic' },
-    { value: 'de-eu', label: 'DE → EU consolidation' },
-  ],
-  fr: [
-    { value: 'fr-dom', label: 'France Domestic' },
-    { value: 'fr-eu', label: 'France → EU' },
-  ],
-  ca: [{ value: 'ca-std', label: 'Canada Standard' }],
-  au: [{ value: 'au-std', label: 'Australia Standard' }],
 };
 
-export const BULK_DESTINATION_PLACEHOLDER = '—';
+/** Shown for new Bulk packs — never blank in the consolidated table. */
+export const BULK_DESTINATION_PLACEHOLDER = 'United States';
 
 export function parseCarrierOption(
   id: string
