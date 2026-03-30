@@ -194,6 +194,16 @@ export default function ConsolidatedShipmentForm({
     return merukazimConfigByCarrierId(merId ?? '')?.destination ?? '';
   }, [parsedCarrier, carrierOptionId]);
 
+  const isShippedOrPacked = Boolean(
+    shipment && (shipment.status === 'Shipped' || shipment.status === 'Packed'),
+  );
+  const hasScannedOrders = useMemo(
+    () => packs.some((p) => p.orders.length > 0),
+    [packs],
+  );
+  /** Carrier cannot change after orders are scanned into this consolidation (or once packed/shipped). */
+  const carrierSelectLocked = isShippedOrPacked || hasScannedOrders;
+
   useEffect(() => {
     if (shipment) {
       setCarrierOptionId(findCarrierOptionId(shipment));
@@ -247,6 +257,7 @@ export default function ConsolidatedShipmentForm({
   }, [isDirty, onDirtyChange]);
 
   const handleCarrierChange = (value: string) => {
+    if (carrierSelectLocked) return;
     setCarrierOptionId(value);
   };
 
@@ -419,7 +430,6 @@ export default function ConsolidatedShipmentForm({
 
   const activatePackOrders = packs.find((p) => p.id === activePack)?.orders || [];
   const totalScanned = packs.reduce((n, p) => n + p.orders.length, 0);
-  const isShippedOrPacked = shipment && (shipment.status === 'Shipped' || shipment.status === 'Packed');
   const canPack =
     detailsComplete &&
     packs.some((pack) => pack.orders.length > 0) &&
@@ -444,7 +454,7 @@ export default function ConsolidatedShipmentForm({
         <Select
           value={carrierOptionId || undefined}
           onValueChange={handleCarrierChange}
-          disabled={!!isShippedOrPacked}
+          disabled={carrierSelectLocked}
         >
           <SelectTrigger
             className={
