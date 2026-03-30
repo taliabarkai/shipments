@@ -101,13 +101,6 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                   </div>
 
                   <div>
-                    <label className="text-sm text-gray-500 block mb-2">Carrier type</label>
-                    <span className="text-lg">
-                      {inferredConsolidatedCarrierType(shipment)}
-                    </span>
-                  </div>
-
-                  <div>
                     <label className="text-sm text-gray-500 block mb-2">Carrier</label>
                     <div className="flex items-center gap-2">
                       <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
@@ -143,6 +136,11 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                         </Button>
                       </div>
                     )}
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-500 block mb-2">Type</label>
+                    <span className="text-lg">{inferredConsolidatedCarrierType(shipment)}</span>
                   </div>
 
                   <div>

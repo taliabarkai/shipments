@@ -166,12 +166,6 @@ export default function ConsolidatedShipmentDetailDrawer({
           <p className="text-sm leading-5 tracking-tight text-[#6a7282]">
             Consolidation ID: {shipment.id}
           </p>
-          <div className="flex w-full gap-2">
-            <span className="w-[50px] shrink-0 text-sm leading-5 tracking-tight text-[#6a7282]">Type:</span>
-            <span className="text-sm font-medium leading-5 tracking-tight text-[#0a0a0a]">
-              {displayCarrierType(shipment)}
-            </span>
-          </div>
           <div className="flex h-7 items-center gap-2">
             <span className="w-[50px] shrink-0 text-sm leading-5 tracking-tight text-[#6a7282]">Status:</span>
             <span
@@ -212,6 +206,14 @@ export default function ConsolidatedShipmentDetailDrawer({
                       className="h-auto min-h-[40px] rounded border border-[rgba(0,0,0,0.23)] bg-white px-3 py-2 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2]"
                     />
                   </div>
+                </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                  <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                    Type
+                  </span>
+                  <span className="text-sm leading-5 tracking-tight text-[#101828]">
+                    {displayCarrierType(shipment)}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
