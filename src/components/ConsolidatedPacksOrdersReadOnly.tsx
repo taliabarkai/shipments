@@ -78,8 +78,8 @@ export default function ConsolidatedPacksOrdersReadOnly({
                 onClick={() => setActivePackId(pack.id)}
                 className={`rounded-full px-3 py-1.5 text-sm transition-colors ${
                   activePackId === pack.id
-                    ? 'bg-[#1976d2] text-white'
-                    : 'bg-gray-200/80 text-gray-800 hover:bg-gray-200'
+                    ? 'bg-gray-200 font-medium text-gray-900'
+                    : 'bg-gray-100 text-gray-800 hover:bg-gray-200/80'
                 }`}
               >
                 Pack #{pack.id} ({pack.orders.length})
