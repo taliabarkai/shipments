@@ -2,7 +2,20 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { X, ArrowLeft, Plus, Scan, Check } from 'lucide-react';
+import {
+  X,
+  ArrowLeft,
+  Plus,
+  Scan,
+  Check,
+  CheckCircle2,
+  CircleAlert,
+  MapPin,
+  Package,
+  Link2,
+  Building2,
+  AlertTriangle,
+} from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -23,6 +36,79 @@ import {
   parseCarrierOption,
   findCarrierOptionId,
 } from './consolidatedShipmentConstants';
+import {
+  validateOrderScan,
+  type ScanFeedback,
+} from './consolidatedScanValidation';
+
+function ScanFeedbackBanner({
+  feedback,
+  onDismiss,
+}: {
+  feedback: ScanFeedback | null;
+  onDismiss: () => void;
+}) {
+  if (!feedback) return null;
+
+  if (feedback.variant === 'success') {
+    return (
+      <div className="flex items-center gap-2 border-b border-green-200 bg-[#ecfdf3] px-3 py-2.5">
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-[#16a34a]" aria-hidden />
+        <p className="text-sm font-medium leading-5 text-[#166534]">{feedback.message}</p>
+      </div>
+    );
+  }
+
+  if (feedback.variant === 'warning') {
+    const Icon = feedback.style === 'facility' ? Building2 : AlertTriangle;
+    return (
+      <div className="relative flex gap-2 border-b border-amber-200 bg-amber-50 px-3 py-3 pr-9">
+        <Icon className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-amber-900">{feedback.title}</p>
+          <p className="text-sm leading-5 text-amber-950/90">{feedback.message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="absolute right-2 top-2 rounded p-0.5 text-amber-800/70 hover:bg-amber-100 hover:text-amber-900"
+          aria-label="Dismiss"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    );
+  }
+
+  const icon =
+    feedback.style === 'status' ? (
+      <Package className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden />
+    ) : feedback.style === 'not-found' ? (
+      <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden />
+    ) : feedback.style === 'destination' ? (
+      <MapPin className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden />
+    ) : (
+      <Link2 className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden />
+    );
+
+  return (
+    <div className="relative flex gap-2 border-b border-red-100 bg-red-50 px-3 py-3 pr-9">
+      {icon}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-red-950">{feedback.title}</p>
+        <p className="text-sm leading-5 text-red-900/95">{feedback.message}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="absolute right-2 top-2 rounded p-0.5 text-red-800/70 hover:bg-red-100 hover:text-red-950"
+        aria-label="Dismiss"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
 
 /** Blocky list-in-frame icon (filled bullets + lines), matches empty-state reference. */
 function EmptyOrdersListIcon({ className }: { className?: string }) {
@@ -87,6 +173,8 @@ export default function ConsolidatedShipmentForm({
   const [packs, setPacks] = useState<Pack[]>([{ id: 1, orders: [] }]);
   const [activePack, setActivePack] = useState(1);
   const [orderInput, setOrderInput] = useState('');
+  const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
+  const [orderScannedAt, setOrderScannedAt] = useState<Record<string, number>>({});
   const [tempShipmentId] = useState(() => shipment?.id ?? `${Date.now()}`);
 
   const parsedCarrier = useMemo(
@@ -98,6 +186,13 @@ export default function ConsolidatedShipmentForm({
 
   /** Hide scan until carrier is chosen. */
   const showPacksAndScan = detailsComplete;
+
+  const consolidationLaneDest = useMemo(() => {
+    if (!parsedCarrier) return BULK_DESTINATION_STORED;
+    if (parsedCarrier.type === 'Bulk') return BULK_DESTINATION_STORED;
+    const [, merId] = carrierOptionId.split('::');
+    return merukazimConfigByCarrierId(merId ?? '')?.destination ?? '';
+  }, [parsedCarrier, carrierOptionId]);
 
   useEffect(() => {
     if (shipment) {
@@ -111,13 +206,31 @@ export default function ConsolidatedShipmentForm({
         setPacks([{ id: 1, orders: [] }]);
       }
       setActivePack(1);
+      if (shipment.orders?.length) {
+        const meta: Record<string, number> = {};
+        shipment.orders.forEach((o, i) => {
+          meta[o] = Date.now() - i * 1000;
+        });
+        setOrderScannedAt(meta);
+      } else {
+        setOrderScannedAt({});
+      }
+      setScanFeedback(null);
     } else {
       setCarrierOptionId('');
       setPacks([{ id: 1, orders: [] }]);
       setActivePack(1);
       setOrderInput('');
+      setOrderScannedAt({});
+      setScanFeedback(null);
     }
   }, [shipment]);
+
+  useEffect(() => {
+    if (scanFeedback?.variant !== 'success') return;
+    const t = window.setTimeout(() => setScanFeedback(null), 4000);
+    return () => window.clearTimeout(t);
+  }, [scanFeedback]);
 
   const isDirty = useMemo(
     () =>
@@ -137,17 +250,37 @@ export default function ConsolidatedShipmentForm({
     setCarrierOptionId(value);
   };
 
-  const handleScanOrder = () => {
-    if (orderInput.trim()) {
-      const newPacks = packs.map((pack) => {
-        if (pack.id === activePack) {
-          return { ...pack, orders: [...pack.orders, orderInput.trim()] };
-        }
-        return pack;
-      });
-      setPacks(newPacks);
-      setOrderInput('');
+  const handleOrderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setOrderInput(e.target.value);
+    if (scanFeedback && scanFeedback.variant !== 'success') {
+      setScanFeedback(null);
     }
+  };
+
+  const handleScanOrder = () => {
+    const id = orderInput.trim();
+    if (!id || !parsedCarrier || !detailsComplete) return;
+
+    const alreadyScannedIds = new Set(packs.flatMap((p) => p.orders));
+    const feedback = validateOrderScan(id, {
+      carrierType: parsedCarrier.type,
+      consolidationDestination: consolidationLaneDest,
+      alreadyScannedIds,
+    });
+
+    if (feedback) {
+      setScanFeedback(feedback);
+      return;
+    }
+
+    setScanFeedback({ variant: 'success', message: `Shipment ${id} added successfully` });
+    setPacks(
+      packs.map((pack) =>
+        pack.id === activePack ? { ...pack, orders: [...pack.orders, id] } : pack
+      )
+    );
+    setOrderScannedAt((prev) => ({ ...prev, [id]: Date.now() }));
+    setOrderInput('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -157,16 +290,35 @@ export default function ConsolidatedShipmentForm({
   };
 
   const removeOrder = (packId: number, orderIndex: number) => {
-    const newPacks = packs.map((pack) => {
-      if (pack.id === packId) {
+    const pack = packs.find((p) => p.id === packId);
+    const removedId = pack?.orders[orderIndex];
+    const newPacks = packs.map((p) => {
+      if (p.id === packId) {
         return {
-          ...pack,
-          orders: pack.orders.filter((_, index) => index !== orderIndex),
+          ...p,
+          orders: p.orders.filter((_, index) => index !== orderIndex),
         };
       }
-      return pack;
+      return p;
     });
     setPacks(newPacks);
+    if (removedId) {
+      setOrderScannedAt((prev) => {
+        const next = { ...prev };
+        delete next[removedId];
+        return next;
+      });
+    }
+  };
+
+  const formatScannedTime = (orderId: string) => {
+    const ts = orderScannedAt[orderId];
+    if (!ts) return '\u00a0';
+    return new Date(ts).toLocaleTimeString(undefined, {
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    });
   };
 
   const addNewPack = () => {
@@ -204,9 +356,6 @@ export default function ConsolidatedShipmentForm({
     const parsed = parseCarrierOption(carrierOptionId);
     if (!parsed) return null;
 
-    const packingFacilities = ['Thailand', 'Kiryat Gat', 'Hungary', 'Nazareth'];
-    const randomFacility = packingFacilities[Math.floor(Math.random() * packingFacilities.length)];
-
     let destination: string;
 
     if (parsed.type === 'Bulk') {
@@ -219,7 +368,7 @@ export default function ConsolidatedShipmentForm({
 
     return {
       id: tempShipmentId,
-      packingFacility: shipment?.packingFacility || randomFacility,
+      packingFacility: shipment?.packingFacility ?? 'Kiryat Gat',
       destination,
       carrier: parsed.carrierName,
       carrierType: parsed.type,
@@ -397,18 +546,19 @@ export default function ConsolidatedShipmentForm({
         </div>
 
         {!isShippedOrPacked && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white">
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white focus-within:border-[#1976d2] focus-within:ring-1 focus-within:ring-[#1976d2]/30">
             <div className="flex items-center gap-3 border-b border-[rgba(0,0,0,0.12)] px-3 py-3">
-              <Scan className="h-6 w-6 shrink-0 text-gray-500" />
+              <Scan className="h-6 w-6 shrink-0 text-[#1976d2]" />
               <Input
                 value={orderInput}
-                onChange={(e) => setOrderInput(e.target.value)}
+                onChange={handleOrderInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Scan or Enter Order ID"
                 disabled={!detailsComplete}
                 className="border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
               />
             </div>
+            <ScanFeedbackBanner feedback={scanFeedback} onDismiss={() => setScanFeedback(null)} />
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
               {activatePackOrders.length === 0 ? (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8">
@@ -423,14 +573,19 @@ export default function ConsolidatedShipmentForm({
                       key={index}
                       className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-gray-50"
                     >
-                      <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
                         <span
-                          className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
+                          className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
                           aria-hidden
                         >
                           <Check className="size-3 text-white" strokeWidth={3} />
                         </span>
-                        <span className="text-sm font-medium text-[#101828]">{order}</span>
+                        <div className="min-w-0">
+                          <span className="text-sm font-medium text-[#101828]">{order}</span>
+                          <span className="block text-xs leading-4 text-[#6a7282]">
+                            {formatScannedTime(order)}
+                          </span>
+                        </div>
                       </div>
                       <button
                         type="button"
@@ -503,12 +658,12 @@ export default function ConsolidatedShipmentForm({
         </div>
 
         {!isShippedOrPacked && (
-          <div>
+          <div className="space-y-2">
             <label className="mb-2 block font-medium">Scan Orders into Pack #{activePack}</label>
             <div className="flex gap-2">
               <Input
                 value={orderInput}
-                onChange={(e) => setOrderInput(e.target.value)}
+                onChange={handleOrderInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Scan or type order ID"
                 disabled={!detailsComplete}
@@ -522,6 +677,7 @@ export default function ConsolidatedShipmentForm({
                 Add
               </Button>
             </div>
+            <ScanFeedbackBanner feedback={scanFeedback} onDismiss={() => setScanFeedback(null)} />
           </div>
         )}
 
@@ -536,14 +692,17 @@ export default function ConsolidatedShipmentForm({
                   key={index}
                   className="group flex items-center justify-between gap-3 border-b px-4 py-2 last:border-b-0 hover:bg-gray-50"
                 >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <div className="flex min-w-0 flex-1 items-start gap-3">
                     <span
-                      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
+                      className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#4CAF50]"
                       aria-hidden
                     >
                       <Check className="size-3 text-white" strokeWidth={3} />
                     </span>
-                    <span className="text-sm font-medium text-[#101828]">{order}</span>
+                    <div className="min-w-0">
+                      <span className="text-sm font-medium text-[#101828]">{order}</span>
+                      <span className="block text-xs text-gray-500">{formatScannedTime(order)}</span>
+                    </div>
                   </div>
                   {!isShippedOrPacked && (
                     <button
