@@ -32,6 +32,7 @@ import {
   BULK_CARRIERS,
   MERUKAZIM_CARRIERS,
   BULK_DESTINATION_STORED,
+  MERUKAZIM_DHL_CARRIER_ID,
   merukazimConfigByCarrierId,
   parseCarrierOption,
   findCarrierOptionId,
@@ -176,6 +177,7 @@ export default function ConsolidatedShipmentForm({
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
   const [orderScannedAt, setOrderScannedAt] = useState<Record<string, number>>({});
   const [tempShipmentId] = useState(() => shipment?.id ?? `${Date.now()}`);
+  const [merukazimDhlDestination, setMerukazimDhlDestination] = useState<'US' | 'GB'>('US');
 
   const parsedCarrier = useMemo(
     () => (carrierOptionId ? parseCarrierOption(carrierOptionId) : null),
@@ -187,12 +189,23 @@ export default function ConsolidatedShipmentForm({
   /** Hide scan until carrier is chosen. */
   const showPacksAndScan = detailsComplete;
 
+  const merukazimCarrierIdFromOption = useMemo(() => {
+    const [, id] = carrierOptionId.split('::');
+    return id ?? '';
+  }, [carrierOptionId]);
+
+  const showMerukazimDhlDestinationSelect = useMemo(
+    () => parsedCarrier?.type === 'Merukazim' && merukazimCarrierIdFromOption === MERUKAZIM_DHL_CARRIER_ID,
+    [parsedCarrier?.type, merukazimCarrierIdFromOption],
+  );
+
   const consolidationLaneDest = useMemo(() => {
     if (!parsedCarrier) return BULK_DESTINATION_STORED;
     if (parsedCarrier.type === 'Bulk') return BULK_DESTINATION_STORED;
     const [, merId] = carrierOptionId.split('::');
+    if (merId === MERUKAZIM_DHL_CARRIER_ID) return merukazimDhlDestination;
     return merukazimConfigByCarrierId(merId ?? '')?.destination ?? '';
-  }, [parsedCarrier, carrierOptionId]);
+  }, [parsedCarrier, carrierOptionId, merukazimDhlDestination]);
 
   const isShippedOrPacked = Boolean(
     shipment && (shipment.status === 'Shipped' || shipment.status === 'Packed'),
@@ -206,7 +219,15 @@ export default function ConsolidatedShipmentForm({
 
   useEffect(() => {
     if (shipment) {
-      setCarrierOptionId(findCarrierOptionId(shipment));
+      const optId = findCarrierOptionId(shipment);
+      setCarrierOptionId(optId);
+      const merId = optId.split('::')[1];
+      if (merId === MERUKAZIM_DHL_CARRIER_ID) {
+        const dest = shipment.destination?.trim();
+        setMerukazimDhlDestination(dest === 'GB' ? 'GB' : 'US');
+      } else {
+        setMerukazimDhlDestination('US');
+      }
 
       if (shipment.packs && shipment.packs.length > 0) {
         setPacks(shipment.packs.map((p) => ({ id: p.id, orders: [...p.orders] })));
@@ -228,6 +249,7 @@ export default function ConsolidatedShipmentForm({
       setScanFeedback(null);
     } else {
       setCarrierOptionId('');
+      setMerukazimDhlDestination('US');
       setPacks([{ id: 1, orders: [] }]);
       setActivePack(1);
       setOrderInput('');
@@ -373,8 +395,12 @@ export default function ConsolidatedShipmentForm({
       destination = BULK_DESTINATION_STORED;
     } else {
       const [, merId] = carrierOptionId.split('::');
-      const cfg = merId ? merukazimConfigByCarrierId(merId) : undefined;
-      destination = cfg?.destination ?? '';
+      if (merId === MERUKAZIM_DHL_CARRIER_ID) {
+        destination = merukazimDhlDestination;
+      } else {
+        const cfg = merId ? merukazimConfigByCarrierId(merId) : undefined;
+        destination = cfg?.destination ?? '';
+      }
     }
 
     return {
@@ -390,7 +416,7 @@ export default function ConsolidatedShipmentForm({
       hasCancelledItems: shipment?.hasCancelledItems || false,
       cancelledOrders: shipment?.cancelledOrders || [],
     };
-  }, [carrierOptionId, packs, shipment, tempShipmentId]);
+  }, [carrierOptionId, merukazimDhlDestination, packs, shipment, tempShipmentId]);
 
   const handlePack = () => {
     if (!detailsComplete || packs.every((pack) => pack.orders.length === 0)) {
@@ -497,6 +523,38 @@ export default function ConsolidatedShipmentForm({
           </SelectContent>
         </Select>
       </div>
+
+      {showMerukazimDhlDestinationSelect && (
+        <div className="flex flex-col gap-2">
+          <label
+            className={`mb-0 ${variant === 'drawer' ? 'text-base font-medium text-[rgba(0,0,0,0.87)]' : 'font-medium block'}`}
+          >
+            Destination
+          </label>
+          <Select
+            value={merukazimDhlDestination}
+            onValueChange={(v) => {
+              if (carrierSelectLocked) return;
+              setMerukazimDhlDestination(v as 'US' | 'GB');
+            }}
+            disabled={carrierSelectLocked}
+          >
+            <SelectTrigger
+              className={
+                variant === 'drawer'
+                  ? 'h-14 w-full min-w-0 border-[rgba(0,0,0,0.23)] bg-white [&_[data-slot=select-value]]:min-w-0'
+                  : 'h-10 w-full min-w-0 [&_[data-slot=select-value]]:min-w-0'
+              }
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="US">United States (US)</SelectItem>
+              <SelectItem value="GB">United Kingdom (GB)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
     </div>
   );
 

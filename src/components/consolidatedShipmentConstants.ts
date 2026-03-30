@@ -15,8 +15,12 @@ export const BULK_CARRIERS = [
   { id: 'mailog', name: 'Mailog' },
 ] as const;
 
+/** Merukazim row id for DHL — lane destination (US vs GB) is chosen in the create form, not fixed here. */
+export const MERUKAZIM_DHL_CARRIER_ID = 'dhl' as const;
+
 /** Merukazim: carrier defines origin → destination; no separate route in the product model. */
 export const MERUKAZIM_CARRIERS = [
+  /** Default destination `US` is the form default; user may select GB when consolidating. */
   { id: 'dhl', name: 'DHL', origin: 'IL', destination: 'US' },
   { id: 'dhl-royal-hu', name: 'DHL Royal HU', origin: 'HU', destination: 'GB' },
 ] as const;

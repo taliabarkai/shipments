@@ -21,10 +21,10 @@ export function displayDestination(s: ConsolidatedShipment): string {
   if (inferredConsolidatedCarrierType(s) === 'Bulk') {
     return BULK_DESTINATION_STORED;
   }
-  const log = merukazimLogisticsByCarrierName(s.carrier);
-  if (log) return log.destination;
   const d = s.destination?.trim() ?? '';
   if (d === 'US' || d === 'GB') return d;
+  const log = merukazimLogisticsByCarrierName(s.carrier);
+  if (log) return log.destination;
   return '—';
 }
 
