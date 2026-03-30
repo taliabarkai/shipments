@@ -1,4 +1,8 @@
-import type { ConsolidatedCarrierType, ConsolidatedShipment } from './ConsolidatedShipmentsApp';
+import type {
+  ConsolidatedCarrierType,
+  ConsolidatedPack,
+  ConsolidatedShipment,
+} from './ConsolidatedShipmentsApp';
 
 /** Bulk carriers — facility-configured list */
 export const BULK_CARRIERS = [
@@ -11,40 +15,53 @@ export const BULK_CARRIERS = [
   { id: 'mailog', name: 'Mailog' },
 ] as const;
 
-/** Merukazim carriers */
+/** Merukazim: carrier defines origin → destination; no separate route in the product model. */
 export const MERUKAZIM_CARRIERS = [
-  { id: 'dhl', name: 'DHL' },
-  { id: 'dhl-royal', name: 'DHL Royal' },
-  { id: 'dhl-royal-hu', name: 'DHL Royal HU' },
+  { id: 'dhl', name: 'DHL', origin: 'IL', destination: 'US' },
+  { id: 'dhl-royal-hu', name: 'DHL Royal HU', origin: 'HU', destination: 'GB' },
 ] as const;
 
-/** Merukazim: destination country is GB or UK only (distinct selectable values). */
-export const MERUKAZIM_DESTINATIONS = [
-  { value: 'gb', label: 'GB', country: 'GB' },
-  { value: 'uk', label: 'UK', country: 'UK' },
-] as const;
+export type MerukazimCarrierConfig = (typeof MERUKAZIM_CARRIERS)[number];
 
-/** Resolve stored destination string to Merukazim select value (handles legacy `United Kingdom`). */
-export function merukazimDestinationKeyFromDestination(destination: string): string {
-  const match = MERUKAZIM_DESTINATIONS.find((d) => d.country === destination);
-  if (match) return match.value;
-  if (destination === 'United Kingdom') return 'gb';
-  return '';
+/** Stored destination for bulk consolidated rows (multiple EU destinations — single label in UI). */
+export const BULK_DESTINATION_STORED = 'EU';
+
+/** @deprecated Use BULK_DESTINATION_STORED */
+export const BULK_DESTINATION_PLACEHOLDER = BULK_DESTINATION_STORED;
+
+export function merukazimLogisticsByCarrierName(
+  carrierName: string
+): { origin: string; destination: string } | null {
+  const name = carrierName?.trim() ?? '';
+  const row =
+    MERUKAZIM_CARRIERS.find((m) => m.name === name) ??
+    (name === 'Dhl' ? MERUKAZIM_CARRIERS.find((m) => m.id === 'dhl') : undefined);
+  return row ? { origin: row.origin, destination: row.destination } : null;
 }
 
-export const SHIPPING_ROUTES: Record<string, { value: string; label: string }[]> = {
-  gb: [
-    { value: 'gb-std', label: 'UK Standard — hub sort' },
-    { value: 'gb-exp', label: 'UK Express — 48h' },
-  ],
-  uk: [
-    { value: 'uk-std', label: 'UK Standard — hub sort' },
-    { value: 'uk-exp', label: 'UK Express — 48h' },
-  ],
-};
+export function merukazimConfigByCarrierId(carrierId: string): MerukazimCarrierConfig | undefined {
+  return MERUKAZIM_CARRIERS.find((m) => m.id === carrierId);
+}
 
-/** Shown for new Bulk packs — never blank in the consolidated table. */
-export const BULK_DESTINATION_PLACEHOLDER = 'United States';
+/** Carrier name matches a Merukazim option in the create/edit dropdown (exact label). */
+export function carrierNameIsMerukazim(carrier: string): boolean {
+  const name = carrier?.trim() ?? '';
+  if (!name) return false;
+  if (MERUKAZIM_CARRIERS.some((m) => m.name === name)) return true;
+  if (name === 'Dhl') return true;
+  return false;
+}
+
+/**
+ * Bulk vs Merukazim for UI: explicit `carrierType` wins; otherwise infer from `carrier` name
+ * so only Merukazim-listed carriers get lane-specific destination (all others behave as Bulk / EU).
+ */
+export function inferredConsolidatedCarrierType(s: ConsolidatedShipment): ConsolidatedCarrierType {
+  if (s.carrierType === 'Bulk' || s.carrierType === 'Merukazim') {
+    return s.carrierType;
+  }
+  return carrierNameIsMerukazim(s.carrier) ? 'Merukazim' : 'Bulk';
+}
 
 export function parseCarrierOption(
   id: string
@@ -60,6 +77,14 @@ export function parseCarrierOption(
     return c ? { type: 'Merukazim', carrierName: c.name } : null;
   }
   return null;
+}
+
+/** Packs for read-only / table; falls back to one pack containing all `orders`. */
+export function normalizedConsolidatedPacks(s: ConsolidatedShipment): ConsolidatedPack[] {
+  if (s.packs && s.packs.length > 0) {
+    return s.packs.map((p) => ({ id: p.id, orders: [...p.orders] }));
+  }
+  return [{ id: 1, orders: [...s.orders] }];
 }
 
 export function findCarrierOptionId(s: ConsolidatedShipment): string {

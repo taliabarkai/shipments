@@ -21,7 +21,7 @@ const DEFAULT_SHIPPING_ROUTE_COLUMNS = [
   { id: 'id', label: 'ID', visible: true },
   { id: 'packingFacility', label: 'Packing Facility', visible: true },
   { id: 'fromCountryCode', label: 'From Country Code', visible: true },
-  { id: 'toCountryCodes', label: 'To Country Codes', visible: true },
+  { id: 'toCountryCodes', label: 'Destination country', visible: true },
   { id: 'carrierServiceType', label: 'Carrier Service Type', visible: true },
   { id: 'packingTimeFrame', label: 'Packing Time Frame', visible: false },
   { id: 'shippingTimeFrame', label: 'Shipping Time Frame', visible: true },
@@ -55,6 +55,8 @@ export interface ShippingRoute {
   vat?: string;
   discount?: string;
   agentCommissionType?: string;
+  carrierName?: string;
+  originalCarrierServiceType?: string;
 }
 
 interface ShippingRoutesTableProps {

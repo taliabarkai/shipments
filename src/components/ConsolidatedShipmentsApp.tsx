@@ -6,9 +6,15 @@ import ConsolidatedShipmentDetailDrawer from './ConsolidatedShipmentDetailDrawer
 import SuccessNotification from './SuccessNotification';
 import Header from '../imports/Header';
 
-export type ShipmentStatus = 'Draft' | 'Packed' | 'Shipped';
+export type ShipmentStatus = 'Packed' | 'Shipped';
 
 export type ConsolidatedCarrierType = 'Bulk' | 'Merukazim';
+
+/** Scanned orders grouped by pack (creation + item view). */
+export interface ConsolidatedPack {
+  id: number;
+  orders: string[];
+}
 
 export interface ConsolidatedShipment {
   id: string;
@@ -23,6 +29,10 @@ export interface ConsolidatedShipment {
   totalValue: string;
   status: ShipmentStatus;
   orders: string[];
+  /**
+   * Pack structure for display and editing. When omitted, all `orders` are shown as a single pack.
+   */
+  packs?: ConsolidatedPack[];
   dateCreated: string;
   /** Optional; UI can derive mock values when absent */
   totalShipments?: number;
@@ -56,19 +66,21 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133181',
       packingFacility: 'Kiryat Gat',
-      destination: 'United States',
+      destination: '—',
       carrier: 'FedEx',
       carrierType: 'Bulk',
       trackingId: '1Z12345E0',
       totalValue: '$15,420.50',
       status: 'Shipped',
       orders: [
-        // Pack #1: 15 orders
         ...Array.from({ length: 15 }, (_, i) => `ORD-${1000 + i}`),
-        // Pack #2: 20 orders
         ...Array.from({ length: 20 }, (_, i) => `ORD-${1015 + i}`),
-        // Pack #3: 7 orders
-        ...Array.from({ length: 7 }, (_, i) => `ORD-${1035 + i}`)
+        ...Array.from({ length: 7 }, (_, i) => `ORD-${1035 + i}`),
+      ],
+      packs: [
+        { id: 1, orders: Array.from({ length: 15 }, (_, i) => `ORD-${1000 + i}`) },
+        { id: 2, orders: Array.from({ length: 20 }, (_, i) => `ORD-${1015 + i}`) },
+        { id: 3, orders: Array.from({ length: 7 }, (_, i) => `ORD-${1035 + i}`) },
       ],
       dateCreated: '10/1/2023'
     },
@@ -79,16 +91,14 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrier: 'DHL EU',
       trackingId: '1Z12345E1',
       totalValue: '$18,320.75',
-      status: 'Draft',
+      status: 'Packed',
       orders: [
-        // Pack #1: 8 orders
-        ...Array.from({ length: 8 }, (_, i) => `ORD-${1100 + i}`),
-        // Pack #2: 12 orders
-        ...Array.from({ length: 12 }, (_, i) => `ORD-${1108 + i}`),
-        // Pack #3: 6 orders
-        ...Array.from({ length: 6 }, (_, i) => `ORD-${1120 + i}`),
-        // Pack #4: 4 orders
-        ...Array.from({ length: 4 }, (_, i) => `ORD-${1126 + i}`)
+        ...Array.from({ length: 12 }, (_, i) => `ORD-${1100 + i}`),
+        ...Array.from({ length: 18 }, (_, i) => `ORD-${1112 + i}`),
+      ],
+      packs: [
+        { id: 1, orders: Array.from({ length: 12 }, (_, i) => `ORD-${1100 + i}`) },
+        { id: 2, orders: Array.from({ length: 18 }, (_, i) => `ORD-${1112 + i}`) },
       ],
       hasCancelledItems: true,
       cancelledOrders: ['ORD-1105'],
@@ -102,7 +112,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrierType: 'Bulk',
       trackingId: '1Z12345E2',
       totalValue: '$12,890.25',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 28 }, (_, i) => `ORD-${1200 + i}`),
       dateCreated: '10/3/2023'
     },
@@ -121,9 +131,8 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       id: '273133185',
       packingFacility: 'Kiryat Gat',
       destination: 'GB',
-      carrier: 'UPS',
+      carrier: 'DHL Royal HU',
       carrierType: 'Merukazim',
-      shippingRoute: 'UK Standard — hub sort',
       trackingId: '1Z12345E4',
       totalValue: '$19,420.50',
       status: 'Packed',
@@ -133,10 +142,9 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133186',
       packingFacility: 'Thailand',
-      destination: 'UK',
-      carrier: 'FedEx',
+      destination: 'US',
+      carrier: 'DHL',
       carrierType: 'Merukazim',
-      shippingRoute: 'UK Express — 48h',
       trackingId: '1Z12345E5',
       totalValue: '$16,780.30',
       status: 'Packed',
@@ -172,19 +180,19 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrier: 'DHL US',
       trackingId: '1Z12345E8',
       totalValue: '$25,340.80',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 45 }, (_, i) => `ORD-${1800 + i}`),
       dateCreated: '10/9/2023'
     },
     {
       id: '273133190',
       packingFacility: 'Kiryat Gat',
-      destination: 'Canada',
+      destination: '—',
       carrier: 'FedEx',
       carrierType: 'Bulk',
       trackingId: '1Z12345E9',
       totalValue: '$17,650.00',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 27 }, (_, i) => `ORD-${1900 + i}`),
       dateCreated: '10/10/2023'
     },
@@ -195,7 +203,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrier: 'DHL EU',
       trackingId: '1Z12345F0',
       totalValue: '$21,230.40',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 35 }, (_, i) => `ORD-${2000 + i}`),
       dateCreated: '10/11/2023'
     },
@@ -239,19 +247,19 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrier: 'Royal Mail',
       trackingId: '1Z12345F4',
       totalValue: '$16,340.80',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 29 }, (_, i) => `ORD-${2400 + i}`),
       dateCreated: '10/15/2023'
     },
     {
       id: '273133196',
       packingFacility: 'Hungary',
-      destination: 'Netherlands',
+      destination: '—',
       carrier: 'DHL EU',
       carrierType: 'Bulk',
       trackingId: '1Z12345F5',
       totalValue: '$18,770.25',
-      status: 'Draft',
+      status: 'Packed',
       orders: Array.from({ length: 27 }, (_, i) => `ORD-${2500 + i}`),
       dateCreated: '10/16/2023'
     },
@@ -269,7 +277,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     {
       id: '273133198',
       packingFacility: 'Kiryat Gat',
-      destination: 'Australia',
+      destination: '—',
       carrier: 'UPS',
       carrierType: 'Bulk',
       trackingId: '1Z12345F7',

@@ -3,10 +3,29 @@ import type {
   ConsolidatedShipment,
   ShipmentStatus,
 } from './ConsolidatedShipmentsApp';
+import {
+  BULK_DESTINATION_STORED,
+  inferredConsolidatedCarrierType,
+  merukazimLogisticsByCarrierName,
+} from './consolidatedShipmentConstants';
 
-/** Matches ShipmentsList enrichment: explicit carrierType, else Bulk when destination is em dash. */
+/** Bulk vs Merukazim for table, drawer, and exports — inferred from carrier when `carrierType` is missing. */
 export function displayCarrierType(s: ConsolidatedShipment): ConsolidatedCarrierType | string {
-  return s.carrierType ?? 'Merukazim';
+  return inferredConsolidatedCarrierType(s);
+}
+
+/**
+ * Table / exports: bulk → EU; Merukazim → lane destination from carrier config (US / GB).
+ */
+export function displayDestination(s: ConsolidatedShipment): string {
+  if (inferredConsolidatedCarrierType(s) === 'Bulk') {
+    return BULK_DESTINATION_STORED;
+  }
+  const log = merukazimLogisticsByCarrierName(s.carrier);
+  if (log) return log.destination;
+  const d = s.destination?.trim() ?? '';
+  if (d === 'US' || d === 'GB') return d;
+  return '—';
 }
 
 /** Pill surface for Bulk / Merukazim — same as ConsolidatedShipmentForm carrier trigger. */
@@ -21,8 +40,6 @@ export function consolidatedStatusBadgeClass(status: ShipmentStatus): string {
   switch (status) {
     case 'Shipped':
       return 'bg-green-100 text-green-700';
-    case 'Draft':
-      return 'bg-gray-100 text-gray-800';
     case 'Packed':
       return 'bg-[#ede7f6] text-[#311b92]';
     default:
@@ -38,8 +55,6 @@ export function consolidatedDrawerStatusBadgeClass(status: ShipmentStatus): stri
   switch (status) {
     case 'Shipped':
       return 'bg-[#dcfce7] text-[#016630]';
-    case 'Draft':
-      return 'bg-gray-100 text-gray-800';
     case 'Packed':
       return 'bg-[#ede7f6] text-[#311b92]';
     default:

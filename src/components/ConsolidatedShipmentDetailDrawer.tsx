@@ -4,8 +4,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
-import { consolidatedDrawerStatusBadgeClass, displayCarrierType } from './consolidatedShipmentUi';
+import {
+  consolidatedDrawerStatusBadgeClass,
+  displayCarrierType,
+  displayDestination,
+} from './consolidatedShipmentUi';
 import type { DrawerTimelineItem } from './shipmentDrawerSections';
+import ConsolidatedPacksOrdersReadOnly from './ConsolidatedPacksOrdersReadOnly';
 
 export interface ConsolidatedDocumentRow {
   id: string;
@@ -158,7 +163,9 @@ export default function ConsolidatedShipmentDetailDrawer({
           <SheetTitle className="text-base font-medium leading-6 tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
             Consolidated Shipment Details
           </SheetTitle>
-          <p className="sr-only">Consolidated ID: {shipment.id}</p>
+          <p className="text-sm leading-5 tracking-tight text-[#6a7282]">
+            Consolidation ID: {shipment.id}
+          </p>
           <div className="flex w-full gap-2">
             <span className="w-[50px] shrink-0 text-sm leading-5 tracking-tight text-[#6a7282]">Type:</span>
             <span className="text-sm font-medium leading-5 tracking-tight text-[#0a0a0a]">
@@ -216,7 +223,7 @@ export default function ConsolidatedShipmentDetailDrawer({
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
                     Destination
                   </span>
-                  <span className="text-sm leading-5 tracking-tight text-[#101828]">{shipment.destination}</span>
+                  <span className="text-sm leading-5 tracking-tight text-[#101828]">{displayDestination(shipment)}</span>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
@@ -262,6 +269,8 @@ export default function ConsolidatedShipmentDetailDrawer({
                 })}
               </div>
             </section>
+
+            <ConsolidatedPacksOrdersReadOnly shipment={shipment} variant="drawer" />
           </div>
 
           <div className="flex shrink-0 items-center justify-between border-t border-black/12 bg-white px-6 py-4">

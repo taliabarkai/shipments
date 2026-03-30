@@ -18,10 +18,8 @@ import Header from '../imports/Header';
 import {
   BULK_CARRIERS,
   MERUKAZIM_CARRIERS,
-  MERUKAZIM_DESTINATIONS,
-  SHIPPING_ROUTES,
-  merukazimDestinationKeyFromDestination,
-  BULK_DESTINATION_PLACEHOLDER,
+  BULK_DESTINATION_STORED,
+  merukazimConfigByCarrierId,
   parseCarrierOption,
   findCarrierOptionId,
 } from './consolidatedShipmentConstants';
@@ -67,14 +65,11 @@ export interface ConsolidatedShipmentFormProps {
 
 export function computeConsolidatedFormDirty(input: {
   carrierOptionId: string;
-  merukazimDestination: string;
-  shippingRoute: string;
   packs: Pack[];
   orderInput: string;
 }): boolean {
-  const { carrierOptionId, merukazimDestination, shippingRoute, packs, orderInput } = input;
+  const { carrierOptionId, packs, orderInput } = input;
   if (carrierOptionId) return true;
-  if (merukazimDestination || shippingRoute) return true;
   if (packs.some((p) => p.orders.length > 0)) return true;
   if (orderInput.trim()) return true;
   return false;
@@ -89,8 +84,6 @@ export default function ConsolidatedShipmentForm({
   onDirtyChange,
 }: ConsolidatedShipmentFormProps) {
   const [carrierOptionId, setCarrierOptionId] = useState('');
-  const [merukazimDestination, setMerukazimDestination] = useState('');
-  const [shippingRoute, setShippingRoute] = useState('');
   const [packs, setPacks] = useState<Pack[]>([{ id: 1, orders: [] }]);
   const [activePack, setActivePack] = useState(1);
   const [orderInput, setOrderInput] = useState('');
@@ -101,68 +94,25 @@ export default function ConsolidatedShipmentForm({
     [carrierOptionId]
   );
 
-  const routeOptions = useMemo(() => {
-    if (!merukazimDestination) return [];
-    return SHIPPING_ROUTES[merukazimDestination] ?? [];
-  }, [merukazimDestination]);
+  const detailsComplete = useMemo(() => Boolean(parsedCarrier), [parsedCarrier]);
 
-  const detailsComplete = useMemo(() => {
-    if (!parsedCarrier) return false;
-    if (parsedCarrier.type === 'Bulk') return true;
-    return Boolean(merukazimDestination && shippingRoute);
-  }, [parsedCarrier, merukazimDestination, shippingRoute]);
-
-  /** Hide scan until carrier is chosen; Merukazim also needs destination + route (same as detailsComplete). */
+  /** Hide scan until carrier is chosen. */
   const showPacksAndScan = detailsComplete;
 
   useEffect(() => {
     if (shipment) {
       setCarrierOptionId(findCarrierOptionId(shipment));
-      if (
-        shipment.carrierType === 'Merukazim' ||
-        (!shipment.carrierType &&
-          shipment.destination &&
-          shipment.destination !== BULK_DESTINATION_PLACEHOLDER)
-      ) {
-        setMerukazimDestination(merukazimDestinationKeyFromDestination(shipment.destination));
-      } else {
-        setMerukazimDestination('');
-      }
-      if (shipment.shippingRoute) {
-        const destKey = merukazimDestinationKeyFromDestination(shipment.destination);
-        const match = destKey
-          ? SHIPPING_ROUTES[destKey]?.find((r) => r.label === shipment.shippingRoute)
-          : undefined;
-        setShippingRoute(match?.value ?? '');
-      } else {
-        setShippingRoute('');
-      }
 
-      if (shipment.orders && shipment.orders.length > 0) {
-        if (shipment.id === '273133181' && shipment.orders.length === 42) {
-          setPacks([
-            { id: 1, orders: shipment.orders.slice(0, 15) },
-            { id: 2, orders: shipment.orders.slice(15, 35) },
-            { id: 3, orders: shipment.orders.slice(35, 42) },
-          ]);
-        } else if (shipment.id === '273133182' && shipment.orders.length === 30) {
-          setPacks([
-            { id: 1, orders: shipment.orders.slice(0, 8) },
-            { id: 2, orders: shipment.orders.slice(8, 20) },
-            { id: 3, orders: shipment.orders.slice(20, 26) },
-            { id: 4, orders: shipment.orders.slice(26, 30) },
-          ]);
-        } else {
-          setPacks([{ id: 1, orders: shipment.orders }]);
-        }
+      if (shipment.packs && shipment.packs.length > 0) {
+        setPacks(shipment.packs.map((p) => ({ id: p.id, orders: [...p.orders] })));
+      } else if (shipment.orders && shipment.orders.length > 0) {
+        setPacks([{ id: 1, orders: [...shipment.orders] }]);
       } else {
         setPacks([{ id: 1, orders: [] }]);
       }
       setActivePack(1);
     } else {
       setCarrierOptionId('');
-      setMerukazimDestination('');
-      setShippingRoute('');
       setPacks([{ id: 1, orders: [] }]);
       setActivePack(1);
       setOrderInput('');
@@ -173,12 +123,10 @@ export default function ConsolidatedShipmentForm({
     () =>
       computeConsolidatedFormDirty({
         carrierOptionId,
-        merukazimDestination,
-        shippingRoute,
         packs,
         orderInput,
       }),
-    [carrierOptionId, merukazimDestination, shippingRoute, packs, orderInput]
+    [carrierOptionId, packs, orderInput]
   );
 
   useEffect(() => {
@@ -187,13 +135,6 @@ export default function ConsolidatedShipmentForm({
 
   const handleCarrierChange = (value: string) => {
     setCarrierOptionId(value);
-    setMerukazimDestination('');
-    setShippingRoute('');
-  };
-
-  const handleMerukazimDestinationChange = (value: string) => {
-    setMerukazimDestination(value);
-    setShippingRoute('');
   };
 
   const handleScanOrder = () => {
@@ -267,16 +208,13 @@ export default function ConsolidatedShipmentForm({
     const randomFacility = packingFacilities[Math.floor(Math.random() * packingFacilities.length)];
 
     let destination: string;
-    let shippingRouteLabel: string | undefined;
 
     if (parsed.type === 'Bulk') {
-      destination = BULK_DESTINATION_PLACEHOLDER;
-      shippingRouteLabel = undefined;
+      destination = BULK_DESTINATION_STORED;
     } else {
-      const dest = MERUKAZIM_DESTINATIONS.find((d) => d.value === merukazimDestination);
-      destination = dest?.country ?? '';
-      const route = routeOptions.find((r) => r.value === shippingRoute);
-      shippingRouteLabel = route?.label ?? '';
+      const [, merId] = carrierOptionId.split('::');
+      const cfg = merId ? merukazimConfigByCarrierId(merId) : undefined;
+      destination = cfg?.destination ?? '';
     }
 
     return {
@@ -285,22 +223,14 @@ export default function ConsolidatedShipmentForm({
       destination,
       carrier: parsed.carrierName,
       carrierType: parsed.type,
-      shippingRoute: shippingRouteLabel,
       trackingId: shipment?.trackingId || `TRK${Date.now()}`,
       orders: packs.flatMap((pack) => pack.orders),
+      packs: packs.map((p) => ({ id: p.id, orders: [...p.orders] })),
       dateCreated: shipment?.dateCreated || new Date().toLocaleDateString('en-US'),
       hasCancelledItems: shipment?.hasCancelledItems || false,
       cancelledOrders: shipment?.cancelledOrders || [],
     };
-  }, [
-    carrierOptionId,
-    merukazimDestination,
-    shippingRoute,
-    routeOptions,
-    packs,
-    shipment,
-    tempShipmentId,
-  ]);
+  }, [carrierOptionId, packs, shipment, tempShipmentId]);
 
   const handlePack = () => {
     if (!detailsComplete || packs.every((pack) => pack.orders.length === 0)) {
@@ -332,7 +262,7 @@ export default function ConsolidatedShipmentForm({
       totalValue: packs.some((pack) => pack.orders.length > 0)
         ? shipment?.totalValue || `$${(Math.random() * 20000 + 5000).toFixed(2)}`
         : '$0.00',
-      status: 'Draft',
+      status: 'Packed',
     };
 
     onSaveDraft(updatedShipment);
@@ -408,55 +338,6 @@ export default function ConsolidatedShipmentForm({
           </SelectContent>
         </Select>
       </div>
-
-      {parsedCarrier?.type === 'Merukazim' && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className="mb-2 block font-medium">
-              Destination Country <span className="text-[rgba(0,0,0,0.87)]">*</span>
-            </label>
-            <Select
-              value={merukazimDestination || undefined}
-              onValueChange={handleMerukazimDestinationChange}
-              disabled={!!isShippedOrPacked}
-            >
-              <SelectTrigger className={variant === 'drawer' ? 'h-14 border-[rgba(0,0,0,0.23)] bg-white' : 'w-full'}>
-                <SelectValue placeholder="Select country" />
-              </SelectTrigger>
-              <SelectContent>
-                {MERUKAZIM_DESTINATIONS.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>
-                    {d.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="mb-2 block font-medium">
-              Shipping Route <span className="text-[rgba(0,0,0,0.87)]">*</span>
-            </label>
-            <Select
-              value={shippingRoute || undefined}
-              onValueChange={setShippingRoute}
-              disabled={!merukazimDestination || !!isShippedOrPacked}
-            >
-              <SelectTrigger className={variant === 'drawer' ? 'h-14 border-[rgba(0,0,0,0.23)] bg-white' : 'w-full'}>
-                <SelectValue
-                  placeholder={merukazimDestination ? 'Select route' : 'Select destination first'}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                {routeOptions.map((r) => (
-                  <SelectItem key={r.value} value={r.value}>
-                    {r.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
     </div>
   );
 
@@ -465,9 +346,7 @@ export default function ConsolidatedShipmentForm({
       !showPacksAndScan ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl bg-[#fafafa] p-6 text-center">
           <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
-            {!parsedCarrier
-              ? 'Select a carrier to scan orders.'
-              : 'Select destination country and shipping route to scan orders.'}
+            {!parsedCarrier ? 'Select a carrier to scan orders.' : null}
           </p>
         </div>
       ) : (
@@ -578,9 +457,7 @@ export default function ConsolidatedShipmentForm({
     ) : !showPacksAndScan ? (
       <div className="rounded-lg border bg-white p-6">
         <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
-          {!parsedCarrier
-            ? 'Select a carrier to scan orders.'
-            : 'Select destination country and shipping route to scan orders.'}
+          {!parsedCarrier ? 'Select a carrier to scan orders.' : null}
         </p>
       </div>
     ) : (

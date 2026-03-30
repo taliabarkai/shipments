@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { ChevronRight, Plus, X, Calendar, Pencil } from 'lucide-react';
-import TextField from '@mui/material/TextField';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import FormControl from '@mui/material/FormControl';
@@ -57,6 +56,18 @@ interface PricingAndFeesProps {
   initialData?: PricingData;
 }
 
+const muiFontFamily =
+  "'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+const pricingInputLabelSx = {
+  fontFamily: muiFontFamily,
+  fontSize: '16px',
+  color: 'rgba(0, 0, 0, 0.6)',
+  '&.Mui-focused': {
+    color: '#1976d2',
+  },
+} as const;
+
 export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
   const [currentPricing, setCurrentPricing] = useState<PricingData>(initialData || {
     shippingCost: '',
@@ -96,6 +107,11 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
     surchargeType: 'flat',
     startDate: '',
   });
+
+  const agreementCostId = useId();
+  const fuelTaxId = useId();
+  const vatId = useId();
+  const discountId = useId();
 
   const historicalData: HistoricalPricing[] = [
     {
@@ -218,25 +234,17 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
       <div className="flex gap-[72px]">
         {/* Current Pricing Column */}
         <div className="basis-0 grow flex flex-col gap-6 max-w-[600px]">
-          <h3 className="font-['Roboto'] text-[20px] text-[rgba(0,0,0,0.87)] leading-[1.334]">
+          <h3 className="text-[20px] text-[rgba(0,0,0,0.87)] leading-[1.334]" style={{ fontFamily: muiFontFamily }}>
             Current Pricing
           </h3>
           <div className="flex flex-col gap-4">
             <FormControl fullWidth size="small">
-              <InputLabel 
-                sx={{
-                  fontFamily: 'Roboto',
-                  fontSize: '16px',
-                  color: 'rgba(0, 0, 0, 0.6)',
-                  paddingBottom: '4px',
-                  '&.Mui-focused': {
-                    color: '#1976d2',
-                  },
-                }}
-              >
+              <InputLabel htmlFor={agreementCostId} sx={pricingInputLabelSx}>
                 Agreement Cost
               </InputLabel>
               <OutlinedInput
+                id={agreementCostId}
+                label="Agreement Cost"
                 value={currentPricing.shippingCost}
                 onChange={(e) => setCurrentPricing({ ...currentPricing, shippingCost: e.target.value })}
                 placeholder="Agreement Cost"
@@ -245,8 +253,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                 startAdornment={<InputAdornment position="start">$</InputAdornment>}
                 sx={{
                   height: '48px',
-                  fontFamily: 'Roboto',
+                  fontFamily: muiFontFamily,
                   fontSize: '16px',
+                  '& .MuiOutlinedInput-input::placeholder': {
+                    fontFamily: muiFontFamily,
+                    opacity: 1,
+                  },
                   '& .MuiOutlinedInput-notchedOutline': {
                     borderColor: 'rgba(0, 0, 0, 0.23)',
                   },
@@ -261,20 +273,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
               />
             </FormControl>
             <FormControl fullWidth size="small">
-              <InputLabel 
-                sx={{
-                  fontFamily: 'Roboto',
-                  fontSize: '16px',
-                  color: 'rgba(0, 0, 0, 0.6)',
-                  paddingBottom: '4px',
-                  '&.Mui-focused': {
-                    color: '#1976d2',
-                  },
-                }}
-              >
+              <InputLabel htmlFor={fuelTaxId} sx={pricingInputLabelSx}>
                 Fuel Tax
               </InputLabel>
               <OutlinedInput
+                id={fuelTaxId}
+                label="Fuel Tax"
                 value={currentPricing.fuelTax}
                 onChange={(e) => setCurrentPricing({ ...currentPricing, fuelTax: e.target.value })}
                 placeholder="Fuel Tax"
@@ -283,8 +287,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                 endAdornment={<InputAdornment position="end">%</InputAdornment>}
                 sx={{
                   height: '48px',
-                  fontFamily: 'Roboto',
+                  fontFamily: muiFontFamily,
                   fontSize: '16px',
+                  '& .MuiOutlinedInput-input::placeholder': {
+                    fontFamily: muiFontFamily,
+                    opacity: 1,
+                  },
                   '& .MuiOutlinedInput-notchedOutline': {
                     borderColor: 'rgba(0, 0, 0, 0.23)',
                   },
@@ -299,20 +307,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
               />
             </FormControl>
             <FormControl fullWidth size="small">
-              <InputLabel 
-                sx={{
-                  fontFamily: 'Roboto',
-                  fontSize: '16px',
-                  color: 'rgba(0, 0, 0, 0.6)',
-                  paddingBottom: '4px',
-                  '&.Mui-focused': {
-                    color: '#1976d2',
-                  },
-                }}
-              >
+              <InputLabel htmlFor={vatId} sx={pricingInputLabelSx}>
                 VAT
               </InputLabel>
               <OutlinedInput
+                id={vatId}
+                label="VAT"
                 value={currentPricing.vat}
                 onChange={(e) => setCurrentPricing({ ...currentPricing, vat: e.target.value })}
                 placeholder="VAT"
@@ -321,8 +321,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                 endAdornment={<InputAdornment position="end">%</InputAdornment>}
                 sx={{
                   height: '48px',
-                  fontFamily: 'Roboto',
+                  fontFamily: muiFontFamily,
                   fontSize: '16px',
+                  '& .MuiOutlinedInput-input::placeholder': {
+                    fontFamily: muiFontFamily,
+                    opacity: 1,
+                  },
                   '& .MuiOutlinedInput-notchedOutline': {
                     borderColor: 'rgba(0, 0, 0, 0.23)',
                   },
@@ -337,20 +341,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
               />
             </FormControl>
             <FormControl fullWidth size="small">
-              <InputLabel 
-                sx={{
-                  fontFamily: 'Roboto',
-                  fontSize: '16px',
-                  color: 'rgba(0, 0, 0, 0.6)',
-                  paddingBottom: '4px',
-                  '&.Mui-focused': {
-                    color: '#1976d2',
-                  },
-                }}
-              >
+              <InputLabel htmlFor={discountId} sx={pricingInputLabelSx}>
                 Discount
               </InputLabel>
               <OutlinedInput
+                id={discountId}
+                label="Discount"
                 value={currentPricing.discount}
                 onChange={(e) => setCurrentPricing({ ...currentPricing, discount: e.target.value })}
                 placeholder="Discount"
@@ -359,8 +355,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                 endAdornment={<InputAdornment position="end">%</InputAdornment>}
                 sx={{
                   height: '48px',
-                  fontFamily: 'Roboto',
+                  fontFamily: muiFontFamily,
                   fontSize: '16px',
+                  '& .MuiOutlinedInput-input::placeholder': {
+                    fontFamily: muiFontFamily,
+                    opacity: 1,
+                  },
                   '& .MuiOutlinedInput-notchedOutline': {
                     borderColor: 'rgba(0, 0, 0, 0.23)',
                   },
@@ -378,7 +378,7 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
             {/* Agent Commission with Toggle */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="font-['Roboto'] text-[16px] text-[rgba(0,0,0,0.6)]">
+                <label className="text-[16px] text-[rgba(0,0,0,0.6)]" style={{ fontFamily: muiFontFamily }}>
                   Agent Commission
                 </label>
                 <div className="flex border border-[rgba(0,0,0,0.23)] rounded overflow-hidden">
@@ -417,8 +417,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                   endAdornment={currentPricing.agentCommissionType === 'percentage' ? <InputAdornment position="end">%</InputAdornment> : undefined}
                   sx={{
                     height: '48px',
-                    fontFamily: 'Roboto',
+                    fontFamily: muiFontFamily,
                     fontSize: '16px',
+                    '& .MuiOutlinedInput-input::placeholder': {
+                      fontFamily: muiFontFamily,
+                      opacity: 1,
+                    },
                     '& .MuiOutlinedInput-notchedOutline': {
                       borderColor: 'rgba(0, 0, 0, 0.23)',
                     },
@@ -437,7 +441,7 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
             {/* Surcharge with Toggle */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="font-['Roboto'] text-[16px] text-[rgba(0,0,0,0.6)]">
+                <label className="text-[16px] text-[rgba(0,0,0,0.6)]" style={{ fontFamily: muiFontFamily }}>
                   Surcharge
                 </label>
                 <div className="flex border border-[rgba(0,0,0,0.23)] rounded overflow-hidden">
@@ -476,8 +480,12 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                   endAdornment={currentPricing.surchargeType === 'percentage' ? <InputAdornment position="end">%</InputAdornment> : undefined}
                   sx={{
                     height: '48px',
-                    fontFamily: 'Roboto',
+                    fontFamily: muiFontFamily,
                     fontSize: '16px',
+                    '& .MuiOutlinedInput-input::placeholder': {
+                      fontFamily: muiFontFamily,
+                      opacity: 1,
+                    },
                     '& .MuiOutlinedInput-notchedOutline': {
                       borderColor: 'rgba(0, 0, 0, 0.23)',
                     },
@@ -498,7 +506,7 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
         {/* Future Pricing Column */}
         <div className="basis-0 grow flex flex-col gap-6 max-w-[600px] relative">
           <div className="flex items-center justify-between">
-            <h3 className="font-['Roboto'] text-[20px] text-[rgba(0,0,0,0.87)] leading-[1.334]">
+            <h3 className="text-[20px] text-[rgba(0,0,0,0.87)] leading-[1.334]" style={{ fontFamily: muiFontFamily }}>
               Future Pricing
             </h3>
           </div>
@@ -508,35 +516,35 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-[rgba(0,0,0,0.04)] hover:bg-[rgba(0,0,0,0.04)]">
-                      <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                      <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                         Scheduled Date
                       </TableHead>
                       {scheduledPricings.some(p => p.shippingCost !== currentPricing.shippingCost) && (
-                        <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                        <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                           Shipping Cost
                         </TableHead>
                       )}
                       {scheduledPricings.some(p => p.fuelTax !== currentPricing.fuelTax) && (
-                        <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                        <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                           Fuel Tax
                         </TableHead>
                       )}
                       {scheduledPricings.some(p => p.vat !== currentPricing.vat) && (
-                        <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                        <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                           VAT
                         </TableHead>
                       )}
                       {scheduledPricings.some(p => p.discount !== currentPricing.discount) && (
-                        <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                        <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                           Discount
                         </TableHead>
                       )}
                       {scheduledPricings.some(p => p.agentCommissionType !== currentPricing.agentCommissionType) && (
-                        <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                        <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                           Agent Commission Type
                         </TableHead>
                       )}
-                      <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium w-[80px]">
+                      <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium w-[80px]">
                         Actions
                       </TableHead>
                     </TableRow>
@@ -544,35 +552,35 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
                   <TableBody>
                     {scheduledPricings.map((row) => (
                       <TableRow key={row.id} className="hover:bg-[rgba(0,0,0,0.02)]">
-                        <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                        <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                           {row.startDate}
                         </TableCell>
                         {scheduledPricings.some(p => p.shippingCost !== currentPricing.shippingCost) && (
-                          <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                          <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                             {row.shippingCost}
                           </TableCell>
                         )}
                         {scheduledPricings.some(p => p.fuelTax !== currentPricing.fuelTax) && (
-                          <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                          <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                             {row.fuelTax}
                           </TableCell>
                         )}
                         {scheduledPricings.some(p => p.vat !== currentPricing.vat) && (
-                          <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                          <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                             {row.vat}
                           </TableCell>
                         )}
                         {scheduledPricings.some(p => p.discount !== currentPricing.discount) && (
-                          <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                          <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                             {row.discount}
                           </TableCell>
                         )}
                         {scheduledPricings.some(p => p.agentCommissionType !== currentPricing.agentCommissionType) && (
-                          <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                          <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                             {row.agentCommissionType}
                           </TableCell>
                         )}
-                        <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                        <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button
@@ -597,7 +605,7 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
             <Button
               variant="outline"
               onClick={handleOpenFuturePricingDialog}
-              className="h-12 justify-start font-['Roboto'] text-[16px] text-[#1976d2] border-[rgba(0,0,0,0.23)] hover:bg-[rgba(25,118,210,0.04)] hover:text-[#1976d2] hover:border-[#1976d2]"
+              className="h-12 justify-start text-[16px] text-[#1976d2] border-[rgba(0,0,0,0.23)] hover:bg-[rgba(25,118,210,0.04)] hover:text-[#1976d2] hover:border-[#1976d2]"
             >
               <Plus className="w-5 h-5 mr-2" />
               Schedule future pricing
@@ -610,7 +618,7 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
       <div className="mt-6">
         <button
           onClick={() => setIsHistoricalExpanded(!isHistoricalExpanded)}
-          className="flex items-center gap-2 text-[rgba(0,0,0,0.87)] font-['Roboto'] text-[16px] hover:text-[rgba(0,0,0,1)] transition-colors"
+          className="flex items-center gap-2 text-[rgba(0,0,0,0.87)] text-[16px] hover:text-[rgba(0,0,0,1)] transition-colors"
         >
           <ChevronRight
             className={`w-5 h-5 transition-transform ${
@@ -625,25 +633,25 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-[rgba(0,0,0,0.04)] hover:bg-[rgba(0,0,0,0.04)]">
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Date Time Frame
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Agreement Cost
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Fuel Tax
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     VAT
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Discount
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Agent Commission
                   </TableHead>
-                  <TableHead className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
+                  <TableHead className="text-[14px] text-[rgba(0,0,0,0.87)] font-medium">
                     Surcharge
                   </TableHead>
                 </TableRow>
@@ -651,25 +659,25 @@ export default function PricingAndFees({ initialData }: PricingAndFeesProps) {
               <TableBody>
                 {historicalData.map((row, index) => (
                   <TableRow key={index} className="hover:bg-[rgba(0,0,0,0.02)]">
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.dateTimeFrame}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.agreementCost}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.fuelTax}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.vat}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.discount}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.agentCommission}
                     </TableCell>
-                    <TableCell className="font-['Roboto'] text-[14px] text-[rgba(0,0,0,0.87)]">
+                    <TableCell className="text-[14px] text-[rgba(0,0,0,0.87)]">
                       {row.surcharge}
                     </TableCell>
                   </TableRow>

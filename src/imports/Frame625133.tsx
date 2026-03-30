@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 import { Input } from '../components/ui/input';
 import { Check } from 'lucide-react';
 import Select from '@mui/material/Select';
@@ -11,31 +11,53 @@ import ListItemText from '@mui/material/ListItemText';
 import Chip from '@mui/material/Chip';
 import Box from '@mui/material/Box';
 
+const muiFontFamily =
+  "'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif";
+
+const inputLabelSx = {
+  fontFamily: muiFontFamily,
+  fontSize: '16px',
+  color: 'rgba(0, 0, 0, 0.6)',
+  '&.Mui-focused': {
+    color: '#1976d2',
+  },
+} as const;
+
 // Custom MUI-styled Select component
 function MUISelect({ value, onChange, placeholder, options }: { value: string; onChange: (value: string) => void; placeholder: string; options: string[] }) {
+  const labelId = useId();
+  const selectId = useId();
+  const [open, setOpen] = useState(false);
+  const selectOptions = useMemo(
+    () => (value !== '' && !options.includes(value) ? [...options, value] : options),
+    [options, value]
+  );
+  const labelShrink = value !== '' || open;
+
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0 w-full p-[0px]">
       <FormControl fullWidth variant="outlined">
-        <InputLabel 
-          sx={{
-            fontFamily: 'Roboto',
-            fontSize: '16px',
-            color: 'rgba(0, 0, 0, 0.6)',
-            paddingBottom: '4px',
-            '&.Mui-focused': {
-              color: '#1976d2',
-            },
-          }}
-        >
+        <InputLabel id={labelId} htmlFor={selectId} shrink={labelShrink} sx={inputLabelSx}>
           {placeholder}
         </InputLabel>
         <Select
+          id={selectId}
+          labelId={labelId}
+          label={placeholder}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          onOpen={() => setOpen(true)}
+          onClose={() => setOpen(false)}
           displayEmpty
+          renderValue={(selected) => {
+            if (selected === '') {
+              return '\u200b';
+            }
+            return selected as string;
+          }}
           sx={{
             height: '48px',
-            fontFamily: 'Roboto',
+            fontFamily: muiFontFamily,
             fontSize: '16px',
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: 'rgba(0, 0, 0, 0.23)',
@@ -51,11 +73,9 @@ function MUISelect({ value, onChange, placeholder, options }: { value: string; o
             backgroundColor: 'white',
           }}
         >
-          <MenuItem value="" disabled sx={{ display: 'none' }}>
-            <span style={{ color: 'rgba(0, 0, 0, 0.38)' }}>Select {placeholder}</span>
-          </MenuItem>
-          {options.map((option) => (
-            <MenuItem key={option} value={option}>
+          <MenuItem value="" sx={{ display: 'none' }} aria-hidden />
+          {selectOptions.map((option) => (
+            <MenuItem key={option} value={option} sx={{ fontFamily: muiFontFamily, fontSize: '16px' }}>
               {option}
             </MenuItem>
           ))}
@@ -77,58 +97,62 @@ function MUIMultiSelect({
   placeholder: string; 
   options: string[] 
 }) {
+  const labelId = useId();
+  const selectId = useId();
+  const [open, setOpen] = useState(false);
+  const hasSelection = value.length > 0;
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
       <FormControl fullWidth variant="outlined">
-        <InputLabel 
-          sx={{
-            fontFamily: 'Roboto',
-            fontSize: '16px',
-            color: 'rgba(0, 0, 0, 0.6)',
-            paddingBottom: '4px',
-            '&.Mui-focused': {
-              color: '#1976d2',
-            },
-          }}
-        >
+        <InputLabel id={labelId} htmlFor={selectId} shrink={hasSelection || open} sx={inputLabelSx}>
           {placeholder}
         </InputLabel>
         <Select
+          id={selectId}
+          labelId={labelId}
+          label={placeholder}
           multiple
           value={value}
+          onOpen={() => setOpen(true)}
+          onClose={() => setOpen(false)}
           onChange={(e) => onChange(e.target.value as string[])}
-          renderValue={(selected) => (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-              {selected.map((item) => (
-                <Chip
-                  key={item}
-                  label={item}
-                  size="small"
-                  onDelete={() => {
-                    onChange(selected.filter((s) => s !== item));
-                  }}
-                  onMouseDown={(event) => {
-                    event.stopPropagation();
-                  }}
-                  sx={{
-                    height: '24px',
-                    fontSize: '13px',
-                    backgroundColor: '#f5f5f5',
-                    '& .MuiChip-deleteIcon': {
-                      fontSize: '16px',
-                      color: 'rgba(0, 0, 0, 0.6)',
-                      '&:hover': {
-                        color: 'rgba(0, 0, 0, 0.87)',
+          renderValue={(selected) =>
+            selected.length === 0 ? (
+              '\u200b'
+            ) : (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {selected.map((item) => (
+                  <Chip
+                    key={item}
+                    label={item}
+                    size="small"
+                    onDelete={() => {
+                      onChange(selected.filter((s) => s !== item));
+                    }}
+                    onMouseDown={(event) => {
+                      event.stopPropagation();
+                    }}
+                    sx={{
+                      height: '24px',
+                      fontSize: '13px',
+                      fontFamily: muiFontFamily,
+                      backgroundColor: '#f5f5f5',
+                      '& .MuiChip-deleteIcon': {
+                        fontSize: '16px',
+                        color: 'rgba(0, 0, 0, 0.6)',
+                        '&:hover': {
+                          color: 'rgba(0, 0, 0, 0.87)',
+                        },
                       },
-                    },
-                  }}
-                />
-              ))}
-            </Box>
-          )}
+                    }}
+                  />
+                ))}
+              </Box>
+            )
+          }
           sx={{
             minHeight: '48px',
-            fontFamily: 'Roboto',
+            fontFamily: muiFontFamily,
             fontSize: '16px',
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: 'rgba(0, 0, 0, 0.23)',
@@ -145,7 +169,7 @@ function MUIMultiSelect({
           }}
         >
           {options.map((option) => (
-            <MenuItem key={option} value={option}>
+            <MenuItem key={option} value={option} sx={{ fontFamily: muiFontFamily, fontSize: '16px' }}>
               <Checkbox 
                 checked={value.indexOf(option) > -1}
                 sx={{
@@ -155,7 +179,10 @@ function MUIMultiSelect({
                   },
                 }}
               />
-              <ListItemText primary={option} />
+              <ListItemText
+                primary={option}
+                primaryTypographyProps={{ sx: { fontFamily: muiFontFamily, fontSize: '16px' } }}
+              />
             </MenuItem>
           ))}
         </Select>
@@ -166,29 +193,27 @@ function MUIMultiSelect({
 
 // Custom MUI-styled Input component
 function MUIInput({ value, onChange, placeholder, inputPlaceholder }: { value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; placeholder: string; inputPlaceholder?: string }) {
+  const id = useId();
+  const [focused, setFocused] = useState(false);
+  const labelShrink = Boolean(value) || focused;
+
   return (
     <div className="content-stretch flex flex-col items-start relative shrink-0 w-full">
       <FormControl fullWidth variant="outlined">
-        <InputLabel 
-          sx={{
-            fontFamily: 'Roboto',
-            fontSize: '16px',
-            color: 'rgba(0, 0, 0, 0.6)',
-            paddingBottom: '4px',
-            '&.Mui-focused': {
-              color: '#1976d2',
-            },
-          }}
-        >
+        <InputLabel htmlFor={id} shrink={labelShrink} sx={inputLabelSx}>
           {placeholder}
         </InputLabel>
         <OutlinedInput
+          id={id}
+          label={placeholder}
           value={value}
           onChange={onChange}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
           placeholder={inputPlaceholder || `Enter ${placeholder.toLowerCase()}`}
           sx={{
             height: '56px',
-            fontFamily: 'Roboto',
+            fontFamily: muiFontFamily,
             fontSize: '16px',
             color: 'rgba(0, 0, 0, 0.87)',
             '& .MuiOutlinedInput-input': {
@@ -196,6 +221,7 @@ function MUIInput({ value, onChange, placeholder, inputPlaceholder }: { value: s
               '&::placeholder': {
                 color: 'rgba(0, 0, 0, 0.38)',
                 opacity: 1,
+                fontFamily: muiFontFamily,
               },
             },
             '& .MuiOutlinedInput-notchedOutline': {
@@ -264,10 +290,19 @@ function Frame1({ formData, setFormData }: { formData: FormData; setFormData: (d
   // Get original service types for the selected carrier
   const selectedCarrier = carriers.find(c => c.name === formData.carrierName);
   const originalServiceTypes = selectedCarrier ? [selectedCarrier.originalServiceType] : [];
+  const originalCarrierOptions =
+    originalServiceTypes.length > 0
+      ? originalServiceTypes
+      : formData.originalCarrierServiceType
+        ? [formData.originalCarrierServiceType]
+        : [];
 
   return (
     <div className="basis-0 content-stretch flex flex-col gap-[24px] grow items-start max-w-[600px] min-h-px min-w-px relative shrink-0">
-      <div className="flex flex-col font-['Roboto'] font-normal justify-center leading-[0] relative shrink-0 text-[24px] text-[rgba(0,0,0,0.87)] w-full">
+      <div
+        className="flex flex-col font-normal justify-center leading-[0] relative shrink-0 text-[24px] text-[rgba(0,0,0,0.87)] w-full"
+        style={{ fontFamily: muiFontFamily }}
+      >
         <p className="leading-[1.334] text-[20px]">General</p>
       </div>
       <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-full">
@@ -306,7 +341,7 @@ function Frame1({ formData, setFormData }: { formData: FormData; setFormData: (d
           value={formData.originalCarrierServiceType}
           onChange={(value) => setFormData({ ...formData, originalCarrierServiceType: value })}
           placeholder="Original Carrier Service Type"
-          options={originalServiceTypes.length > 0 ? originalServiceTypes : [formData.originalCarrierServiceType].filter(Boolean)}
+          options={originalCarrierOptions}
         />
         <MUIInput
           value={formData.slug}
@@ -331,7 +366,10 @@ function ShippingRoute({ formData, setFormData }: { formData: FormData; setFormD
 
   return (
     <div className="basis-0 content-stretch flex flex-col gap-[24px] grow items-start max-w-[600px] min-h-px min-w-px relative shrink-0" data-name="shipping route">
-      <div className="flex flex-col font-['Roboto'] font-normal justify-center leading-[0] min-w-full relative shrink-0 text-[24px] text-[rgba(0,0,0,0.87)] w-[min-content]">
+      <div
+        className="flex flex-col font-normal justify-center leading-[0] min-w-full relative shrink-0 text-[24px] text-[rgba(0,0,0,0.87)] w-[min-content]"
+        style={{ fontFamily: muiFontFamily }}
+      >
         <p className="leading-[1.334] text-[20px]">Shipping Values</p>
       </div>
       <div className="content-stretch flex flex-col gap-[16px] items-start relative shrink-0 w-full">

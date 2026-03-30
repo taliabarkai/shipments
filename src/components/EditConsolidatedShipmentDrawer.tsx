@@ -130,7 +130,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
       destination: destinations.find(d => d.value === destination)?.country || shipment.destination,
       carrier,
       orders: packs.flatMap(pack => pack.orders),
-      status: 'Draft',
+      status: 'Packed',
     };
 
     onUpdate(updatedShipment);
@@ -219,8 +219,6 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
             <span className={`px-3 py-1 rounded-md text-xs font-medium ${
               shipment.status === 'Shipped' ? 'bg-green-100 text-green-700' :
               shipment.status === 'Packed' ? 'bg-[#ede7f6] text-[#311b92]' :
-              shipment.status === 'Ready to Pack' ? 'bg-[#e1f5fe] text-[#01579b]' :
-              shipment.status === 'On Hold' ? 'bg-[#feebee] text-[#b71c1c]' :
               'bg-gray-100 text-gray-800'
             }`}>
               {shipment.status}

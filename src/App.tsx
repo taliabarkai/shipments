@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { SHOW_SHIPMENT_COLLECTIONS } from './featureFlags';
 import { TooltipProvider } from './components/ui/tooltip';
 import Header from './imports/Header';
 import ExpandableSidebar from './components/ExpandableSidebar';
@@ -15,11 +16,15 @@ type ActiveView = 'shipments' | 'collections' | 'consolidated' | 'routes' | 'glo
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('shipments');
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const resolvedView: ActiveView =
+    !SHOW_SHIPMENT_COLLECTIONS && activeView === 'collections' ? 'shipments' : activeView;
   const [isAddCollectionDialogOpen, setIsAddCollectionDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<ShipmentCollection | null>(null);
 
   // Shipping Routes data
-  const [routes] = useState<ShippingRoute[]>([
+  const [routes] = useState<ShippingRoute[]>(() =>
+    [
     {
       id: '1',
       packingFacility: 'Hungary',
@@ -588,7 +593,8 @@ export default function App() {
       discount: '2',
       agentCommissionType: 'Percentage',
     },
-  ]);
+  ],
+  );
 
   // Shipments data
   const [shipments, setShipments] = useState<Shipment[]>([
@@ -1090,7 +1096,7 @@ export default function App() {
   };
 
   // If viewing consolidated shipments, use the existing component
-  if (activeView === 'consolidated') {
+  if (resolvedView === 'consolidated') {
     return <ConsolidatedShipmentsApp onSectionChange={setActiveView} />;
   }
 
@@ -1112,19 +1118,19 @@ export default function App() {
           {/* Expandable Sidebar */}
           <div className="shrink-0">
             <ExpandableSidebar 
-              activeSection={activeView} 
+              activeSection={resolvedView} 
               onSectionChange={setActiveView}
             />
           </div>
 
           {/* Content Area */}
           <div className="flex flex-col flex-1 overflow-hidden bg-[rgb(249,250,251)]">
-            {activeView === 'shipments' && (
+            {resolvedView === 'shipments' && (
               <ShipmentsTable
                 shipments={shipments}
               />
             )}
-            {activeView === 'collections' && (
+            {SHOW_SHIPMENT_COLLECTIONS && resolvedView === 'collections' && (
               <ShipmentCollectionsTable
                 collections={collections}
                 onRefresh={handleRefresh}
@@ -1134,26 +1140,27 @@ export default function App() {
                 onEditCollection={handleEditCollection}
               />
             )}
-            {activeView === 'routes' && (
+            {resolvedView === 'routes' && (
               <ShippingRoutesTable
                 routes={routes}
               />
             )}
-            {activeView === 'globalCarrier' && (
+            {resolvedView === 'globalCarrier' && (
               <GlobalCarrierConfiguration />
             )}
           </div>
         </div>
 
-        {/* Add Collection Dialog */}
-        <AddCollectionDialog
-          isOpen={isAddCollectionDialogOpen}
-          onClose={handleCloseDialog}
-          onAdd={handleAddCollectionSubmit}
-          editMode={!!editingCollection}
-          initialCarrier={editingCollection?.carrier}
-          initialPickupTime={editingCollection?.pickUpTime}
-        />
+        {SHOW_SHIPMENT_COLLECTIONS && (
+          <AddCollectionDialog
+            isOpen={isAddCollectionDialogOpen}
+            onClose={handleCloseDialog}
+            onAdd={handleAddCollectionSubmit}
+            editMode={!!editingCollection}
+            initialCarrier={editingCollection?.carrier}
+            initialPickupTime={editingCollection?.pickUpTime}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

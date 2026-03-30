@@ -4,7 +4,8 @@ import {
   ShipmentStatus,
   ConsolidatedCarrierType,
 } from './ConsolidatedShipmentsApp';
-import { consolidatedStatusBadgeClass } from './consolidatedShipmentUi';
+import { consolidatedStatusBadgeClass, displayDestination } from './consolidatedShipmentUi';
+import { inferredConsolidatedCarrierType } from './consolidatedShipmentConstants';
 import { Download, Plus, Search, RefreshCw, AlertCircle, FileText, Box, Receipt, X, MoreVertical } from 'lucide-react';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -37,7 +38,6 @@ interface ShipmentsListProps {
 export type ConsolidatedListColumnId =
   | 'packingFacility'
   | 'destination'
-  | 'carrier'
   | 'totalValue'
   | 'totalShipments'
   | 'trackingId'
@@ -46,23 +46,26 @@ export type ConsolidatedListColumnId =
   | 'packedDate'
   | 'shippedDate'
   | 'id'
-  | 'status'
-  | 'documents';
+  | 'documents'
+  | 'status';
 
-const DEFAULT_CONSOLIDATED_COLUMNS: { id: ConsolidatedListColumnId; label: string; visible: boolean }[] = [
-  { id: 'packingFacility', label: 'Packing Facility', visible: true },
-  { id: 'destination', label: 'Destination', visible: true },
-  { id: 'carrier', label: 'Carrier', visible: true },
-  { id: 'carrierType', label: 'Type', visible: true },
+/** Always visible; not controlled by column menu */
+const PINNED_CONSOLIDATED_COLUMNS: { id: ConsolidatedListColumnId; label: string }[] = [
+  { id: 'id', label: 'Consolidation ID' },
+  { id: 'documents', label: 'Documents' },
+  { id: 'status', label: 'Status' },
+];
+
+const DEFAULT_OPTIONAL_COLUMNS: { id: ConsolidatedListColumnId; label: string; visible: boolean }[] = [
+  { id: 'packingFacility', label: 'Facility', visible: true },
+  { id: 'destination', label: 'Destination Country', visible: true },
   { id: 'totalValue', label: 'Total value', visible: true },
   { id: 'totalShipments', label: 'Total shipments', visible: false },
   { id: 'trackingId', label: 'Tracking', visible: false },
+  { id: 'carrierType', label: 'Type', visible: false },
   { id: 'createdDate', label: 'Created date', visible: false },
   { id: 'packedDate', label: 'Packed date', visible: false },
   { id: 'shippedDate', label: 'Shipped date', visible: false },
-  { id: 'id', label: 'Shipment ID', visible: false },
-  { id: 'status', label: 'Status', visible: false },
-  { id: 'documents', label: 'Documents', visible: false },
 ];
 
 type EnrichedConsolidated = ConsolidatedShipment & {
@@ -75,10 +78,9 @@ type EnrichedConsolidated = ConsolidatedShipment & {
 function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolidated[] {
   return shipments.map((s, i) => {
     const displayTotalShipments = s.totalShipments ?? Math.max(1, s.orders.length);
-    const displayCarrierType: ConsolidatedCarrierType | string = s.carrierType ?? 'Merukazim';
+    const displayCarrierType: ConsolidatedCarrierType | string = inferredConsolidatedCarrierType(s);
     const displayPackedDate =
-      s.packedDate ??
-      (s.status === 'Draft' ? '—' : `${(i % 12) + 2}/${(i % 27) + 1}/2023`);
+      s.packedDate ?? `${(i % 12) + 2}/${(i % 27) + 1}/2023`;
     const displayShippedDate =
       s.shippedDate ?? (s.status === 'Shipped' ? `${(i % 12) + 5}/${(i % 27) + 1}/2023` : '—');
     return {
@@ -94,7 +96,7 @@ function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolid
 export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew, onUpdateShipment, onSectionChange }: ShipmentsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [columns, setColumns] = useState(() =>
-    DEFAULT_CONSOLIDATED_COLUMNS.map((c) => ({ ...c }))
+    DEFAULT_OPTIONAL_COLUMNS.map((c) => ({ ...c }))
   );
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,8 +108,6 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
   const [filters, setFilters] = useState({
     packingFacility: [] as string[],
     destination: [] as string[],
-    carrier: [] as string[],
-    status: [] as ShipmentStatus[],
   });
 
   const enrichedShipments = useMemo(() => enrichConsolidated(shipments), [shipments]);
@@ -124,44 +124,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
   // Predefined filter options
   const filterOptions = {
     packingFacility: ['Thailand', 'Kiryat Gat', 'Hungary', 'Nazareth'],
-    destination: [
-      'United States',
-      'China',
-      'Japan',
-      'Germany',
-      'United Kingdom',
-      'India',
-      'France',
-      'Italy',
-      'Brazil',
-      'Canada',
-      'South Korea',
-      'Russia',
-      'Spain',
-      'Australia',
-      'Mexico',
-      'Indonesia',
-      'Netherlands',
-      'Saudi Arabia',
-      'Turkey',
-      'Switzerland',
-    ],
-    carrier: [
-      'FedEx',
-      'DHL US',
-      'DHL EU',
-      'USPS',
-      'UPS',
-      'Royal Mail',
-      'Parcelforce',
-      'DPD UK',
-      'Hermes UK',
-      'Yodel',
-      'Amazon Logistics',
-      'OnTrac',
-      'LaserShip',
-    ],
-    status: ['Ready to Pack', 'Packed', 'On Hold', 'Shipped'] as ShipmentStatus[],
+    destination: ['—', 'EU', 'US', 'GB'],
   };
 
   const toggleFilter = (column: keyof typeof filters, value: string) => {
@@ -191,7 +154,6 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
   const statusCounts = useMemo(() => {
     return {
       All: shipments.length,
-      Draft: shipments.filter(s => s.status === 'Draft').length,
       Packed: shipments.filter(s => s.status === 'Packed').length,
       Shipped: shipments.filter(s => s.status === 'Shipped').length,
     };
@@ -220,18 +182,11 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
         return false;
       }
 
-      // Destination filter
-      if (filters.destination.length > 0 && !filters.destination.includes(shipment.destination)) {
-        return false;
-      }
-
-      // Carrier filter
-      if (filters.carrier.length > 0 && !filters.carrier.includes(shipment.carrier)) {
-        return false;
-      }
-
-      // Status filter
-      if (filters.status.length > 0 && !filters.status.includes(shipment.status)) {
+      // Destination filter (Bulk rows compare as "—")
+      if (
+        filters.destination.length > 0 &&
+        !filters.destination.includes(displayDestination(shipment))
+      ) {
         return false;
       }
 
@@ -276,8 +231,18 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
   };
 
   const resetColumnsToDefault = () => {
-    setColumns(DEFAULT_CONSOLIDATED_COLUMNS.map((c) => ({ ...c })));
+    setColumns(DEFAULT_OPTIONAL_COLUMNS.map((c) => ({ ...c })));
   };
+
+  const visibleTableColumns = useMemo(() => {
+    const optionalVisible = columns.filter((c) => c.visible);
+    return [
+      PINNED_CONSOLIDATED_COLUMNS[0],
+      ...optionalVisible,
+      PINNED_CONSOLIDATED_COLUMNS[1],
+      PINNED_CONSOLIDATED_COLUMNS[2],
+    ];
+  }, [columns]);
 
   const cellValueForExport = (s: EnrichedConsolidated, colId: ConsolidatedListColumnId): string => {
     switch (colId) {
@@ -293,17 +258,21 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
         return s.displayPackedDate;
       case 'shippedDate':
         return s.displayShippedDate;
+      case 'destination':
+        return displayDestination(s);
       case 'documents':
         return 'Label / Manifest / Invoice';
+      case 'status':
+        return s.status;
       default:
         return String((s as Record<string, unknown>)[colId] ?? '');
     }
   };
 
   const handleExportCSV = () => {
-    const headers = columns.filter(c => c.visible).map(c => c.label).join(',');
-    const rows = filteredShipments.map(s => {
-      return columns.filter(c => c.visible).map(c => cellValueForExport(s, c.id)).join(',');
+    const headers = visibleTableColumns.map((c) => c.label).join(',');
+    const rows = filteredShipments.map((s) => {
+      return visibleTableColumns.map((c) => cellValueForExport(s, c.id)).join(',');
     }).join('\n');
     
     const csv = `${headers}\n${rows}`;
@@ -314,8 +283,6 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
     a.download = 'consolidated-shipments.csv';
     a.click();
   };
-
-  const visibleColumns = columns.filter(c => c.visible);
 
   return (
     <div className="flex h-full">
@@ -362,7 +329,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <Input
-                      placeholder="Search by Shipment ID, Tracking ID or Order ID"
+                      placeholder="Search by Consolidation ID, Tracking ID or Order ID"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10 w-[600px] bg-white border-gray-300"
@@ -373,11 +340,9 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setFilters({
+                        onClick={() =>                         setFilters({
                           packingFacility: [],
                           destination: [],
-                          carrier: [],
-                          status: [],
                         })}
                       >
                         Clear All Filters
@@ -399,16 +364,6 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                     }`}
                   >
                     All ({statusCounts.All})
-                  </button>
-                  <button
-                    onClick={() => setSelectedStatusTab('Draft')}
-                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                      selectedStatusTab === 'Draft'
-                        ? 'bg-[#1976d2] text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  >
-                    Draft ({statusCounts.Draft})
                   </button>
                   <button
                     onClick={() => setSelectedStatusTab('Packed')}
@@ -441,8 +396,8 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                     <table className="w-full relative">
                       <thead className="bg-white sticky top-0 border-b z-10">
                         <tr>
-                          {visibleColumns.map((column) => {
-                            const isFilterable = ['packingFacility', 'destination', 'carrier', 'status'].includes(column.id);
+                          {visibleTableColumns.map((column) => {
+                            const isFilterable = ['packingFacility', 'destination'].includes(column.id);
                             const isDateCreated = column.id === 'createdDate';
                             const filterKey = column.id as keyof typeof filters;
                             const hasFilter = isFilterable && filters[filterKey]?.length > 0;
@@ -629,7 +584,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                             onClick={() => onShipmentClick(shipment)}
                             className="border-b hover:bg-gray-50 cursor-pointer transition-colors relative"
                           >
-                            {visibleColumns.map((column) => (
+                            {visibleTableColumns.map((column) => (
                               <td key={column.id} className="px-4 py-4">
                                 {column.id === 'id' && (
                                   <div className="flex items-center gap-2">
@@ -643,10 +598,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                   <span className="text-sm">{shipment.packingFacility}</span>
                                 )}
                                 {column.id === 'destination' && (
-                                  <span className="text-sm">{shipment.destination}</span>
-                                )}
-                                {column.id === 'carrier' && (
-                                  <span className="text-sm">{shipment.carrier}</span>
+                                  <span className="text-sm">{displayDestination(shipment)}</span>
                                 )}
                                 {column.id === 'trackingId' && (
                                   <span className="text-sm">{shipment.trackingId}</span>
@@ -727,7 +679,11 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                   <span className="text-sm">{shipment.displayShippedDate}</span>
                                 )}
                                 {column.id === 'status' && (
-                                  <span className={`px-3 py-1 rounded-md text-xs font-medium ${consolidatedStatusBadgeClass(shipment.status)}`}>
+                                  <span
+                                    className={`px-3 py-1 rounded-md text-xs font-medium ${consolidatedStatusBadgeClass(
+                                      shipment.status
+                                    )}`}
+                                  >
                                     {shipment.status}
                                   </span>
                                 )}

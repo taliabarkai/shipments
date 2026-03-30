@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { ConsolidatedShipment, ShipmentStatus } from './ConsolidatedShipmentsApp';
+import { inferredConsolidatedCarrierType } from './consolidatedShipmentConstants';
+import { displayDestination } from './consolidatedShipmentUi';
+import ConsolidatedPacksOrdersReadOnly from './ConsolidatedPacksOrdersReadOnly';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { ArrowLeft, Pause, Play, Package } from 'lucide-react';
+import { ArrowLeft, Truck } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import ExpandableSidebar from './ExpandableSidebar';
 import MainMenuSidebar from '../imports/MainMenuSidebar';
@@ -28,21 +31,14 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
     setIsEditingTracking(false);
   };
 
-  const handlePutOnHold = () => {
-    handleStatusChange('On Hold');
-  };
-
-  const handleResumeFromHold = () => {
-    handleStatusChange('Ready to Pack');
-  };
-
   const getStatusColor = (status: ShipmentStatus) => {
     switch (status) {
-      case 'Shipped': return 'bg-green-100 text-green-700';
-      case 'Ready to Pack': return 'bg-[#e1f5fe] text-[#01579b]';
-      case 'On Hold': return 'bg-[#feebee] text-[#b71c1c]';
-      case 'Packed': return 'bg-[#ede7f6] text-[#311b92]';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'Shipped':
+        return 'bg-green-100 text-green-700';
+      case 'Packed':
+        return 'bg-[#ede7f6] text-[#311b92]';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -100,14 +96,14 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                       <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
                         <circle cx="10" cy="10" r="8" stroke="currentColor" fill="none" strokeWidth="1.5"/>
                       </svg>
-                      <span className="text-lg">{shipment.destination}</span>
+                      <span className="text-lg">{displayDestination(shipment)}</span>
                     </div>
                   </div>
 
                   <div>
                     <label className="text-sm text-gray-500 block mb-2">Carrier type</label>
                     <span className="text-lg">
-                      {shipment.carrierType ?? 'Merukazim'}
+                      {inferredConsolidatedCarrierType(shipment)}
                     </span>
                   </div>
 
@@ -120,13 +116,6 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                       <span className="text-lg">{shipment.carrier}</span>
                     </div>
                   </div>
-
-                  {shipment.shippingRoute && (
-                    <div>
-                      <label className="text-sm text-gray-500 block mb-2">Shipping route</label>
-                      <span className="text-lg">{shipment.shippingRoute}</span>
-                    </div>
-                  )}
 
                   <div>
                     <label className="text-sm text-gray-500 block mb-2">Tracking ID</label>
@@ -167,21 +156,6 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                   </div>
                 </div>
 
-                {/* Orders List */}
-                <div className="pt-6 border-t">
-                  <h3 className="text-lg font-medium mb-4">Orders in this Shipment</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {shipment.orders.map(order => (
-                      <span
-                        key={order}
-                        className="px-3 py-1 bg-gray-100 rounded-full text-sm"
-                      >
-                        {order}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Documents */}
                 <div className="pt-6 border-t">
                   <h3 className="text-lg font-medium mb-4">Documents</h3>
@@ -200,6 +174,10 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                     </Button>
                   </div>
                 </div>
+
+                <div className="pt-6 border-t">
+                  <ConsolidatedPacksOrdersReadOnly shipment={shipment} variant="page" />
+                </div>
               </div>
 
               {/* Actions Card */}
@@ -217,9 +195,7 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Ready to Pack">Ready to Pack</SelectItem>
                         <SelectItem value="Packed">Packed</SelectItem>
-                        <SelectItem value="On Hold">On Hold</SelectItem>
                         <SelectItem value="Shipped">Shipped</SelectItem>
                       </SelectContent>
                     </Select>
@@ -227,33 +203,13 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
 
                   {/* Quick Actions */}
                   <div className="flex flex-wrap gap-3 pt-4">
-                    {shipment.status !== 'On Hold' && shipment.status !== 'Shipped' && (
+                    {shipment.status === 'Packed' && (
                       <Button
-                        onClick={handlePutOnHold}
-                        variant="outline"
-                        className="border-red-500 text-red-500 hover:bg-red-50"
-                      >
-                        <Pause className="w-4 h-4 mr-2" />
-                        Put on Hold
-                      </Button>
-                    )}
-                    {shipment.status === 'On Hold' && (
-                      <Button
-                        onClick={handleResumeFromHold}
-                        variant="outline"
-                        className="border-blue-500 text-blue-500 hover:bg-blue-50"
-                      >
-                        <Play className="w-4 h-4 mr-2" />
-                        Resume
-                      </Button>
-                    )}
-                    {shipment.status === 'Ready to Pack' && (
-                      <Button
-                        onClick={() => handleStatusChange('Packed')}
+                        onClick={() => handleStatusChange('Shipped')}
                         className="bg-[#1976d2] hover:bg-[#1565c0]"
                       >
-                        <Package className="w-4 h-4 mr-2" />
-                        Mark as Packed
+                        <Truck className="w-4 h-4 mr-2" />
+                        Mark as Shipped
                       </Button>
                     )}
                   </div>

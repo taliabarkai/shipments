@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
+import { SHOW_SHIPMENT_COLLECTIONS } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import routeIconPaths from '../imports/svg-yb48l66bfs';
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react';
@@ -43,15 +45,13 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           {/* Fixed-width icon container */}
                           <div className="box-border content-stretch flex flex-col items-center justify-center overflow-clip p-[8px] relative rounded-[100px] shrink-0 w-[40px]">
                             <div className="content-stretch flex items-center justify-center relative shrink-0">
-                              <div className="relative shrink-0 size-[24px]">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                                  <g>
-                                    <path d={svgPaths.p1ea84400} fill={activeSection === 'shipments' ? '#1976D2' : 'rgba(0,0,0,0.56)'} />
-                                    <path d={svgPaths.p3f9aa200} fill={activeSection === 'shipments' ? '#1976D2' : 'rgba(0,0,0,0.56)'} />
-                                    <path d={svgPaths.p27f52a40} fill={activeSection === 'shipments' ? '#1976D2' : 'rgba(0,0,0,0.56)'} />
-                                    <path d={svgPaths.p68e4b00} fill={activeSection === 'shipments' ? '#1976D2' : 'rgba(0,0,0,0.56)'} />
-                                  </g>
-                                </svg>
+                              <div className="relative shrink-0 size-[24px] flex items-center justify-center">
+                                <LocalShippingOutlined
+                                  sx={{
+                                    fontSize: 24,
+                                    color: activeSection === 'shipments' ? '#1976D2' : 'rgba(0,0,0,0.56)',
+                                  }}
+                                />
                               </div>
                             </div>
                             {activeSection === 'shipments' && (
@@ -77,8 +77,9 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
               </Tooltip>
             </div>
 
-            {/* Shipment Collections */}
+            {SHOW_SHIPMENT_COLLECTIONS && (
             <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
+              {/* Shipment Collections */}
               <Tooltip key={`collections-${isExpanded}`}>
                 <TooltipTrigger asChild>
                   <div 
@@ -125,6 +126,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 )}
               </Tooltip>
             </div>
+            )}
 
             {/* Consolidated Shipments */}
             <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">

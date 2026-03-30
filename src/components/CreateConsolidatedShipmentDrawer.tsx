@@ -93,7 +93,7 @@ export default function CreateConsolidatedShipmentDrawer({ isOpen, onClose, onCr
       carrier,
       trackingId: `TRK${Date.now()}`,
       totalValue: packs.some(pack => pack.orders.length > 0) ? `$${(Math.random() * 20000 + 5000).toFixed(2)}` : '$0.00',
-      status: 'Draft',
+      status: 'Packed',
       orders: packs.flatMap(pack => pack.orders),
       hasCancelledItems: false,
     };
@@ -163,8 +163,8 @@ export default function CreateConsolidatedShipmentDrawer({ isOpen, onClose, onCr
           {/* Status Badge */}
           <div className="flex items-center gap-2 pt-[4px] pr-[0px] pb-[0px] pl-[0px]">
             <span className="text-sm text-gray-500">Status:</span>
-            <span className="px-3 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-800">
-              Draft
+            <span className="px-3 py-1 rounded-md text-xs font-medium bg-[#ede7f6] text-[#311b92]">
+              Packed
             </span>
           </div>
         </SheetHeader>

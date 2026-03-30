@@ -157,7 +157,7 @@ export default function CreateShippingRouteDialog({
         {/* Content with light gray background */}
         <div className="flex-1 overflow-y-auto p-6 bg-[rgb(255,255,255)]">
           {activeTab === 'properties' && (
-            <Frame625133 initialData={formData} onDataChange={setFormData} />
+            <Frame625133 key={route?.id ?? 'new'} initialData={formData} onDataChange={setFormData} />
           )}
 
           {activeTab === 'pricing' && (

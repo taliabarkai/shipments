@@ -18,7 +18,7 @@ export default function FiltersPanel({ filters, onFiltersChange, shipments }: Fi
   const uniqueFacilities = Array.from(new Set(shipments.map(s => s.packingFacility)));
   const uniqueDestinations = Array.from(new Set(shipments.map(s => s.destination)));
   const uniqueCarriers = Array.from(new Set(shipments.map(s => s.carrier)));
-  const statuses: ShipmentStatus[] = ['Ready to Pack', 'Packed', 'On Hold', 'Shipped'];
+  const statuses: ShipmentStatus[] = ['Packed', 'Shipped'];
 
   const toggleFilter = (category: keyof typeof filters, value: string) => {
     const current = filters[category] as string[];
