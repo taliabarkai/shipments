@@ -206,6 +206,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
     packs.some(pack => pack.orders.length > 0) &&
     shipment?.status !== 'Shipped' &&
     shipment?.status !== 'Cancelled' &&
+    shipment?.status !== 'Draft' &&
     !hasCancelledOrdersInScanned;
   const canSave = destination && carrier;
 
@@ -225,6 +226,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
             <span className={`px-3 py-1 rounded-md text-xs font-medium ${
               shipment.status === 'Shipped' ? 'bg-green-100 text-green-700' :
               shipment.status === 'Packed' ? 'bg-[#ede7f6] text-[#311b92]' :
+              shipment.status === 'Draft' ? 'bg-amber-100 text-amber-900' :
               shipment.status === 'Cancelled' ? 'bg-gray-200 text-gray-700' :
               'bg-gray-100 text-gray-800'
             }`}>
@@ -241,7 +243,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
               <label className="font-medium mb-2 block">
                 Destination
               </label>
-              <Select value={destination} onValueChange={setDestination} disabled={shipment.status === 'Shipped' || shipment.status === 'Packed' || shipment.status === 'Cancelled'}>
+              <Select value={destination} onValueChange={setDestination} disabled={shipment.status === 'Shipped' || shipment.status === 'Packed' || shipment.status === 'Cancelled' || shipment.status === 'Draft'}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
@@ -263,7 +265,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
               <Select 
                 value={carrier} 
                 onValueChange={setCarrier}
-                disabled={!destination || shipment.status === 'Shipped' || shipment.status === 'Packed' || shipment.status === 'Cancelled'}
+                disabled={!destination || shipment.status === 'Shipped' || shipment.status === 'Packed' || shipment.status === 'Cancelled' || shipment.status === 'Draft'}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
@@ -296,7 +298,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
                   }`}
                 >
                   Pack #{pack.id} ({pack.orders.length})
-                  {packs.length > 1 && pack.orders.length === 0 && shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && (
+                  {packs.length > 1 && pack.orders.length === 0 && shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && shipment.status !== 'Draft' && (
                     <span
                       onClick={(e) => deletePack(pack.id, e)}
                       className={`absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity ${
@@ -308,7 +310,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
                   )}
                 </button>
               ))}
-              {packs.length < 10 && shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && (
+              {packs.length < 10 && shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && shipment.status !== 'Draft' && (
                 <button
                   onClick={addNewPack}
                   className="px-3 py-1.5 text-sm rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors flex items-center gap-1"
@@ -338,7 +340,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
             )}
 
             {/* Scan Input - only show if not shipped and not packed */}
-            {shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && (
+            {shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && shipment.status !== 'Draft' && (
               <div className="border rounded-lg mb-4">
                 <div className="flex items-center gap-3 px-4 py-3 bg-[rgba(255,255,255,0)]">
                   <Maximize2 className="w-5 h-5 text-gray-400" />
@@ -388,7 +390,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
                             <span className="text-xs text-red-600 font-medium">CANCELLED</span>
                           )}
                         </div>
-                        {shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && (
+                        {shipment.status !== 'Shipped' && shipment.status !== 'Packed' && shipment.status !== 'Cancelled' && shipment.status !== 'Draft' && (
                           <button
                             onClick={() => setPacks(packs.map(pack => {
                               if (pack.id === activePack) {
@@ -420,7 +422,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
             Cancel
           </Button>
           <div className="flex gap-3">
-            {shipment.status === 'Shipped' || shipment.status === 'Cancelled' ? (
+            {shipment.status === 'Shipped' || shipment.status === 'Cancelled' || shipment.status === 'Draft' ? (
               <Button
                 onClick={onClose}
                 className="bg-[#1976d2] hover:bg-[#1565c0]"

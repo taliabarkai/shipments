@@ -104,6 +104,41 @@ export function consolidatedCancelDialogCounts(s: ConsolidatedShipment): {
   return { shipmentCount, boxCount };
 }
 
+/** Shown when a consolidated shipment enters Draft after label API failure (simulation or real). */
+export const CONSOLIDATED_LABEL_API_FAILED_MESSAGE =
+  'Shipping label creation failed. Please create a shipping label manually and enter the tracking ID.';
+
+const FEDEX_CARRIER_PATTERN = /fedex/i;
+const DHL_CARRIER_PATTERN = /dhl/i;
+
+export function isCarrierFedExForManualTracking(carrier: string): boolean {
+  return FEDEX_CARRIER_PATTERN.test(carrier?.trim() ?? '');
+}
+
+export function isCarrierDHLForManualTracking(carrier: string): boolean {
+  return DHL_CARRIER_PATTERN.test(carrier?.trim() ?? '');
+}
+
+/** Manual tracking validation after Draft (API error): FedEx 12 digits, DHL 10 digits; others min length 4. */
+export function isValidManualConsolidatedTrackingId(carrier: string, trackingId: string): boolean {
+  const t = trackingId.trim();
+  if (!t) return false;
+  if (isCarrierFedExForManualTracking(carrier)) return /^\d{12}$/.test(t);
+  if (isCarrierDHLForManualTracking(carrier)) return /^\d{10}$/.test(t);
+  return t.length >= 4;
+}
+
+export type ManualDraftTrackingCounterMode = 'digits' | 'trimmedChars';
+
+/** Draft manual tracking counter: FedEx 12 (digit count); all other carriers 10 (trimmed length). */
+export function manualConsolidatedDraftTrackingCounter(carrier: string): {
+  max: number;
+  mode: ManualDraftTrackingCounterMode;
+} {
+  if (isCarrierFedExForManualTracking(carrier)) return { max: 12, mode: 'digits' };
+  return { max: 10, mode: 'trimmedChars' };
+}
+
 export function findCarrierOptionId(s: ConsolidatedShipment): string {
   const name = s.carrier;
   if (s.carrierType === 'Bulk') {

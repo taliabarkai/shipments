@@ -213,7 +213,8 @@ export default function ConsolidatedShipmentForm({
     shipment &&
       (shipment.status === 'Shipped' ||
         shipment.status === 'Packed' ||
-        shipment.status === 'Cancelled'),
+        shipment.status === 'Cancelled' ||
+        shipment.status === 'Draft'),
   );
   const hasScannedOrders = useMemo(
     () => packs.some((p) => p.orders.length > 0),
@@ -535,9 +536,9 @@ export default function ConsolidatedShipmentForm({
       <Dialog open={packConfirmOpen} onOpenChange={setPackConfirmOpen}>
         <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
           <DialogHeader>
-            <DialogTitle>Pack this consolidated Shipment?</DialogTitle>
+            <DialogTitle>Pack consolidated shipment</DialogTitle>
             <DialogDescription>
-              Pack consolidated with {totalScanned} {packShipmentWord} in {packBoxCount} {packBoxWord}?
+              {`Pack this consolidated shipment containing ${totalScanned} ${packShipmentWord} in ${packBoxCount} ${packBoxWord}.`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -549,7 +550,7 @@ export default function ConsolidatedShipmentForm({
               className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
               onClick={performPack}
             >
-              OK
+              Pack shipment
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -17,7 +17,7 @@ import {
 } from './ui/dialog';
 import { consolidatedCancelDialogCounts } from './consolidatedShipmentConstants';
 
-export type ShipmentStatus = 'Packed' | 'Shipped' | 'Cancelled';
+export type ShipmentStatus = 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
 export type ConsolidatedCarrierType = 'Bulk' | 'Merukazim';
 
@@ -111,6 +111,23 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
         { id: 3, orders: Array.from({ length: 7 }, (_, i) => `ORD-${1035 + i}`) },
       ],
       dateCreated: '10/1/2023'
+    },
+    {
+      id: '273133199',
+      packingFacility: 'Kiryat Gat',
+      destination: '—',
+      carrier: 'FedEx',
+      carrierType: 'Bulk',
+      trackingId: '',
+      totalValue: '$8,240.00',
+      status: 'Draft',
+      totalShipments: 11,
+      orders: Array.from({ length: 11 }, (_, i) => `ORD-${3000 + i}`),
+      packs: [
+        { id: 1, orders: Array.from({ length: 6 }, (_, i) => `ORD-${3000 + i}`) },
+        { id: 2, orders: Array.from({ length: 5 }, (_, i) => `ORD-${3006 + i}`) },
+      ],
+      dateCreated: '10/19/2023',
     },
     {
       id: '273133182',
@@ -336,6 +353,12 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     setDetailDrawerOpen(true);
   };
 
+  const handleGoToShipmentFromCreate = (shipment: ConsolidatedShipment) => {
+    clearDetailDrawerCloseTimer();
+    setDetailDrawerShipment(shipment);
+    setDetailDrawerOpen(true);
+  };
+
   const handleDetailDrawerOpenChange = (open: boolean) => {
     setDetailDrawerOpen(open);
     if (!open) {
@@ -350,14 +373,30 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
   };
 
   const handleDetailTrackingCommit = (id: string, trackingId: string) => {
-    setShipments((prev) => prev.map((s) => (s.id === id ? { ...s, trackingId } : s)));
+    setShipments((prev) =>
+      prev.map((s) => (s.id === id && s.status !== 'Draft' ? { ...s, trackingId } : s))
+    );
+  };
+
+  const handleDraftPack = (id: string, trackingId: string) => {
+    const trimmed = trackingId.trim();
+    setShipments((prev) =>
+      prev.map((s) =>
+        s.id === id && s.status === 'Draft' ? { ...s, status: 'Packed' as const, trackingId: trimmed } : s
+      )
+    );
+    setNotificationMessage(`Consolidated shipment ${id} was packed with tracking ID ${trimmed}.`);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 5000);
   };
 
   const handleCreatePacked = (shipment: ConsolidatedShipment) => {
-    setShipments(prev => [...prev, shipment]);
-    setNotificationMessage(`Consolidated shipment ${shipment.id} was created successfully!`);
-    setShowNotification(true);
-    setTimeout(() => setShowNotification(false), 5000);
+    setShipments((prev) => [...prev, shipment]);
+    if (shipment.status !== 'Draft') {
+      setNotificationMessage(`Consolidated shipment ${shipment.id} was created successfully!`);
+      setShowNotification(true);
+      setTimeout(() => setShowNotification(false), 5000);
+    }
   };
 
   const handleSaveShipment = (shipment: ConsolidatedShipment) => {
@@ -427,6 +466,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
             open={createDrawerOpen}
             onOpenChange={setCreateDrawerOpen}
             onPacked={handleCreatePacked}
+            onGoToShipment={handleGoToShipmentFromCreate}
           />
 
           {detailDrawerShipment && (
@@ -438,6 +478,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
               onOpenChange={handleDetailDrawerOpenChange}
               onTrackingIdCommit={handleDetailTrackingCommit}
               onRequestCancelConsolidatedShipment={beginCancelConsolidatedShipment}
+              onDraftPack={handleDraftPack}
             />
           )}
 

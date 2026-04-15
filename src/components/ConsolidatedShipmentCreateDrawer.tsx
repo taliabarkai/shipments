@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { X } from 'lucide-react';
+import { useState, useCallback, useEffect } from 'react';
+import { AlertCircle, X } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -7,6 +7,8 @@ import {
   SheetTitle,
 } from './ui/sheet';
 import { Button } from './ui/button';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
 import ConsolidatedShipmentForm from './ConsolidatedShipmentForm';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import {
@@ -22,15 +24,26 @@ interface ConsolidatedShipmentCreateDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPacked: (shipment: ConsolidatedShipment) => void;
+  /** After simulated label API failure — opens consolidated item detail (Draft). */
+  onGoToShipment: (shipment: ConsolidatedShipment) => void;
 }
 
 export default function ConsolidatedShipmentCreateDrawer({
   open,
   onOpenChange,
   onPacked,
+  onGoToShipment,
 }: ConsolidatedShipmentCreateDrawerProps) {
   const [dirty, setDirty] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  /** When ON, Pack creates the shipment in Draft (existing API-error / recovery flow). */
+  const [apiErrorSimulation, setApiErrorSimulation] = useState(false);
+  const [labelApiErrorOpen, setLabelApiErrorOpen] = useState(false);
+  const [labelApiErrorShipment, setLabelApiErrorShipment] = useState<ConsolidatedShipment | null>(null);
+
+  useEffect(() => {
+    if (!open) setApiErrorSimulation(false);
+  }, [open]);
 
   const requestClose = useCallback(() => {
     if (dirty) {
@@ -58,9 +71,26 @@ export default function ConsolidatedShipmentCreateDrawer({
   };
 
   const handlePacked = (shipment: ConsolidatedShipment) => {
-    onPacked(shipment);
     setDirty(false);
+    if (apiErrorSimulation) {
+      const draft: ConsolidatedShipment = { ...shipment, status: 'Draft', trackingId: '' };
+      onPacked(draft);
+      setApiErrorSimulation(false);
+      onOpenChange(false);
+      setLabelApiErrorShipment(draft);
+      setLabelApiErrorOpen(true);
+      return;
+    }
+    onPacked(shipment);
+    setApiErrorSimulation(false);
     onOpenChange(false);
+  };
+
+  const handleGoToShipmentFromLabelError = () => {
+    if (!labelApiErrorShipment) return;
+    onGoToShipment(labelApiErrorShipment);
+    setLabelApiErrorOpen(false);
+    setLabelApiErrorShipment(null);
   };
 
   return (
@@ -73,9 +103,26 @@ export default function ConsolidatedShipmentCreateDrawer({
         >
           <SheetHeader className="shrink-0 space-y-0 border-b px-6 py-4 text-left">
             <div className="flex items-start justify-between gap-4 pr-2">
-              <SheetTitle className="text-base font-medium leading-normal tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
-                New Consolidated Shipment
-              </SheetTitle>
+              <div className="min-w-0 flex-1 space-y-2">
+                <SheetTitle className="text-base font-medium leading-normal tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
+                  New Consolidated Shipment
+                </SheetTitle>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label
+                    htmlFor="consolidated-api-error-simulation"
+                    className="cursor-pointer text-[12px] font-normal leading-snug text-[rgba(0,0,0,0.6)]"
+                  >
+                    API Error Simulation
+                  </Label>
+                  <Switch
+                    id="consolidated-api-error-simulation"
+                    checked={apiErrorSimulation}
+                    onCheckedChange={setApiErrorSimulation}
+                    className="scale-90"
+                    aria-label="API Error Simulation"
+                  />
+                </div>
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -118,6 +165,36 @@ export default function ConsolidatedShipmentCreateDrawer({
               onClick={confirmDiscard}
             >
               Leave and discard
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={labelApiErrorOpen} onOpenChange={() => {}}>
+        <DialogContent
+          className="sm:max-w-lg [&>button.ring-offset-background]:hidden"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="size-5 shrink-0 text-black dark:text-foreground" aria-hidden />
+              Create label manually
+            </DialogTitle>
+            <DialogDescription>
+              {
+                "We couldn't generate a label for this consolidated shipment. Please create one manually and enter the tracking ID."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex flex-row justify-end gap-2">
+            <Button
+              type="button"
+              className="w-fit bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium text-white shadow-md hover:bg-[#1565c0]"
+              onClick={handleGoToShipmentFromLabelError}
+            >
+              Continue to Shipment
             </Button>
           </DialogFooter>
         </DialogContent>

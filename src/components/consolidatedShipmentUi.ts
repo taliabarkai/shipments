@@ -42,6 +42,8 @@ export function consolidatedStatusBadgeClass(status: ShipmentStatus): string {
       return 'bg-green-100 text-green-700';
     case 'Packed':
       return 'bg-[#ede7f6] text-[#311b92]';
+    case 'Draft':
+      return 'bg-amber-100 text-amber-900';
     case 'Cancelled':
       return 'bg-gray-200 text-gray-700';
     default:
@@ -59,6 +61,8 @@ export function consolidatedDrawerStatusBadgeClass(status: ShipmentStatus): stri
       return 'bg-[#dcfce7] text-[#016630]';
     case 'Packed':
       return 'bg-[#ede7f6] text-[#311b92]';
+    case 'Draft':
+      return 'bg-[#fef3c7] text-[#92400e]';
     case 'Cancelled':
       return 'bg-[#e5e7eb] text-[#374151]';
     default:

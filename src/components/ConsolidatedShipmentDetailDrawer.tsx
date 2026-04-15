@@ -11,6 +11,11 @@ import {
 } from './consolidatedShipmentUi';
 import type { DrawerTimelineItem } from './shipmentDrawerSections';
 import ConsolidatedPacksOrdersReadOnly from './ConsolidatedPacksOrdersReadOnly';
+import {
+  CONSOLIDATED_LABEL_API_FAILED_MESSAGE,
+  isValidManualConsolidatedTrackingId,
+  manualConsolidatedDraftTrackingCounter,
+} from './consolidatedShipmentConstants';
 
 export interface ConsolidatedDocumentRow {
   id: string;
@@ -106,6 +111,8 @@ interface ConsolidatedShipmentDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   onTrackingIdCommit: (shipmentId: string, trackingId: string) => void;
   onRequestCancelConsolidatedShipment?: (shipment: ConsolidatedShipment) => void;
+  /** Draft → Packed after manual tracking entry */
+  onDraftPack?: (shipmentId: string, trackingId: string) => void;
   documents?: ConsolidatedDocumentRow[];
 }
 
@@ -115,13 +122,18 @@ export default function ConsolidatedShipmentDetailDrawer({
   onOpenChange,
   onTrackingIdCommit,
   onRequestCancelConsolidatedShipment,
+  onDraftPack,
   documents = DEFAULT_DOCS,
 }: ConsolidatedShipmentDetailDrawerProps) {
   const [trackingDraft, setTrackingDraft] = useState('');
+  const [draftTrackingTouched, setDraftTrackingTouched] = useState(false);
 
   useEffect(() => {
-    if (shipment) setTrackingDraft(shipment.trackingId);
-  }, [shipment?.id, shipment?.trackingId, open]);
+    if (shipment) {
+      setTrackingDraft(shipment.trackingId);
+      setDraftTrackingTouched(false);
+    }
+  }, [shipment?.id, shipment?.trackingId, shipment?.status, open]);
 
   const timelineItems = useMemo(() => {
     if (!shipment) return [];
@@ -129,6 +141,29 @@ export default function ConsolidatedShipmentDetailDrawer({
     const createdUser = 'Jamie Chen';
     const packedUser = 'Morgan Blake';
     const shippedUser = 'Alex Rivera';
+
+    if (st === 'Draft') {
+      return [
+        {
+          label: 'Shipped',
+          date: 'Pending carrier handoff',
+          user: undefined,
+          state: 'pending' as const,
+        },
+        {
+          label: 'Packed',
+          date: 'Enter tracking ID and pack to complete',
+          user: undefined,
+          state: 'pending' as const,
+        },
+        {
+          label: 'Created',
+          date: mockCreatedAt(shipment),
+          user: createdUser,
+          state: 'completed' as const,
+        },
+      ];
+    }
 
     if (st === 'Cancelled') {
       return [
@@ -181,11 +216,33 @@ export default function ConsolidatedShipmentDetailDrawer({
   if (!shipment) return null;
 
   const handleSheetOpenChange = (next: boolean) => {
-    if (!next) onTrackingIdCommit(shipment.id, trackingDraft.trim());
+    if (!next && shipment.status !== 'Draft') {
+      onTrackingIdCommit(shipment.id, trackingDraft.trim());
+    }
     onOpenChange(next);
   };
 
   const closeDrawer = () => handleSheetOpenChange(false);
+
+  const draftTrackingValid =
+    shipment.status === 'Draft' &&
+    isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft);
+
+  const draftTrackingCounter =
+    shipment.status === 'Draft' ? manualConsolidatedDraftTrackingCounter(shipment.carrier) : null;
+  const draftTrackingCounterCurrent =
+    draftTrackingCounter == null
+      ? 0
+      : draftTrackingCounter.mode === 'digits'
+        ? (trackingDraft.match(/\d/g) ?? []).length
+        : trackingDraft.trim().length;
+
+  const handleDraftPackClick = () => {
+    if (!onDraftPack || shipment.status !== 'Draft') return;
+    setDraftTrackingTouched(true);
+    if (!isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)) return;
+    onDraftPack(shipment.id, trackingDraft.trim());
+  };
 
   return (
     <Sheet open={open} onOpenChange={handleSheetOpenChange}>
@@ -226,20 +283,66 @@ export default function ConsolidatedShipmentDetailDrawer({
                 Shipping Information
               </h3>
               <div className="flex flex-col gap-3">
+                {shipment.status === 'Draft' && (
+                  <div
+                    role="alert"
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 tracking-tight text-[#92400e]"
+                  >
+                    {CONSOLIDATED_LABEL_API_FAILED_MESSAGE}
+                  </div>
+                )}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
-                    Tracking ID
+                    {shipment.status === 'Draft' ? 'Manual tracking ID' : 'Tracking ID'}
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="relative min-w-0 flex-1">
                     <Input
                       id="consolidated-tracking-id"
                       value={trackingDraft}
-                      onChange={(e) => setTrackingDraft(e.target.value)}
-                      onBlur={() => onTrackingIdCommit(shipment.id, trackingDraft.trim())}
-                      placeholder="Enter tracking number"
+                      onChange={(e) => {
+                        setTrackingDraft(e.target.value);
+                        if (shipment.status === 'Draft') setDraftTrackingTouched(true);
+                      }}
+                      onBlur={() => {
+                        if (shipment.status !== 'Draft') {
+                          onTrackingIdCommit(shipment.id, trackingDraft.trim());
+                        }
+                      }}
+                      placeholder={
+                        shipment.status === 'Draft' ? 'Enter Tracking ID' : 'Enter tracking number'
+                      }
                       autoFocus={false}
-                      className="h-auto min-h-[40px] rounded border border-[rgba(0,0,0,0.23)] bg-white px-3 py-2 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2]"
+                      aria-describedby={
+                        draftTrackingCounter != null ? 'consolidated-manual-tracking-counter' : undefined
+                      }
+                      aria-invalid={
+                        shipment.status === 'Draft' &&
+                        draftTrackingTouched &&
+                        trackingDraft.trim().length > 0 &&
+                        !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
+                          ? true
+                          : undefined
+                      }
+                      className={`h-auto min-h-[40px] rounded border bg-white py-2 pl-3 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2] ${
+                        draftTrackingCounter != null ? 'pr-[4.25rem]' : 'pr-3'
+                      } ${
+                        shipment.status === 'Draft' &&
+                        draftTrackingTouched &&
+                        trackingDraft.trim().length > 0 &&
+                        !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
+                          ? 'border-red-500'
+                          : 'border-[rgba(0,0,0,0.23)]'
+                      }`}
                     />
+                    {draftTrackingCounter != null && (
+                      <span
+                        id="consolidated-manual-tracking-counter"
+                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs tabular-nums tracking-tight text-[#6a7282]"
+                        aria-live="polite"
+                      >
+                        {draftTrackingCounterCurrent}/{draftTrackingCounter.max}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
@@ -327,14 +430,39 @@ export default function ConsolidatedShipmentDetailDrawer({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-end border-t border-black/12 bg-white px-6 py-4">
-            <Button
-              type="button"
-              className="bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0]"
-              onClick={closeDrawer}
-            >
-              Close
-            </Button>
+          <div
+            className={`flex shrink-0 items-center border-t border-black/12 bg-white px-6 py-4 ${
+              shipment.status === 'Draft' && onDraftPack ? 'justify-between' : 'justify-end'
+            }`}
+          >
+            {shipment.status === 'Draft' && onDraftPack ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="px-3 py-2 text-[15px] font-medium text-[rgba(0,0,0,0.6)] hover:bg-transparent hover:text-[rgba(0,0,0,0.8)]"
+                  onClick={closeDrawer}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="min-w-[88px] bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0] disabled:bg-[rgba(0,0,0,0.12)] disabled:text-[rgba(0,0,0,0.38)]"
+                  disabled={!draftTrackingValid}
+                  onClick={handleDraftPackClick}
+                >
+                  Pack
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0]"
+                onClick={closeDrawer}
+              >
+                Close
+              </Button>
+            )}
           </div>
         </div>
       </SheetContent>

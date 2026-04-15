@@ -23,7 +23,7 @@ import svgPaths from '../imports/svg-8i0hxkhc97';
 import { Toaster } from './ui/sonner';
 import { DateRangePicker } from './DateRangePicker';
 
-type ConsolidatedListStatusTab = 'All' | 'Packed' | 'Shipped' | 'Cancelled';
+type ConsolidatedListStatusTab = 'All' | 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
 interface ShipmentsListProps {
   shipments: ConsolidatedShipment[];
@@ -82,11 +82,12 @@ function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolid
     const displayShippedDate =
       s.shippedDate ??
       (s.status === 'Shipped' ? `${(i % 12) + 5}/${(i % 27) + 1}/2023` : '—');
+    const displayPackedDateResolved = s.status === 'Draft' ? '—' : displayPackedDate;
     return {
       ...s,
       displayTotalShipments,
       displayCarrierType,
-      displayPackedDate,
+      displayPackedDate: displayPackedDateResolved,
       displayShippedDate,
     };
   });
@@ -162,6 +163,7 @@ export default function ShipmentsList({
       Packed: shipments.filter(s => s.status === 'Packed').length,
       Shipped: shipments.filter(s => s.status === 'Shipped').length,
       Cancelled: shipments.filter(s => s.status === 'Cancelled').length,
+      Draft: shipments.filter(s => s.status === 'Draft').length,
     };
   }, [shipments]);
 
@@ -370,6 +372,16 @@ export default function ShipmentsList({
                     }`}
                   >
                     All ({statusCounts.All})
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatusTab('Draft')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      selectedStatusTab === 'Draft'
+                        ? 'bg-[#1976d2] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Draft ({statusCounts.Draft})
                   </button>
                   <button
                     onClick={() => setSelectedStatusTab('Packed')}
