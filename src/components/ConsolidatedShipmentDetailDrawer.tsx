@@ -13,8 +13,10 @@ import type { DrawerTimelineItem } from './shipmentDrawerSections';
 import ConsolidatedPacksOrdersReadOnly from './ConsolidatedPacksOrdersReadOnly';
 import {
   CONSOLIDATED_LABEL_API_FAILED_MESSAGE,
+  isDraftManualTrackingCompleteForPack,
   isValidManualConsolidatedTrackingId,
   manualConsolidatedDraftTrackingCounter,
+  normalizeDraftManualTrackingInput,
 } from './consolidatedShipmentConstants';
 
 export interface ConsolidatedDocumentRow {
@@ -130,10 +132,14 @@ export default function ConsolidatedShipmentDetailDrawer({
 
   useEffect(() => {
     if (shipment) {
-      setTrackingDraft(shipment.trackingId);
+      setTrackingDraft(
+        shipment.status === 'Draft'
+          ? normalizeDraftManualTrackingInput(shipment.carrier, shipment.trackingId)
+          : shipment.trackingId,
+      );
       setDraftTrackingTouched(false);
     }
-  }, [shipment?.id, shipment?.trackingId, shipment?.status, open]);
+  }, [shipment?.id, shipment?.trackingId, shipment?.status, shipment?.carrier, open]);
 
   const timelineItems = useMemo(() => {
     if (!shipment) return [];
@@ -224,9 +230,9 @@ export default function ConsolidatedShipmentDetailDrawer({
 
   const closeDrawer = () => handleSheetOpenChange(false);
 
-  const draftTrackingValid =
+  const draftPackEnabled =
     shipment.status === 'Draft' &&
-    isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft);
+    isDraftManualTrackingCompleteForPack(shipment.carrier, trackingDraft);
 
   const draftTrackingCounter =
     shipment.status === 'Draft' ? manualConsolidatedDraftTrackingCounter(shipment.carrier) : null;
@@ -300,8 +306,14 @@ export default function ConsolidatedShipmentDetailDrawer({
                       id="consolidated-tracking-id"
                       value={trackingDraft}
                       onChange={(e) => {
-                        setTrackingDraft(e.target.value);
-                        if (shipment.status === 'Draft') setDraftTrackingTouched(true);
+                        if (shipment.status === 'Draft') {
+                          setTrackingDraft(
+                            normalizeDraftManualTrackingInput(shipment.carrier, e.target.value),
+                          );
+                          setDraftTrackingTouched(true);
+                        } else {
+                          setTrackingDraft(e.target.value);
+                        }
                       }}
                       onBlur={() => {
                         if (shipment.status !== 'Draft') {
@@ -448,7 +460,7 @@ export default function ConsolidatedShipmentDetailDrawer({
                 <Button
                   type="button"
                   className="min-w-[88px] bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0] disabled:bg-[rgba(0,0,0,0.12)] disabled:text-[rgba(0,0,0,0.38)]"
-                  disabled={!draftTrackingValid}
+                  disabled={!draftPackEnabled}
                   onClick={handleDraftPackClick}
                 >
                   Pack

@@ -119,6 +119,20 @@ export function isCarrierDHLForManualTracking(carrier: string): boolean {
   return DHL_CARRIER_PATTERN.test(carrier?.trim() ?? '');
 }
 
+/**
+ * Draft manual tracking input: no hyphens; FedEx/DHL digits-only with length caps;
+ * other carriers strip "-" and cap at 10 characters (matches draft counter).
+ */
+export function normalizeDraftManualTrackingInput(carrier: string, raw: string): string {
+  if (isCarrierFedExForManualTracking(carrier)) {
+    return raw.replace(/\D/g, '').slice(0, 12);
+  }
+  if (isCarrierDHLForManualTracking(carrier)) {
+    return raw.replace(/\D/g, '').slice(0, 10);
+  }
+  return raw.replace(/-/g, '').slice(0, 10);
+}
+
 /** Manual tracking validation after Draft (API error): FedEx 12 digits, DHL 10 digits; others min length 4. */
 export function isValidManualConsolidatedTrackingId(carrier: string, trackingId: string): boolean {
   const t = trackingId.trim();
@@ -126,6 +140,18 @@ export function isValidManualConsolidatedTrackingId(carrier: string, trackingId:
   if (isCarrierFedExForManualTracking(carrier)) return /^\d{12}$/.test(t);
   if (isCarrierDHLForManualTracking(carrier)) return /^\d{10}$/.test(t);
   return t.length >= 4;
+}
+
+/**
+ * Whether the draft manual tracking field is "full" enough to enable Pack: FedEx 12 digits, DHL 10 digits,
+ * other carriers 10 characters (aligned with draft input max / counter).
+ */
+export function isDraftManualTrackingCompleteForPack(carrier: string, trackingId: string): boolean {
+  const t = trackingId.trim();
+  if (!t) return false;
+  if (isCarrierFedExForManualTracking(carrier)) return /^\d{12}$/.test(t);
+  if (isCarrierDHLForManualTracking(carrier)) return /^\d{10}$/.test(t);
+  return t.length >= 10;
 }
 
 export type ManualDraftTrackingCounterMode = 'digits' | 'trimmedChars';

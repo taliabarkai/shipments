@@ -220,6 +220,14 @@ export default function ConsolidatedShipmentForm({
     () => packs.some((p) => p.orders.length > 0),
     [packs],
   );
+  /** Lowest box id (Box 1 in UI); require ≥1 scan here before adding another box. */
+  const firstBoxOrdersCount = useMemo(() => {
+    if (packs.length === 0) return 0;
+    const minId = Math.min(...packs.map((p) => p.id));
+    return packs.find((p) => p.id === minId)?.orders.length ?? 0;
+  }, [packs]);
+  const addNewBoxButtonDisabled =
+    !detailsComplete || firstBoxOrdersCount === 0 || isShippedOrPacked;
   /** Carrier cannot change after orders are scanned into this consolidation (or once packed/shipped). */
   const carrierSelectLocked = isShippedOrPacked || hasScannedOrders;
 
@@ -375,7 +383,8 @@ export default function ConsolidatedShipmentForm({
   };
 
   const requestAddNewBox = () => {
-    if (!detailsComplete || packs.length >= 10) return;
+    if (!detailsComplete || packs.length >= 10 || isShippedOrPacked) return;
+    if (firstBoxOrdersCount === 0) return;
     setNewBoxDialogOpen(true);
   };
 
@@ -643,63 +652,63 @@ export default function ConsolidatedShipmentForm({
         </div>
       ) : (
       <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden rounded-xl bg-[#fafafa] p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {packs.map((pack) => (
-            <button
-              type="button"
-              key={pack.id}
-              onClick={() => setActivePack(pack.id)}
-              className={`relative rounded-full px-3 py-1.5 text-sm transition-colors ${
-                activePack === pack.id
-                  ? 'bg-[#1976d2] text-white'
-                  : 'bg-gray-200/80 text-gray-800 hover:bg-gray-200'
-              }`}
-            >
-              <span className="inline-flex items-center gap-1.5">
-                {pack.locked ? (
-                  <Lock
-                    className={cn(
-                      'h-3.5 w-3.5 shrink-0',
-                      activePack === pack.id ? 'text-white' : 'text-gray-600',
-                    )}
-                    aria-hidden
-                  />
-                ) : null}
-                <span>
-                  Box {pack.id} ({pack.orders.length})
-                </span>
-              </span>
-              {packs.length > 1 && !isShippedOrPacked && pack.id === latestPackId && (
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    requestDeletePack(pack.id, e);
-                  }}
-                  className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-[10px] ${
-                    activePack === pack.id ? 'bg-white text-[#1976d2]' : 'bg-gray-700 text-white'
-                  }`}
-                >
-                  <X className="h-3 w-3" />
-                </span>
-              )}
-            </button>
-          ))}
-          {packs.length < 10 && (
-            <button
-              type="button"
-              onClick={requestAddNewBox}
-              disabled={!detailsComplete}
-              aria-label="Add new box"
-              className="flex items-center gap-1 rounded-full bg-gray-200/80 px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-200 disabled:opacity-50"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Shipments</span>
 
-        <div className="flex items-start justify-between gap-4">
-          <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Shipments</span>
-          <span className="text-base text-[rgba(0,0,0,0.6)]">{totalScanned} items</span>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+            {packs.map((pack) => (
+              <button
+                type="button"
+                key={pack.id}
+                onClick={() => setActivePack(pack.id)}
+                className={`relative rounded-full px-3 py-1.5 text-sm transition-colors ${
+                  activePack === pack.id
+                    ? 'bg-[#1976d2] text-white'
+                    : 'bg-gray-200/80 text-gray-800 hover:bg-gray-200'
+                }`}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  {pack.locked ? (
+                    <Lock
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0',
+                        activePack === pack.id ? 'text-white' : 'text-gray-600',
+                      )}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span>
+                    Box {pack.id} ({pack.orders.length})
+                  </span>
+                </span>
+                {packs.length > 1 && !isShippedOrPacked && pack.id === latestPackId && (
+                  <span
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestDeletePack(pack.id, e);
+                    }}
+                    className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-[10px] ${
+                      activePack === pack.id ? 'bg-white text-[#1976d2]' : 'bg-gray-700 text-white'
+                    }`}
+                  >
+                    <X className="h-3 w-3" />
+                  </span>
+                )}
+              </button>
+            ))}
+            {packs.length < 10 && (
+              <button
+                type="button"
+                onClick={requestAddNewBox}
+                disabled={addNewBoxButtonDisabled}
+                aria-label="Add new box"
+                className="flex items-center gap-1 rounded-full bg-gray-200/80 px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <span className="shrink-0 pt-0.5 text-base text-[rgba(0,0,0,0.6)]">{totalScanned} items</span>
         </div>
 
         {!isShippedOrPacked && (
@@ -843,7 +852,7 @@ export default function ConsolidatedShipmentForm({
                 onClick={requestAddNewBox}
                 aria-label="Add new box"
                 className="flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
-                disabled={!detailsComplete}
+                disabled={addNewBoxButtonDisabled}
               >
                 <Plus className="h-4 w-4" />
               </button>
