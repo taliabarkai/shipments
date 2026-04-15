@@ -1,9 +1,5 @@
 import { useState, useMemo } from 'react';
-import {
-  ConsolidatedShipment,
-  ShipmentStatus,
-  ConsolidatedCarrierType,
-} from './ConsolidatedShipmentsApp';
+import { ConsolidatedShipment, ConsolidatedCarrierType } from './ConsolidatedShipmentsApp';
 import { consolidatedStatusBadgeClass, displayDestination } from './consolidatedShipmentUi';
 import { inferredConsolidatedCarrierType } from './consolidatedShipmentConstants';
 import { Download, Plus, Search, RefreshCw, AlertCircle, FileText, Box, Receipt, X, MoreVertical } from 'lucide-react';
@@ -26,6 +22,8 @@ import InvoiceDialog from './InvoiceDialog';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 import { Toaster } from './ui/sonner';
 import { DateRangePicker } from './DateRangePicker';
+
+type ConsolidatedListStatusTab = 'All' | 'Packed' | 'Shipped' | 'Cancelled';
 
 interface ShipmentsListProps {
   shipments: ConsolidatedShipment[];
@@ -82,7 +80,8 @@ function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolid
     const displayPackedDate =
       s.packedDate ?? `${(i % 12) + 2}/${(i % 27) + 1}/2023`;
     const displayShippedDate =
-      s.shippedDate ?? (s.status === 'Shipped' ? `${(i % 12) + 5}/${(i % 27) + 1}/2023` : '—');
+      s.shippedDate ??
+      (s.status === 'Shipped' ? `${(i % 12) + 5}/${(i % 27) + 1}/2023` : '—');
     return {
       ...s,
       displayTotalShipments,
@@ -93,14 +92,20 @@ function enrichConsolidated(shipments: ConsolidatedShipment[]): EnrichedConsolid
   });
 }
 
-export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew, onUpdateShipment, onSectionChange }: ShipmentsListProps) {
+export default function ShipmentsList({
+  shipments,
+  onShipmentClick,
+  onCreateNew,
+  onUpdateShipment,
+  onSectionChange,
+}: ShipmentsListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [columns, setColumns] = useState(() =>
     DEFAULT_OPTIONAL_COLUMNS.map((c) => ({ ...c }))
   );
   const [rowsPerPage, setRowsPerPage] = useState(25);
   const [currentPage, setCurrentPage] = useState(1);
-  const [selectedStatusTab, setSelectedStatusTab] = useState<'All' | ShipmentStatus>('All');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<ConsolidatedListStatusTab>('All');
   const [showInvoiceDialog, setShowInvoiceDialog] = useState(false);
   const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
   const columnMenuOpen = Boolean(columnMenuAnchor);
@@ -156,6 +161,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
       All: shipments.length,
       Packed: shipments.filter(s => s.status === 'Packed').length,
       Shipped: shipments.filter(s => s.status === 'Shipped').length,
+      Cancelled: shipments.filter(s => s.status === 'Cancelled').length,
     };
   }, [shipments]);
 
@@ -384,6 +390,16 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                     }`}
                   >
                     Shipped ({statusCounts.Shipped})
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatusTab('Cancelled')}
+                    className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                      selectedStatusTab === 'Cancelled'
+                        ? 'bg-[#1976d2] text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    Cancelled ({statusCounts.Cancelled})
                   </button>
                 </div>
               </div>
@@ -689,7 +705,7 @@ export default function ShipmentsList({ shipments, onShipmentClick, onCreateNew,
                                 )}
                               </td>
                             ))}
-                            <td className="px-4 py-4 w-12" />
+                            <td className="px-2 py-4 w-12 align-middle" aria-hidden />
                           </tr>
                         ))}
                       </tbody>

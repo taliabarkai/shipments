@@ -10,15 +10,13 @@ import { Button } from './ui/button';
 import ConsolidatedShipmentForm from './ConsolidatedShipmentForm';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from './ui/alert-dialog';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 interface ConsolidatedShipmentCreateDrawerProps {
   open: boolean;
@@ -101,26 +99,29 @@ export default function ConsolidatedShipmentCreateDrawer({
         </SheetContent>
       </Sheet>
 
-      <AlertDialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-            <AlertDialogDescription>
+      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
+        <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
+          <DialogHeader>
+            <DialogTitle>Discard changes?</DialogTitle>
+            <DialogDescription>
               You have unsaved information. If you leave now, you will lose what you entered for this
               shipment.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Stay</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDiscard}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setDiscardOpen(false)}>
+              Stay
+            </Button>
+            <Button
+              type="button"
               className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
+              onClick={confirmDiscard}
             >
               Leave and discard
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

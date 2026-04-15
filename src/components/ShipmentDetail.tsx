@@ -37,6 +37,8 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
         return 'bg-green-100 text-green-700';
       case 'Packed':
         return 'bg-[#ede7f6] text-[#311b92]';
+      case 'Cancelled':
+        return 'bg-gray-200 text-gray-700';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -195,6 +197,7 @@ export default function ShipmentDetail({ shipment, onBack, onUpdate }: ShipmentD
                       <SelectContent>
                         <SelectItem value="Packed">Packed</SelectItem>
                         <SelectItem value="Shipped">Shipped</SelectItem>
+                        <SelectItem value="Cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

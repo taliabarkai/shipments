@@ -82,7 +82,7 @@ export default function ConsolidatedPacksOrdersReadOnly({
                     : 'bg-gray-100 text-gray-800 hover:bg-gray-200/80'
                 }`}
               >
-                Pack #{pack.id} ({pack.orders.length})
+                Box {pack.id} ({pack.orders.length})
               </button>
             ))}
           </div>

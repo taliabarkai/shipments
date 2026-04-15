@@ -15,13 +15,16 @@ export const BULK_CARRIERS = [
   { id: 'mailog', name: 'Mailog' },
 ] as const;
 
-/** Merukazim row id for DHL — lane destination (US vs GB) is chosen in the create form, not fixed here. */
-export const MERUKAZIM_DHL_CARRIER_ID = 'dhl' as const;
-
-/** Merukazim: carrier defines origin → destination; no separate route in the product model. */
+/**
+ * Merukazim: carrier defines origin → destination lane (US / GB) for validation and display.
+ * Order matches consolidated-shipment carrier dropdown.
+ */
 export const MERUKAZIM_CARRIERS = [
-  /** Default destination `US` is the form default; user may select GB when consolidating. */
+  { id: 'usps', name: 'USPS', origin: 'IL', destination: 'US' },
   { id: 'dhl', name: 'DHL', origin: 'IL', destination: 'US' },
+  { id: 'usps-hu', name: 'USPS HU', origin: 'HU', destination: 'GB' },
+  { id: 'usps-th', name: 'USPS TH', origin: 'TH', destination: 'US' },
+  { id: 'dhl-royal', name: 'DHL Royal', origin: 'GB', destination: 'GB' },
   { id: 'dhl-royal-hu', name: 'DHL Royal HU', origin: 'HU', destination: 'GB' },
 ] as const;
 
@@ -89,6 +92,16 @@ export function normalizedConsolidatedPacks(s: ConsolidatedShipment): Consolidat
     return s.packs.map((p) => ({ id: p.id, orders: [...p.orders] }));
   }
   return [{ id: 1, orders: [...s.orders] }];
+}
+
+/** Shipment and box counts for cancel-consolidation confirmation copy (aligned with list enrichment). */
+export function consolidatedCancelDialogCounts(s: ConsolidatedShipment): {
+  shipmentCount: number;
+  boxCount: number;
+} {
+  const shipmentCount = s.totalShipments ?? Math.max(1, s.orders.length);
+  const boxCount = normalizedConsolidatedPacks(s).length;
+  return { shipmentCount, boxCount };
 }
 
 export function findCarrierOptionId(s: ConsolidatedShipment): string {

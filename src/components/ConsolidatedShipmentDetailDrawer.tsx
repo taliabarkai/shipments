@@ -42,6 +42,15 @@ function mockShippedAt(s: ConsolidatedShipment): string {
   return '17/10/2023 at 09:00';
 }
 
+function mockCancelledAtDisplay(s: ConsolidatedShipment): string {
+  if (s.cancelledAt) return s.cancelledAt;
+  return '10/19/2023 at 4:45 PM';
+}
+
+function mockCancelledByDisplay(s: ConsolidatedShipment): string {
+  return s.cancelledBy ?? 'Riley Park';
+}
+
 /** Figma node 545:46113 — timeline rail and typography */
 function ConsolidatedDrawerTimeline({ items }: { items: DrawerTimelineItem[] }) {
   return (
@@ -96,6 +105,7 @@ interface ConsolidatedShipmentDetailDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onTrackingIdCommit: (shipmentId: string, trackingId: string) => void;
+  onRequestCancelConsolidatedShipment?: (shipment: ConsolidatedShipment) => void;
   documents?: ConsolidatedDocumentRow[];
 }
 
@@ -104,6 +114,7 @@ export default function ConsolidatedShipmentDetailDrawer({
   open,
   onOpenChange,
   onTrackingIdCommit,
+  onRequestCancelConsolidatedShipment,
   documents = DEFAULT_DOCS,
 }: ConsolidatedShipmentDetailDrawerProps) {
   const [trackingDraft, setTrackingDraft] = useState('');
@@ -118,6 +129,30 @@ export default function ConsolidatedShipmentDetailDrawer({
     const createdUser = 'Jamie Chen';
     const packedUser = 'Morgan Blake';
     const shippedUser = 'Alex Rivera';
+
+    if (st === 'Cancelled') {
+      return [
+        {
+          label: 'Created',
+          date: mockCreatedAt(shipment),
+          user: createdUser,
+          state: 'completed' as const,
+        },
+        {
+          label: 'Packed',
+          date: mockPackedAt(shipment),
+          user: packedUser,
+          state: 'completed' as const,
+        },
+        {
+          label: 'Cancelled',
+          date: mockCancelledAtDisplay(shipment),
+          user: mockCancelledByDisplay(shipment),
+          state: 'completed' as const,
+        },
+      ];
+    }
+
     const shippedDone = st === 'Shipped';
     const packedDone = st === 'Packed' || st === 'Shipped';
 
@@ -273,17 +308,26 @@ export default function ConsolidatedShipmentDetailDrawer({
             </section>
 
             <ConsolidatedPacksOrdersReadOnly shipment={shipment} variant="drawer" />
+
+            {shipment.status === 'Packed' && onRequestCancelConsolidatedShipment && (
+              <div className="flex justify-start">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-auto w-fit shrink-0 border-[#b91c1c] bg-white px-3 py-2 text-[#b91c1c] shadow-none hover:bg-red-50 hover:text-[#991b1b] hover:border-[#991b1b]"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onRequestCancelConsolidatedShipment(shipment);
+                  }}
+                >
+                  Cancel Shipment
+                </Button>
+              </div>
+            )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-between border-t border-black/12 bg-white px-6 py-4">
-            <Button
-              type="button"
-              variant="ghost"
-              className="px-3 py-2 text-[15px] font-medium tracking-[0.46px] text-black/60 hover:bg-transparent hover:text-black/80"
-              onClick={closeDrawer}
-            >
-              Cancel
-            </Button>
+          <div className="flex shrink-0 items-center justify-end border-t border-black/12 bg-white px-6 py-4">
             <Button
               type="button"
               className="bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium tracking-[0.46px] text-white shadow-md hover:bg-[#1565c0]"

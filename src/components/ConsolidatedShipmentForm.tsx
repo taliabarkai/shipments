@@ -3,6 +3,14 @@ import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import {
   X,
   ArrowLeft,
   Plus,
@@ -15,6 +23,7 @@ import {
   Link2,
   Building2,
   AlertTriangle,
+  Lock,
 } from 'lucide-react';
 import {
   Select,
@@ -26,13 +35,13 @@ import {
   SelectValue,
 } from './ui/select';
 import { cn } from './ui/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { carrierTypeLabelClass } from './consolidatedShipmentUi';
 import Header from '../imports/Header';
 import {
   BULK_CARRIERS,
   MERUKAZIM_CARRIERS,
   BULK_DESTINATION_STORED,
-  MERUKAZIM_DHL_CARRIER_ID,
   merukazimConfigByCarrierId,
   parseCarrierOption,
   findCarrierOptionId,
@@ -135,6 +144,8 @@ function EmptyOrdersListIcon({ className }: { className?: string }) {
 export interface Pack {
   id: number;
   orders: string[];
+  /** When true, new scans cannot add to this box; removals still allowed. */
+  locked?: boolean;
 }
 
 export interface ConsolidatedShipmentFormProps {
@@ -173,11 +184,13 @@ export default function ConsolidatedShipmentForm({
   const [carrierOptionId, setCarrierOptionId] = useState('');
   const [packs, setPacks] = useState<Pack[]>([{ id: 1, orders: [] }]);
   const [activePack, setActivePack] = useState(1);
+  const [packConfirmOpen, setPackConfirmOpen] = useState(false);
   const [orderInput, setOrderInput] = useState('');
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback | null>(null);
   const [orderScannedAt, setOrderScannedAt] = useState<Record<string, number>>({});
   const [tempShipmentId] = useState(() => shipment?.id ?? `${Date.now()}`);
-  const [merukazimDhlDestination, setMerukazimDhlDestination] = useState<'US' | 'GB'>('US');
+  const [newBoxDialogOpen, setNewBoxDialogOpen] = useState(false);
+  const [deleteBoxDialogOpen, setDeleteBoxDialogOpen] = useState(false);
 
   const parsedCarrier = useMemo(
     () => (carrierOptionId ? parseCarrierOption(carrierOptionId) : null),
@@ -189,26 +202,18 @@ export default function ConsolidatedShipmentForm({
   /** Hide scan until carrier is chosen. */
   const showPacksAndScan = detailsComplete;
 
-  const merukazimCarrierIdFromOption = useMemo(() => {
-    const [, id] = carrierOptionId.split('::');
-    return id ?? '';
-  }, [carrierOptionId]);
-
-  const showMerukazimDhlDestinationSelect = useMemo(
-    () => parsedCarrier?.type === 'Merukazim' && merukazimCarrierIdFromOption === MERUKAZIM_DHL_CARRIER_ID,
-    [parsedCarrier?.type, merukazimCarrierIdFromOption],
-  );
-
   const consolidationLaneDest = useMemo(() => {
     if (!parsedCarrier) return BULK_DESTINATION_STORED;
     if (parsedCarrier.type === 'Bulk') return BULK_DESTINATION_STORED;
     const [, merId] = carrierOptionId.split('::');
-    if (merId === MERUKAZIM_DHL_CARRIER_ID) return merukazimDhlDestination;
     return merukazimConfigByCarrierId(merId ?? '')?.destination ?? '';
-  }, [parsedCarrier, carrierOptionId, merukazimDhlDestination]);
+  }, [parsedCarrier, carrierOptionId]);
 
   const isShippedOrPacked = Boolean(
-    shipment && (shipment.status === 'Shipped' || shipment.status === 'Packed'),
+    shipment &&
+      (shipment.status === 'Shipped' ||
+        shipment.status === 'Packed' ||
+        shipment.status === 'Cancelled'),
   );
   const hasScannedOrders = useMemo(
     () => packs.some((p) => p.orders.length > 0),
@@ -217,17 +222,14 @@ export default function ConsolidatedShipmentForm({
   /** Carrier cannot change after orders are scanned into this consolidation (or once packed/shipped). */
   const carrierSelectLocked = isShippedOrPacked || hasScannedOrders;
 
+  const activeBoxLocked = useMemo(
+    () => Boolean(packs.find((p) => p.id === activePack)?.locked),
+    [packs, activePack],
+  );
+
   useEffect(() => {
     if (shipment) {
-      const optId = findCarrierOptionId(shipment);
-      setCarrierOptionId(optId);
-      const merId = optId.split('::')[1];
-      if (merId === MERUKAZIM_DHL_CARRIER_ID) {
-        const dest = shipment.destination?.trim();
-        setMerukazimDhlDestination(dest === 'GB' ? 'GB' : 'US');
-      } else {
-        setMerukazimDhlDestination('US');
-      }
+      setCarrierOptionId(findCarrierOptionId(shipment));
 
       if (shipment.packs && shipment.packs.length > 0) {
         setPacks(shipment.packs.map((p) => ({ id: p.id, orders: [...p.orders] })));
@@ -247,9 +249,12 @@ export default function ConsolidatedShipmentForm({
         setOrderScannedAt({});
       }
       setScanFeedback(null);
+      setNewBoxDialogOpen(false);
+      setDeleteBoxDialogOpen(false);
     } else {
       setCarrierOptionId('');
-      setMerukazimDhlDestination('US');
+      setNewBoxDialogOpen(false);
+      setDeleteBoxDialogOpen(false);
       setPacks([{ id: 1, orders: [] }]);
       setActivePack(1);
       setOrderInput('');
@@ -293,6 +298,7 @@ export default function ConsolidatedShipmentForm({
   const handleScanOrder = () => {
     const id = orderInput.trim();
     if (!id || !parsedCarrier || !detailsComplete) return;
+    if (activeBoxLocked) return;
 
     const alreadyScannedIds = new Set(packs.flatMap((p) => p.orders));
     const feedback = validateOrderScan(id, {
@@ -307,11 +313,24 @@ export default function ConsolidatedShipmentForm({
     }
 
     setScanFeedback({ variant: 'success', message: `Shipment ${id} added successfully` });
+
+    const active = packs.find((p) => p.id === activePack);
+    const targetPackId =
+      active && !active.locked
+        ? active.id
+        : (() => {
+            const unlocked = packs.filter((p) => !p.locked);
+            return unlocked[unlocked.length - 1]?.id ?? activePack;
+          })();
+
     setPacks(
       packs.map((pack) =>
-        pack.id === activePack ? { ...pack, orders: [...pack.orders, id] } : pack
+        pack.id === targetPackId ? { ...pack, orders: [...pack.orders, id] } : pack
       )
     );
+    if (targetPackId !== activePack) {
+      setActivePack(targetPackId);
+    }
     setOrderScannedAt((prev) => ({ ...prev, [id]: Date.now() }));
     setOrderInput('');
   };
@@ -354,35 +373,78 @@ export default function ConsolidatedShipmentForm({
     });
   };
 
-  const addNewPack = () => {
-    if (packs.length < 10) {
-      const newPackId = Math.max(...packs.map((p) => p.id)) + 1;
-      setPacks([...packs, { id: newPackId, orders: [] }]);
-      setActivePack(newPackId);
-    }
+  const requestAddNewBox = () => {
+    if (!detailsComplete || packs.length >= 10) return;
+    setNewBoxDialogOpen(true);
   };
 
-  const deletePack = (packId: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-
-    const packToDelete = packs.find((p) => p.id === packId);
-    if (!packToDelete || packToDelete.orders.length > 0 || packs.length === 1) {
+  const confirmAddNewBox = () => {
+    if (packs.length >= 10) {
+      setNewBoxDialogOpen(false);
       return;
     }
+    const newPackId = Math.max(...packs.map((p) => p.id)) + 1;
+    setPacks(
+      packs
+        .map((p) => (p.id === activePack ? { ...p, locked: true } : p))
+        .concat([{ id: newPackId, orders: [] }]),
+    );
+    setActivePack(newPackId);
+    setNewBoxDialogOpen(false);
+  };
 
-    const newPacks = packs.filter((p) => p.id !== packId);
-    const renumberedPacks = newPacks.map((pack, index) => ({
+  /** Highest box id = most recently created box (sequential ids). Only that box may be deleted. */
+  const removeLatestPack = () => {
+    if (packs.length <= 1) return;
+    const maxId = Math.max(...packs.map((p) => p.id));
+    const packToDelete = packs.find((p) => p.id === maxId);
+    if (!packToDelete) return;
+
+    if (packToDelete.orders.length > 0) {
+      setOrderScannedAt((prev) => {
+        const next = { ...prev };
+        for (const oid of packToDelete.orders) delete next[oid];
+        return next;
+      });
+    }
+
+    const prevId = maxId - 1;
+    const filtered = packs
+      .filter((p) => p.id !== maxId)
+      .map((p) => (prevId >= 1 && p.id === prevId ? { ...p, locked: false } : p));
+    const renumberedPacks = filtered.map((pack, index) => ({
       ...pack,
       id: index + 1,
     }));
+    const newLen = renumberedPacks.length;
 
     setPacks(renumberedPacks);
+    setActivePack((ap) => {
+      if (ap === maxId) return newLen;
+      return Math.min(ap, newLen);
+    });
+  };
 
-    if (activePack === packId) {
-      setActivePack(1);
-    } else if (activePack > packId) {
-      setActivePack(activePack - 1);
+  const requestDeletePack = (packId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isShippedOrPacked || packs.length <= 1) return;
+
+    const maxId = Math.max(...packs.map((p) => p.id));
+    if (packId !== maxId) return;
+
+    const latest = packs.find((p) => p.id === maxId);
+    if (!latest) return;
+
+    if (latest.orders.length > 0) {
+      setDeleteBoxDialogOpen(true);
+      return;
     }
+    removeLatestPack();
+  };
+
+  const confirmDeleteLatestPack = () => {
+    removeLatestPack();
+    setDeleteBoxDialogOpen(false);
   };
 
   const buildShipmentBase = useCallback((): Omit<ConsolidatedShipment, 'status' | 'totalValue'> | null => {
@@ -395,12 +457,8 @@ export default function ConsolidatedShipmentForm({
       destination = BULK_DESTINATION_STORED;
     } else {
       const [, merId] = carrierOptionId.split('::');
-      if (merId === MERUKAZIM_DHL_CARRIER_ID) {
-        destination = merukazimDhlDestination;
-      } else {
-        const cfg = merId ? merukazimConfigByCarrierId(merId) : undefined;
-        destination = cfg?.destination ?? '';
-      }
+      const cfg = merId ? merukazimConfigByCarrierId(merId) : undefined;
+      destination = cfg?.destination ?? '';
     }
 
     return {
@@ -416,10 +474,11 @@ export default function ConsolidatedShipmentForm({
       hasCancelledItems: shipment?.hasCancelledItems || false,
       cancelledOrders: shipment?.cancelledOrders || [],
     };
-  }, [carrierOptionId, merukazimDhlDestination, packs, shipment, tempShipmentId]);
+  }, [carrierOptionId, packs, shipment, tempShipmentId]);
 
-  const handlePack = () => {
-    if (!detailsComplete || packs.every((pack) => pack.orders.length === 0)) {
+  const performPack = () => {
+    setPackConfirmOpen(false);
+    if (!detailsComplete || packs.every((pack) => pack.orders.length === 0) || activeBoxLocked) {
       return;
     }
 
@@ -433,6 +492,17 @@ export default function ConsolidatedShipmentForm({
     };
 
     onPack(updatedShipment);
+  };
+
+  const handlePackRequest = () => {
+    if (!detailsComplete || packs.every((pack) => pack.orders.length === 0) || activeBoxLocked) {
+      return;
+    }
+    if (variant === 'drawer') {
+      setPackConfirmOpen(true);
+      return;
+    }
+    performPack();
   };
 
   const handleSaveAndClose = () => {
@@ -456,10 +526,46 @@ export default function ConsolidatedShipmentForm({
 
   const activatePackOrders = packs.find((p) => p.id === activePack)?.orders || [];
   const totalScanned = packs.reduce((n, p) => n + p.orders.length, 0);
-  const canPack =
+  const packBoxCount = packs.length;
+  const packShipmentWord = totalScanned === 1 ? 'shipment' : 'shipments';
+  const packBoxWord = packBoxCount === 1 ? 'box' : 'boxes';
+
+  const packConfirmDialog =
+    variant === 'drawer' ? (
+      <Dialog open={packConfirmOpen} onOpenChange={setPackConfirmOpen}>
+        <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
+          <DialogHeader>
+            <DialogTitle>Pack this consolidated Shipment?</DialogTitle>
+            <DialogDescription>
+              Pack consolidated with {totalScanned} {packShipmentWord} in {packBoxCount} {packBoxWord}?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setPackConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
+              onClick={performPack}
+            >
+              OK
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    ) : null;
+
+  const canPackShipment =
     detailsComplete &&
     packs.some((pack) => pack.orders.length > 0) &&
     !isShippedOrPacked;
+  const canPack = canPackShipment && !activeBoxLocked;
+
+  const latestPackId = useMemo(() => {
+    if (packs.length === 0) return 0;
+    return Math.max(...packs.map((p) => p.id));
+  }, [packs]);
 
   const carrierSection = (
     <div
@@ -523,38 +629,6 @@ export default function ConsolidatedShipmentForm({
           </SelectContent>
         </Select>
       </div>
-
-      {showMerukazimDhlDestinationSelect && (
-        <div className="flex flex-col gap-2">
-          <label
-            className={`mb-0 ${variant === 'drawer' ? 'text-base font-medium text-[rgba(0,0,0,0.87)]' : 'font-medium block'}`}
-          >
-            Destination
-          </label>
-          <Select
-            value={merukazimDhlDestination}
-            onValueChange={(v) => {
-              if (carrierSelectLocked) return;
-              setMerukazimDhlDestination(v as 'US' | 'GB');
-            }}
-            disabled={carrierSelectLocked}
-          >
-            <SelectTrigger
-              className={
-                variant === 'drawer'
-                  ? 'h-14 w-full min-w-0 border-[rgba(0,0,0,0.23)] bg-white [&_[data-slot=select-value]]:min-w-0'
-                  : 'h-10 w-full min-w-0 [&_[data-slot=select-value]]:min-w-0'
-              }
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="US">United States (US)</SelectItem>
-              <SelectItem value="GB">United Kingdom (GB)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </div>
   );
 
@@ -563,7 +637,7 @@ export default function ConsolidatedShipmentForm({
       !showPacksAndScan ? (
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center rounded-xl bg-[#fafafa] p-6 text-center">
           <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
-            {!parsedCarrier ? 'Select a carrier to scan orders.' : null}
+            {!parsedCarrier ? 'Select a carrier to scan shipments.' : null}
           </p>
         </div>
       ) : (
@@ -580,12 +654,25 @@ export default function ConsolidatedShipmentForm({
                   : 'bg-gray-200/80 text-gray-800 hover:bg-gray-200'
               }`}
             >
-              Pack #{pack.id} ({pack.orders.length})
-              {packs.length > 1 && pack.orders.length === 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                {pack.locked ? (
+                  <Lock
+                    className={cn(
+                      'h-3.5 w-3.5 shrink-0',
+                      activePack === pack.id ? 'text-white' : 'text-gray-600',
+                    )}
+                    aria-hidden
+                  />
+                ) : null}
+                <span>
+                  Box {pack.id} ({pack.orders.length})
+                </span>
+              </span>
+              {packs.length > 1 && !isShippedOrPacked && pack.id === latestPackId && (
                 <span
                   onClick={(e) => {
                     e.stopPropagation();
-                    deletePack(pack.id, e);
+                    requestDeletePack(pack.id, e);
                   }}
                   className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-[10px] ${
                     activePack === pack.id ? 'bg-white text-[#1976d2]' : 'bg-gray-700 text-white'
@@ -599,8 +686,9 @@ export default function ConsolidatedShipmentForm({
           {packs.length < 10 && (
             <button
               type="button"
-              onClick={addNewPack}
+              onClick={requestAddNewBox}
               disabled={!detailsComplete}
+              aria-label="Add new box"
               className="flex items-center gap-1 rounded-full bg-gray-200/80 px-3 py-1.5 text-sm text-gray-800 hover:bg-gray-200 disabled:opacity-50"
             >
               <Plus className="h-4 w-4" />
@@ -609,20 +697,35 @@ export default function ConsolidatedShipmentForm({
         </div>
 
         <div className="flex items-start justify-between gap-4">
-          <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Orders</span>
+          <span className="text-base font-medium text-[rgba(0,0,0,0.87)]">Scan Shipments</span>
           <span className="text-base text-[rgba(0,0,0,0.6)]">{totalScanned} items</span>
         </div>
 
         {!isShippedOrPacked && (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white focus-within:border-[#1976d2] focus-within:ring-1 focus-within:ring-[#1976d2]/30">
-            <div className="flex items-center gap-3 border-b border-[rgba(0,0,0,0.12)] px-3 py-3">
-              <Scan className="h-6 w-6 shrink-0 text-[#1976d2]" />
+          <div
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-[#e0e0e0] bg-white',
+              !activeBoxLocked && 'focus-within:border-[#1976d2] focus-within:ring-1 focus-within:ring-[#1976d2]/30',
+            )}
+          >
+            <div
+              className={cn(
+                'flex items-center gap-3 border-b border-[rgba(0,0,0,0.12)] px-3 py-3',
+                activeBoxLocked && 'bg-[rgba(0,0,0,0.03)]',
+              )}
+            >
+              <Scan
+                className={cn(
+                  'h-6 w-6 shrink-0',
+                  activeBoxLocked ? 'text-gray-400' : 'text-[#1976d2]',
+                )}
+              />
               <Input
                 value={orderInput}
                 onChange={handleOrderInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Scan or Enter Order ID"
-                disabled={!detailsComplete}
+                placeholder="Scan or enter shipment ID"
+                disabled={!detailsComplete || activeBoxLocked}
                 className="border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0"
               />
             </div>
@@ -631,8 +734,12 @@ export default function ConsolidatedShipmentForm({
               {activatePackOrders.length === 0 ? (
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 px-4 py-8">
                   <EmptyOrdersListIcon className="h-12 w-12 text-gray-400" />
-                  <p className="text-base text-[rgba(0,0,0,0.6)]">No orders scanned yet</p>
-                  <p className="text-sm text-[rgba(0,0,0,0.6)]">Start scanning to add orders</p>
+                  <p className="text-center text-base leading-5 text-[rgba(0,0,0,0.6)]">
+                    No shipments scanned yet.
+                  </p>
+                  <p className="text-center text-sm leading-5 text-[rgba(0,0,0,0.6)]">
+                    Start scanning to add shipments.
+                  </p>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
@@ -658,7 +765,11 @@ export default function ConsolidatedShipmentForm({
                       <button
                         type="button"
                         onClick={() => removeOrder(activePack, index)}
-                        className="shrink-0 text-gray-400 hover:text-gray-600"
+                        className={cn(
+                          'shrink-0 hover:text-gray-800',
+                          activeBoxLocked ? 'text-gray-600' : 'text-gray-400 hover:text-gray-600',
+                        )}
+                        aria-label="Remove shipment"
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -680,13 +791,13 @@ export default function ConsolidatedShipmentForm({
     ) : !showPacksAndScan ? (
       <div className="rounded-lg border bg-white p-6">
         <p className="text-sm leading-5 text-[rgba(0,0,0,0.6)]">
-          {!parsedCarrier ? 'Select a carrier to scan orders.' : null}
+          {!parsedCarrier ? 'Select a carrier to scan shipments.' : null}
         </p>
       </div>
     ) : (
       <div className="space-y-4 rounded-lg border bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 className="font-semibold text-lg">Packs</h2>
+          <h2 className="font-semibold text-lg">Boxes</h2>
           <div className="flex flex-wrap items-center gap-2">
             {packs.map((pack) => (
               <button
@@ -699,10 +810,23 @@ export default function ConsolidatedShipmentForm({
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
-                Pack #{pack.id} ({pack.orders.length})
-                {packs.length > 1 && pack.orders.length === 0 && !isShippedOrPacked && (
+                <span className="inline-flex items-center gap-1.5">
+                  {pack.locked ? (
+                    <Lock
+                      className={cn(
+                        'h-3.5 w-3.5 shrink-0',
+                        activePack === pack.id ? 'text-white' : 'text-gray-600',
+                      )}
+                      aria-hidden
+                    />
+                  ) : null}
+                  <span>
+                    Box {pack.id} ({pack.orders.length})
+                  </span>
+                </span>
+                {packs.length > 1 && !isShippedOrPacked && pack.id === latestPackId && (
                   <span
-                    onClick={(e) => deletePack(pack.id, e)}
+                    onClick={(e) => requestDeletePack(pack.id, e)}
                     className={`absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100 ${
                       activePack === pack.id ? 'bg-white text-[#1976d2]' : 'bg-gray-700 text-white'
                     }`}
@@ -715,7 +839,8 @@ export default function ConsolidatedShipmentForm({
             {packs.length < 10 && !isShippedOrPacked && (
               <button
                 type="button"
-                onClick={addNewPack}
+                onClick={requestAddNewBox}
+                aria-label="Add new box"
                 className="flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-200 disabled:opacity-50"
                 disabled={!detailsComplete}
               >
@@ -727,19 +852,24 @@ export default function ConsolidatedShipmentForm({
 
         {!isShippedOrPacked && (
           <div className="space-y-2">
-            <label className="mb-2 block font-medium">Scan Orders into Pack #{activePack}</label>
-            <div className="flex gap-2">
+            <label className="mb-2 block font-medium">Scan shipments into Box {activePack}</label>
+            <div
+              className={cn(
+                'flex gap-2 rounded-md border border-transparent px-1 py-1',
+                activeBoxLocked && 'bg-[rgba(0,0,0,0.03)]',
+              )}
+            >
               <Input
                 value={orderInput}
                 onChange={handleOrderInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Scan or type order ID"
-                disabled={!detailsComplete}
+                placeholder="Scan or enter shipment ID"
+                disabled={!detailsComplete || activeBoxLocked}
                 className="flex-1"
               />
               <Button
                 onClick={handleScanOrder}
-                disabled={!orderInput.trim() || !detailsComplete}
+                disabled={!orderInput.trim() || !detailsComplete || activeBoxLocked}
                 className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
               >
                 Add
@@ -751,7 +881,7 @@ export default function ConsolidatedShipmentForm({
 
         <div>
           <div className="mb-2 font-medium">
-            Orders in Pack #{activePack} ({activatePackOrders.length})
+            Orders in Box {activePack} ({activatePackOrders.length})
           </div>
           {activatePackOrders.length > 0 ? (
             <div className="max-h-[300px] overflow-y-auto rounded-lg border">
@@ -776,7 +906,13 @@ export default function ConsolidatedShipmentForm({
                     <button
                       type="button"
                       onClick={() => removeOrder(activePack, index)}
-                      className="shrink-0 text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
+                      className={cn(
+                        'shrink-0 transition-opacity hover:text-gray-800',
+                        activeBoxLocked
+                          ? 'text-gray-500 opacity-100'
+                          : 'text-gray-400 opacity-0 group-hover:opacity-100 hover:text-gray-600',
+                      )}
+                      aria-label="Remove shipment"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -786,15 +922,67 @@ export default function ConsolidatedShipmentForm({
             </div>
           ) : (
             <div className="rounded-lg border px-4 py-8 text-center text-gray-500">
-              No orders in this pack yet
+              No shipments in this box yet.
             </div>
           )}
         </div>
       </div>
     );
 
+  const newBoxAlert = (
+    <Dialog open={newBoxDialogOpen} onOpenChange={setNewBoxDialogOpen}>
+      <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
+        <DialogHeader>
+          <DialogTitle>Add new box?</DialogTitle>
+          <DialogDescription>
+            Starting a new box will lock the current box from adding new shipments. You will still be able to remove
+            shipments from it.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setNewBoxDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
+            onClick={confirmAddNewBox}
+          >
+            Proceed
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const deleteBoxAlert = (
+    <Dialog open={deleteBoxDialogOpen} onOpenChange={setDeleteBoxDialogOpen}>
+      <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
+        <DialogHeader>
+          <DialogTitle>Delete this box?</DialogTitle>
+          <DialogDescription>
+            Deleting this box will remove all shipments it contains. This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setDeleteBoxDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            className="bg-red-600 text-white hover:bg-red-700"
+            onClick={confirmDeleteLatestPack}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (variant === 'drawer') {
     return (
+      <>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6">
           <div className="shrink-0">{carrierSection}</div>
@@ -810,22 +998,49 @@ export default function ConsolidatedShipmentForm({
           >
             Cancel
           </Button>
-          <Button
-            type="button"
-            onClick={handlePack}
-            disabled={!canPack}
-            className={`min-w-[88px] text-[15px] font-medium ${
-              canPack ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]' : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
-            }`}
-          >
-            Pack
-          </Button>
+          {activeBoxLocked ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    onClick={handlePackRequest}
+                    disabled={!canPackShipment || activeBoxLocked}
+                    className={`min-w-[88px] text-[15px] font-medium ${
+                      canPack
+                        ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]'
+                        : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
+                    }`}
+                  >
+                    Pack
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>Locked</TooltipContent>
+            </Tooltip>
+          ) : (
+            <Button
+              type="button"
+              onClick={handlePackRequest}
+              disabled={!canPack}
+              className={`min-w-[88px] text-[15px] font-medium ${
+                canPack ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]' : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
+              }`}
+            >
+              Pack
+            </Button>
+          )}
         </div>
       </div>
+      {newBoxAlert}
+      {deleteBoxAlert}
+      {packConfirmDialog}
+      </>
     );
   }
 
   return (
+    <>
     <div className="relative flex h-screen w-full flex-col overflow-hidden bg-[#f7f7f4]">
       <div className="h-[72px] shrink-0">
         <Header />
@@ -854,13 +1069,30 @@ export default function ConsolidatedShipmentForm({
                 Save and Close
               </Button>
             )}
-            <Button
-              onClick={handlePack}
-              disabled={!canPack}
-              className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
-            >
-              Pack
-            </Button>
+            {activeBoxLocked ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      onClick={handlePackRequest}
+                      disabled={!canPackShipment || activeBoxLocked}
+                      className="bg-[#1976d2] text-white hover:bg-[#1565c0] disabled:bg-[rgba(0,0,0,0.12)] disabled:text-[rgba(0,0,0,0.38)]"
+                    >
+                      Pack
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>Locked</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                onClick={handlePackRequest}
+                disabled={!canPack}
+                className="bg-[#1976d2] text-white hover:bg-[#1565c0]"
+              >
+                Pack
+              </Button>
+            )}
           </div>
         </div>
 
@@ -872,5 +1104,9 @@ export default function ConsolidatedShipmentForm({
         </div>
       </div>
     </div>
+    {newBoxAlert}
+    {deleteBoxAlert}
+    {packConfirmDialog}
+    </>
   );
 }

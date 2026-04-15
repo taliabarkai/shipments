@@ -1,12 +1,23 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ShipmentsList from './ShipmentsList';
 import ConsolidatedShipmentScreen from './ConsolidatedShipmentScreen';
 import ConsolidatedShipmentCreateDrawer from './ConsolidatedShipmentCreateDrawer';
 import ConsolidatedShipmentDetailDrawer from './ConsolidatedShipmentDetailDrawer';
 import SuccessNotification from './SuccessNotification';
 import Header from '../imports/Header';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
+import { consolidatedCancelDialogCounts } from './consolidatedShipmentConstants';
 
-export type ShipmentStatus = 'Packed' | 'Shipped';
+export type ShipmentStatus = 'Packed' | 'Shipped' | 'Cancelled';
 
 export type ConsolidatedCarrierType = 'Bulk' | 'Merukazim';
 
@@ -40,6 +51,9 @@ export interface ConsolidatedShipment {
   shippedDate?: string;
   hasCancelledItems?: boolean;
   cancelledOrders?: string[];
+  /** When status is Cancelled — shown on detail timeline */
+  cancelledAt?: string;
+  cancelledBy?: string;
 }
 
 interface ConsolidatedShipmentsAppProps {
@@ -51,6 +65,19 @@ type ViewType = 'list' | 'edit';
 /** Match `SheetContent` `data-[state=closed]:duration-300` so we unmount after slide-out. */
 const DETAIL_DRAWER_CLOSE_MS = 300;
 
+const MOCK_CANCELLED_BY = 'Riley Park';
+
+function formatCancellationTimestamp(): string {
+  const d = new Date();
+  const datePart = `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`;
+  const timePart = d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${datePart} at ${timePart}`;
+}
+
 export default function ConsolidatedShipmentsApp({ onSectionChange }: ConsolidatedShipmentsAppProps = {}) {
   const [currentView, setCurrentView] = useState<ViewType>('list');
   const [selectedShipment, setSelectedShipment] = useState<ConsolidatedShipment | null>(null);
@@ -61,6 +88,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
   const [createFormKey, setCreateFormKey] = useState(0);
   const [showNotification, setShowNotification] = useState(false);
   const [notificationMessage, setNotificationMessage] = useState('');
+  const [cancelDialogShipment, setCancelDialogShipment] = useState<ConsolidatedShipment | null>(null);
 
   const [shipments, setShipments] = useState<ConsolidatedShipment[]>([
     {
@@ -167,6 +195,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       packingFacility: 'Nazareth',
       destination: 'United States',
       carrier: 'USPS',
+      carrierType: 'Bulk',
       trackingId: '1Z12345E7',
       totalValue: '$20,500.00',
       status: 'Shipped',
@@ -270,9 +299,11 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrier: 'OnTrac',
       trackingId: '1Z12345F6',
       totalValue: '$22,890.00',
-      status: 'Shipped',
+      status: 'Cancelled',
       orders: Array.from({ length: 36 }, (_, i) => `ORD-${2600 + i}`),
-      dateCreated: '10/17/2023'
+      dateCreated: '10/17/2023',
+      cancelledAt: '10/19/2023 at 2:15 PM',
+      cancelledBy: MOCK_CANCELLED_BY,
     },
     {
       id: '273133198',
@@ -282,9 +313,11 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       carrierType: 'Bulk',
       trackingId: '1Z12345F7',
       totalValue: '$14,520.60',
-      status: 'Packed',
+      status: 'Cancelled',
       orders: Array.from({ length: 31 }, (_, i) => `ORD-${2700 + i}`),
-      dateCreated: '10/18/2023'
+      dateCreated: '10/18/2023',
+      cancelledAt: '10/20/2023 at 9:42 AM',
+      cancelledBy: MOCK_CANCELLED_BY,
     },
   ]);
 
@@ -338,6 +371,36 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     setShipments(prev => prev.map(s => s.id === updatedShipment.id ? updatedShipment : s));
   };
 
+  const beginCancelConsolidatedShipment = (shipment: ConsolidatedShipment) => {
+    if (shipment.status !== 'Packed') return;
+    setCancelDialogShipment(shipment);
+  };
+
+  const confirmCancelConsolidatedShipment = () => {
+    if (!cancelDialogShipment) return;
+    const id = cancelDialogShipment.id;
+    setShipments((prev) =>
+      prev.map((s) =>
+        s.id === id
+          ? {
+              ...s,
+              status: 'Cancelled' as const,
+              cancelledAt: formatCancellationTimestamp(),
+              cancelledBy: MOCK_CANCELLED_BY,
+            }
+          : s
+      )
+    );
+    setCancelDialogShipment(null);
+    setNotificationMessage(`Consolidated shipment ${id} was cancelled.`);
+    setShowNotification(true);
+    setTimeout(() => setShowNotification(false), 5000);
+  };
+
+  const cancelDialogCounts = cancelDialogShipment
+    ? consolidatedCancelDialogCounts(cancelDialogShipment)
+    : null;
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-[#f7f7f4] flex flex-col">
       {currentView === 'list' ? (
@@ -374,8 +437,42 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
               open={detailDrawerOpen}
               onOpenChange={handleDetailDrawerOpenChange}
               onTrackingIdCommit={handleDetailTrackingCommit}
+              onRequestCancelConsolidatedShipment={beginCancelConsolidatedShipment}
             />
           )}
+
+          <Dialog
+            open={!!cancelDialogShipment}
+            onOpenChange={(open) => {
+              if (!open) setCancelDialogShipment(null);
+            }}
+          >
+            <DialogContent className="sm:max-w-lg [&>button.ring-offset-background]:hidden">
+              <DialogHeader>
+                <DialogTitle>Cancel consolidated shipment?</DialogTitle>
+                <DialogDescription>
+                  {cancelDialogCounts &&
+                    `Are you sure you want to cancel this consolidated shipment containing ${cancelDialogCounts.shipmentCount} ${
+                      cancelDialogCounts.shipmentCount === 1 ? 'shipment' : 'shipments'
+                    } (${cancelDialogCounts.boxCount} ${
+                      cancelDialogCounts.boxCount === 1 ? 'box' : 'boxes'
+                    })? This action cannot be undone.`}
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setCancelDialogShipment(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  onClick={confirmCancelConsolidatedShipment}
+                >
+                  Cancel Shipment
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </>
       ) : (
         selectedShipment && (
@@ -387,14 +484,17 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
         )
       )}
 
-      {showNotification && (
-        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-          <SuccessNotification 
-            message={notificationMessage}
-            onClose={() => setShowNotification(false)}
-          />
-        </div>
-      )}
+      {showNotification &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="pointer-events-auto fixed bottom-8 left-1/2 z-[200] -translate-x-1/2">
+            <SuccessNotification
+              message={notificationMessage}
+              onClose={() => setShowNotification(false)}
+            />
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
