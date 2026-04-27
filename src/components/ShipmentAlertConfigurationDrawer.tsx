@@ -1,0 +1,818 @@
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Calendar, X } from 'lucide-react';
+import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from './ui/select';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+import { cn } from './ui/utils';
+import type {
+  ShipmentAlertReleaseLogic,
+  ShipmentAlertRow,
+  ShipmentAlertStatus,
+} from './shipmentAlertsTypes';
+
+export interface CreatedAlertConfiguration {
+  alertName: string;
+  activationLogic: string;
+  releaseLogic: ShipmentAlertReleaseLogic;
+  status: ShipmentAlertStatus;
+  startDay?: string;
+  endDay?: string;
+}
+
+/** Stored without space so Radix Select values stay stable. */
+type RuleJoiner = 'AND' | 'OR' | 'BUT_NOT';
+
+function joinerDisplay(j: RuleJoiner): string {
+  return j === 'BUT_NOT' ? 'BUT NOT' : j;
+}
+
+type ActivationFieldId =
+  | 'order_brand'
+  | 'order_item_sku'
+  | 'product_category'
+  | 'destination_country'
+  | 'packing_facility'
+  | 'event_level'
+  | 'shipment_service_level'
+  | 'shipment_total_item_value'
+  | 'delivery_status'
+  | 'shipment_status'
+  | 'hours_in_status'
+  | 'label_status'
+  | 'pickup_scheduled'
+  | 'customs_status'
+  | 'destination_region'
+  | 'review_status'
+  | 'declared_value';
+
+const ACTIVATION_FIELDS: {
+  id: ActivationFieldId;
+  label: string;
+  operators: string[];
+  valuePlaceholder: string;
+}[] = [
+  { id: 'order_brand', label: 'Brand', operators: ['in', 'not_in'], valuePlaceholder: 'Myka, BrandB' },
+  { id: 'order_item_sku', label: 'Item SKU', operators: ['in', 'not_in'], valuePlaceholder: '123456, 654321' },
+  { id: 'product_category', label: 'Product category', operators: ['in', 'not_in'], valuePlaceholder: 'ring, necklace' },
+  {
+    id: 'destination_country',
+    label: 'Destination country',
+    operators: ['in', 'not_in'],
+    valuePlaceholder: 'US, IL, HU',
+  },
+  { id: 'packing_facility', label: 'Packing facility', operators: ['in', 'not_in'], valuePlaceholder: 'NZ, KG, TH' },
+  { id: 'event_level', label: 'Event level', operators: ['in', 'not_in'], valuePlaceholder: 'standard, premium, vip' },
+  {
+    id: 'shipment_service_level',
+    label: 'Shipment service level',
+    operators: ['in', 'not_in'],
+    valuePlaceholder: 'express, expedited, free',
+  },
+  {
+    id: 'shipment_total_item_value',
+    label: 'Shipment total item value',
+    operators: ['>', '<', '>=', '<='],
+    valuePlaceholder: '200.00',
+  },
+  { id: 'delivery_status', label: 'Delivery status', operators: ['in', 'not_in'], valuePlaceholder: 'pending, in_transit' },
+  { id: 'shipment_status', label: 'Shipment status', operators: ['in', 'not_in'], valuePlaceholder: 'draft, packed' },
+  { id: 'hours_in_status', label: 'Hours in status', operators: ['>', '<', '>=', '<='], valuePlaceholder: '12' },
+  { id: 'label_status', label: 'Label status', operators: ['in', 'not_in'], valuePlaceholder: 'pending' },
+  { id: 'pickup_scheduled', label: 'Pickup scheduled', operators: ['in', 'not_in'], valuePlaceholder: 'false, true' },
+  { id: 'customs_status', label: 'Customs status', operators: ['in', 'not_in'], valuePlaceholder: 'hold' },
+  { id: 'destination_region', label: 'Destination region', operators: ['in', 'not_in'], valuePlaceholder: 'international' },
+  { id: 'review_status', label: 'Review status', operators: ['in', 'not_in'], valuePlaceholder: 'pending' },
+  { id: 'declared_value', label: 'Declared value', operators: ['>', '<', '>=', '<='], valuePlaceholder: '5000' },
+];
+
+const FIELD_BY_ID = Object.fromEntries(ACTIVATION_FIELDS.map((f) => [f.id, f])) as Record<
+  ActivationFieldId,
+  (typeof ACTIVATION_FIELDS)[number]
+>;
+
+const RELEASE_STATUSES = ['Draft', 'Ready to Pack', 'Packed', 'Shipped', 'Delivered', 'Label issued'] as const;
+
+type ConditionRow = {
+  joiner?: RuleJoiner;
+  field: ActivationFieldId;
+  operator: string;
+  value: string;
+};
+
+function operatorDisplay(op: string): string {
+  switch (op) {
+    case 'not_in':
+      return 'NOT IN';
+    case 'in':
+      return 'IN';
+    case '>':
+      return 'GREATER THAN';
+    case '<':
+      return 'LESS THAN';
+    case '>=':
+      return 'GREATER OR EQUAL';
+    case '<=':
+      return 'LESS OR EQUAL';
+    default:
+      return op.toUpperCase();
+  }
+}
+
+/** Labels shown in the operator dropdown (values stay as `>`, `<`, etc.). */
+function operatorFormLabel(op: string): string {
+  switch (op) {
+    case '>':
+      return 'Greater Than';
+    case '<':
+      return 'Less Than';
+    case '>=':
+      return 'Greater than or Equal to';
+    case '<=':
+      return 'Less Than or Equal to';
+    case 'not_in':
+      return 'not in';
+    case 'in':
+      return 'in';
+    default:
+      return op;
+  }
+}
+
+/** Hides the native calendar glyph; full-field invisible indicator still opens the picker in Chromium. */
+const DATE_INPUT_CALENDAR_HIDING =
+  'relative [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:box-border [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0';
+
+function openDatePicker(input: HTMLInputElement | null) {
+  if (!input) return;
+  if (typeof input.showPicker === 'function') {
+    void input.showPicker().catch(() => {
+      /* ignore: strict environments without user activation */
+    });
+  } else {
+    input.focus();
+  }
+}
+
+function AlertDateField({
+  id,
+  label,
+  value,
+  onChange,
+  invalid,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  invalid?: boolean;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs text-gray-600">
+        {label}
+      </Label>
+      <div
+        className={cn(
+          'relative flex w-full cursor-pointer rounded-md border bg-white transition-[color,box-shadow] focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
+          invalid ? 'border-red-500' : 'border-gray-300',
+        )}
+        onClick={() => openDatePicker(inputRef.current)}
+      >
+        <Input
+          ref={inputRef}
+          id={id}
+          type="date"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cn(
+            'w-full min-w-0 flex-1 cursor-pointer border-0 bg-transparent pr-10 shadow-none focus-visible:ring-0 md:text-sm',
+            'hover:border-transparent focus-visible:border-transparent',
+            DATE_INPUT_CALENDAR_HIDING,
+          )}
+        />
+        <Calendar
+          className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-gray-400"
+          aria-hidden
+        />
+      </div>
+    </div>
+  );
+}
+
+function buildActivationLogic(rows: ConditionRow[]): string {
+  return rows
+    .map((r, i) => {
+      const v = r.value.trim();
+      const inner = `[${r.field} ${operatorDisplay(r.operator)} ${v}]`;
+      if (i === 0) return inner;
+      const j = r.joiner ?? 'AND';
+      return `${joinerDisplay(j)} ${inner}`;
+    })
+    .join(' ');
+}
+
+function newEmptyRow(joiner: RuleJoiner = 'AND'): ConditionRow {
+  const first = ACTIVATION_FIELDS[0];
+  return { joiner, field: first.id, operator: first.operators[0], value: '' };
+}
+
+function newFirstRow(): ConditionRow {
+  const s = FIELD_BY_ID.shipment_status;
+  return { field: 'shipment_status', operator: s.operators[0], value: '' };
+}
+
+function splitActivationSegments(s: string): { segments: string[]; joiners: string[] } {
+  const t = s.trim();
+  const re = /\s+(BUT NOT|AND|OR)\s+/gi;
+  const segments: string[] = [];
+  const joiners: string[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(t)) !== null) {
+    const chunk = t.slice(last, m.index).trim();
+    if (chunk) segments.push(chunk);
+    const j = m[1].toUpperCase();
+    joiners.push(j === 'BUT NOT' ? 'BUT NOT' : j);
+    last = m.index + m[0].length;
+  }
+  const tail = t.slice(last).trim();
+  if (tail) segments.push(tail);
+  return { segments, joiners };
+}
+
+const DISPLAY_TO_OPERATOR: Record<string, string> = {
+  'NOT IN': 'not_in',
+  IN: 'in',
+  'GREATER THAN': '>',
+  'LESS THAN': '<',
+  'GREATER OR EQUAL': '>=',
+  'LESS OR EQUAL': '<=',
+  IS: 'in',
+};
+
+function parseStoredClause(seg: string): Omit<ConditionRow, 'joiner'> | null {
+  let inner = seg.trim();
+  if (inner.startsWith('[')) inner = inner.slice(1);
+  if (inner.endsWith(']')) inner = inner.slice(0, -1);
+  inner = inner.trim();
+  const OPS = ['NOT IN', 'GREATER OR EQUAL', 'LESS OR EQUAL', 'GREATER THAN', 'LESS THAN', 'IS', 'IN'] as const;
+  const hi = inner.toUpperCase();
+  for (const op of OPS) {
+    const needle = ` ${op} `;
+    const idx = hi.indexOf(needle);
+    if (idx === -1) continue;
+    const fieldRaw = inner.slice(0, idx).trim();
+    const opStart = idx + 1;
+    const opEnd = opStart + op.length;
+    const opDisplayed = inner.slice(opStart, opEnd).trim();
+    const value = inner.slice(opEnd + 1).trim();
+    const u = opDisplayed.toUpperCase();
+    const storedOp = DISPLAY_TO_OPERATOR[u];
+    if (!storedOp) return null;
+    const field = (
+      ACTIVATION_FIELDS.some((f) => f.id === fieldRaw) ? fieldRaw : 'shipment_status'
+    ) as ActivationFieldId;
+    const validOps = FIELD_BY_ID[field].operators;
+    const operator = validOps.includes(storedOp) ? storedOp : validOps[0];
+    return { field, operator, value };
+  }
+  return null;
+}
+
+function activationStringToRows(text: string): ConditionRow[] {
+  const { segments, joiners } = splitActivationSegments(text.trim());
+  const rows: ConditionRow[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const base = parseStoredClause(segments[i]);
+    if (!base) continue;
+    const row: ConditionRow = { ...base };
+    if (i > 0) {
+      const j = joiners[i - 1];
+      row.joiner = (j === 'BUT NOT' ? 'BUT_NOT' : (j as 'AND' | 'OR')) as RuleJoiner;
+    }
+    rows.push(row);
+  }
+  if (rows[0]) delete rows[0].joiner;
+  return rows.length > 0 ? rows : [newFirstRow()];
+}
+
+function buildInitialStateFromAlert(alert: ShipmentAlertRow | null) {
+  if (!alert) {
+    return {
+      alertName: '',
+      rows: [newFirstRow()] as ConditionRow[],
+      releaseTrigger: 'status' as const,
+      releaseStatus: undefined as string | undefined,
+      configStatus: 'Draft' as ShipmentAlertStatus,
+      startDay: '',
+      addEndDate: false,
+      endDay: '',
+    };
+  }
+  const parsedRows = activationStringToRows(alert.activationLogic);
+  const releaseTrigger = alert.releaseLogic.kind === 'manual' ? ('manual' as const) : ('status' as const);
+  const releaseStatus =
+    alert.releaseLogic.kind === 'manual' ? undefined : alert.releaseLogic.value;
+  const configStatus = alert.status;
+  const startDay = alert.startDay ?? '';
+  const endDay = alert.endDay ?? '';
+  const addEndDate = configStatus === 'Draft' && !!endDay.trim();
+  return {
+    alertName: alert.alertName,
+    rows: parsedRows,
+    releaseTrigger,
+    releaseStatus,
+    configStatus,
+    startDay,
+    addEndDate,
+    endDay,
+  };
+}
+
+export interface ShipmentAlertConfigurationDrawerProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreate: (config: CreatedAlertConfiguration) => void;
+  onUpdate?: (id: string, config: CreatedAlertConfiguration) => void;
+  /** When set, drawer opens in edit mode with this alert. Pass `null` for create. */
+  editingAlert?: ShipmentAlertRow | null;
+}
+
+export default function ShipmentAlertConfigurationDrawer({
+  open,
+  onOpenChange,
+  onCreate,
+  onUpdate,
+  editingAlert = null,
+}: ShipmentAlertConfigurationDrawerProps) {
+  const isEdit = !!editingAlert;
+
+  const [initSeed] = useState(() => buildInitialStateFromAlert(editingAlert ?? null));
+
+  const [alertName, setAlertName] = useState(initSeed.alertName);
+  const [rows, setRows] = useState(initSeed.rows);
+  const [releaseTrigger, setReleaseTrigger] = useState(initSeed.releaseTrigger);
+  /** Set only after user picks a status when release trigger is "By reaching status". */
+  const [releaseStatus, setReleaseStatus] = useState<string | undefined>(initSeed.releaseStatus);
+  const [configStatus, setConfigStatus] = useState<ShipmentAlertStatus>(initSeed.configStatus);
+  const [startDay, setStartDay] = useState(initSeed.startDay);
+  const [addEndDate, setAddEndDate] = useState(initSeed.addEndDate);
+  const [endDay, setEndDay] = useState(initSeed.endDay);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const baselineRef = useRef('');
+
+  useEffect(() => {
+    if (configStatus === 'Live') {
+      setStartDay('');
+      setAddEndDate(false);
+    }
+  }, [configStatus]);
+
+  const endDateInvalid = useMemo(() => {
+    const hasEnd =
+      configStatus === 'Live'
+        ? endDay.trim().length > 0
+        : addEndDate && endDay.trim().length > 0;
+    if (!hasEnd) return false;
+    const d = new Date(`${endDay}T12:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d < today;
+  }, [configStatus, addEndDate, endDay]);
+
+  const conditionsComplete = rows.every((r) => r.field && r.operator && r.value.trim().length > 0);
+  const releaseComplete =
+    releaseTrigger === 'manual' ||
+    (releaseTrigger === 'status' && !!releaseStatus && releaseStatus.trim() !== '');
+  const canSubmit =
+    alertName.trim().length > 0 &&
+    rows.length > 0 &&
+    conditionsComplete &&
+    releaseComplete &&
+    !endDateInvalid;
+
+  const snapshotForm = () =>
+    JSON.stringify({
+      alertName: alertName.trim(),
+      rows,
+      releaseTrigger,
+      releaseStatus: releaseStatus ?? '',
+      configStatus,
+      startDay,
+      addEndDate,
+      endDay: endDay.trim(),
+    });
+
+  useLayoutEffect(() => {
+    baselineRef.current = snapshotForm();
+    // Snapshot pristine form for this drawer instance only (parent remounts via key).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const dirty = isEdit && snapshotForm() !== baselineRef.current;
+  const submitEnabled = canSubmit && (!isEdit || dirty);
+
+  const updateRow = (index: number, patch: Partial<ConditionRow>) => {
+    setRows((prev) => {
+      const next = [...prev];
+      const cur = { ...next[index], ...patch };
+      if (patch.field !== undefined) {
+        const def = FIELD_BY_ID[patch.field];
+        cur.operator = def.operators.includes(cur.operator) ? cur.operator : def.operators[0];
+      }
+      next[index] = cur;
+      return next;
+    });
+  };
+
+  const addCondition = () => {
+    setRows((prev) => [...prev, newEmptyRow('AND')]);
+  };
+
+  const removeRow = (index: number) => {
+    setRows((prev) => {
+      if (prev.length <= 1) return prev;
+      const next = prev.filter((_, i) => i !== index);
+      if (next[0]) delete next[0].joiner;
+      return next;
+    });
+  };
+
+  const handleSubmit = () => {
+    setSubmitError(null);
+    if (!alertName.trim()) {
+      setSubmitError('Alert name is required.');
+      return;
+    }
+    if (rows.length === 0 || !conditionsComplete) {
+      setSubmitError('Add at least one complete rule condition (field, operator, and value).');
+      return;
+    }
+    if (endDateInvalid) {
+      setSubmitError('End day cannot be in the past.');
+      return;
+    }
+    if (releaseTrigger === 'status' && (!releaseStatus || !releaseStatus.trim())) {
+      setSubmitError('Select a shipment status for release.');
+      return;
+    }
+    const releaseLogic: ShipmentAlertReleaseLogic =
+      releaseTrigger === 'manual'
+        ? { kind: 'manual' }
+        : { kind: 'status', value: releaseStatus!.trim() };
+    const payload: CreatedAlertConfiguration = {
+      alertName: alertName.trim(),
+      activationLogic: buildActivationLogic(rows),
+      releaseLogic,
+      status: configStatus,
+      startDay: configStatus === 'Draft' && startDay.trim() ? startDay.trim() : undefined,
+      endDay:
+        configStatus === 'Live'
+          ? endDay.trim() || undefined
+          : addEndDate && endDay.trim()
+            ? endDay.trim()
+            : undefined,
+    };
+    if (isEdit && editingAlert && onUpdate) {
+      onUpdate(editingAlert.id, payload);
+    } else {
+      onCreate(payload);
+    }
+    onOpenChange(false);
+  };
+
+  const sectionTitleClass = 'text-sm font-semibold text-[#101828]';
+  const cardClass = 'rounded-md bg-[#FAFAFA] p-4';
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent
+        hideClose
+        side="right"
+        className="flex h-full min-h-0 w-full flex-col gap-0 overflow-hidden border-l border-gray-200 bg-white p-0 sm:max-w-[600px]"
+      >
+        <SheetHeader className="shrink-0 space-y-0 border-b border-gray-200 px-6 py-4 text-left">
+          <div className="flex items-center justify-between gap-4">
+            <SheetTitle className="text-base font-semibold leading-normal text-[#101828]">
+              {isEdit ? 'Edit Alert' : 'Create New Alert'}
+            </SheetTitle>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 rounded-full text-gray-600 hover:bg-gray-100"
+              onClick={() => onOpenChange(false)}
+              aria-label="Close"
+            >
+              <X className="size-5" />
+            </Button>
+          </div>
+        </SheetHeader>
+
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex flex-col gap-6">
+            <div>
+              <Label htmlFor="alert-name" className={sectionTitleClass}>
+                Alert Name
+              </Label>
+              <Input
+                id="alert-name"
+                className="mt-2 border-gray-300"
+                placeholder="e.g. Draft - Over 24 hours"
+                value={alertName}
+                onChange={(e) => setAlertName(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <p className={cn(sectionTitleClass, 'mb-3')}>Rule Builder</p>
+              <div className={cardClass}>
+                <div className="mb-3">
+                  <span className="text-sm font-medium text-[#101828]">Activation Logic</span>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {rows.map((row, index) => (
+                    <div key={index} className="flex flex-col gap-2">
+                      {index > 0 ? (
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)_2.25rem] sm:items-center">
+                          <span className="hidden sm:block" aria-hidden />
+                          <div className="flex justify-center sm:block sm:w-full">
+                            <Select
+                              value={row.joiner ?? 'AND'}
+                              onValueChange={(v) => updateRow(index, { joiner: v as RuleJoiner })}
+                            >
+                              <SelectTrigger
+                                className="h-8 w-full max-w-[200px] border-gray-300 text-xs sm:max-w-none"
+                                size="sm"
+                                aria-label="Logical operator between conditions"
+                              >
+                                <SelectValue placeholder="Joiner" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="AND">AND</SelectItem>
+                                <SelectItem value="OR">OR</SelectItem>
+                                <SelectItem value="BUT_NOT">BUT NOT</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <span className="hidden sm:block" aria-hidden />
+                          <span className="hidden w-9 sm:block" aria-hidden />
+                        </div>
+                      ) : null}
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)_2.25rem] sm:items-center">
+                        <div className="min-w-0">
+                          <Select
+                            value={row.field}
+                            onValueChange={(v) => updateRow(index, { field: v as ActivationFieldId })}
+                          >
+                            <SelectTrigger
+                              className="border-gray-300"
+                              size="sm"
+                              aria-label="Condition field"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {ACTIVATION_FIELDS.map((f) => (
+                                <SelectItem key={f.id} value={f.id}>
+                                  {f.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="min-w-0 sm:w-28">
+                          <Select
+                            value={row.operator}
+                            onValueChange={(v) => updateRow(index, { operator: v })}
+                          >
+                            <SelectTrigger
+                              className="border-gray-300"
+                              size="sm"
+                              aria-label="Condition operator"
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {FIELD_BY_ID[row.field].operators.map((op) => (
+                                <SelectItem key={op} value={op}>
+                                  {operatorFormLabel(op)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Input
+                            className="border-gray-300"
+                            placeholder={FIELD_BY_ID[row.field].valuePlaceholder}
+                            value={row.value}
+                            onChange={(e) => updateRow(index, { value: e.target.value })}
+                            aria-label="Condition value"
+                          />
+                        </div>
+                        <div className="flex justify-end sm:justify-self-end">
+                          {rows.length > 1 ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-9 shrink-0 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                                  onClick={() => removeRow(index)}
+                                  aria-label="Remove condition"
+                                >
+                                  <X className="size-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent side="bottom" sideOffset={6}>
+                                Remove
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            <span className="hidden w-9 sm:block" aria-hidden />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addCondition}
+                    className="self-start text-sm font-medium text-[#1976d2] hover:text-[#1565c0]"
+                  >
+                    + Add Condition
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <p className={cn(sectionTitleClass, 'mb-3')}>Release Condition</p>
+              <div
+                className={cn(
+                  cardClass,
+                  'flex flex-row flex-wrap items-end gap-4',
+                )}
+              >
+                <div
+                  className={cn(
+                    'space-y-1.5',
+                    releaseTrigger === 'status' ? 'min-w-0 flex-1' : 'w-full min-w-0',
+                  )}
+                >
+                  <Label className="text-xs text-gray-600">Release trigger</Label>
+                  <Select
+                    value={releaseTrigger}
+                    onValueChange={(v) => {
+                      const t = v as 'status' | 'manual';
+                      setReleaseTrigger(t);
+                      setReleaseStatus(undefined);
+                    }}
+                  >
+                    <SelectTrigger className="border-gray-300">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="status">By reaching status</SelectItem>
+                      <SelectItem value="manual">Manual</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {releaseTrigger === 'status' ? (
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <Label className="text-xs text-gray-600">Shipment Status</Label>
+                    <Select value={releaseStatus} onValueChange={(v) => setReleaseStatus(v)}>
+                      <SelectTrigger className="border-gray-300">
+                        <SelectValue placeholder="Select shipment status..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RELEASE_STATUSES.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            <div>
+              <p className={cn(sectionTitleClass, 'mb-3')}>Status &amp; Scheduling</p>
+              <div className={cn(cardClass, 'flex flex-col gap-4')}>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-gray-600">Status</Label>
+                  <Select
+                    value={configStatus}
+                    onValueChange={(v) => setConfigStatus(v as ShipmentAlertStatus)}
+                  >
+                    <SelectTrigger className="border-gray-300">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Draft">Draft</SelectItem>
+                      <SelectItem value="Live">Live</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {configStatus === 'Draft' ? (
+                  <>
+                    <AlertDateField
+                      id="start-day"
+                      label="Start Date"
+                      value={startDay}
+                      onChange={setStartDay}
+                    />
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="add-end"
+                        checked={addEndDate}
+                        onCheckedChange={(c) => setAddEndDate(c === true)}
+                      />
+                      <Label htmlFor="add-end" className="cursor-pointer text-sm font-normal text-[#101828]">
+                        Add End date
+                      </Label>
+                    </div>
+                    {addEndDate ? (
+                      <div className="space-y-1.5">
+                        <AlertDateField
+                          id="end-day"
+                          label="End Date"
+                          value={endDay}
+                          onChange={setEndDay}
+                          invalid={endDateInvalid}
+                        />
+                        {endDateInvalid ? (
+                          <p className="text-xs text-red-600">End day cannot be in the past.</p>
+                        ) : null}
+                        <p className="text-xs leading-snug text-gray-600">
+                          The status cannot be changed with a scheduled end date.
+                        </p>
+                      </div>
+                    ) : null}
+                  </>
+                ) : (
+                  <div className="space-y-1.5">
+                    <AlertDateField
+                      id="end-day-live"
+                      label="End Date (Optional)"
+                      value={endDay}
+                      onChange={setEndDay}
+                      invalid={endDateInvalid}
+                    />
+                    {endDateInvalid ? (
+                      <p className="text-xs text-red-600">End day cannot be in the past.</p>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {submitError ? <p className="text-sm text-red-600">{submitError}</p> : null}
+          </div>
+        </div>
+
+        <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+          <Button
+            type="button"
+            variant="ghost"
+            className="px-0 text-[15px] font-medium text-[#1976d2] hover:bg-transparent hover:text-[#1565c0]"
+            onClick={() => onOpenChange(false)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!submitEnabled}
+            className={cn(
+              'min-w-[120px] text-[15px] font-medium',
+              submitEnabled
+                ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]'
+                : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]',
+            )}
+          >
+            {isEdit ? 'Update Alert' : 'Create Alert'}
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}
