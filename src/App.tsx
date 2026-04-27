@@ -10,8 +10,15 @@ import ConsolidatedShipmentsApp from './components/ConsolidatedShipmentsApp';
 import AddCollectionDialog from './components/AddCollectionDialog';
 import ShippingRoutesTable, { ShippingRoute } from './components/ShippingRoutesTable';
 import GlobalCarrierConfiguration from './components/GlobalCarrierConfiguration';
+import ShipmentAlertsApp from './components/ShipmentAlertsApp';
 
-type ActiveView = 'shipments' | 'collections' | 'consolidated' | 'routes' | 'globalCarrier';
+type ActiveView =
+  | 'shipments'
+  | 'collections'
+  | 'consolidated'
+  | 'routes'
+  | 'shipmentAlerts'
+  | 'globalCarrier';
 
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('shipments');
@@ -1145,6 +1152,7 @@ export default function App() {
                 routes={routes}
               />
             )}
+            {resolvedView === 'shipmentAlerts' && <ShipmentAlertsApp />}
             {resolvedView === 'globalCarrier' && (
               <GlobalCarrierConfiguration />
             )}

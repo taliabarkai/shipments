@@ -30,7 +30,9 @@ interface ShipmentsListProps {
   onShipmentClick: (shipment: ConsolidatedShipment) => void;
   onCreateNew: () => void;
   onUpdateShipment: (shipment: ConsolidatedShipment) => void;
-  onSectionChange?: (section: 'shipments' | 'collections' | 'consolidated') => void;
+  onSectionChange?: (
+    section: 'shipments' | 'collections' | 'consolidated' | 'routes' | 'shipmentAlerts' | 'globalCarrier',
+  ) => void;
 }
 
 export type ConsolidatedListColumnId =

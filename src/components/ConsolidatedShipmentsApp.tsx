@@ -57,7 +57,9 @@ export interface ConsolidatedShipment {
 }
 
 interface ConsolidatedShipmentsAppProps {
-  onSectionChange?: (section: 'shipments' | 'collections' | 'consolidated') => void;
+  onSectionChange?: (
+    section: 'shipments' | 'collections' | 'consolidated' | 'routes' | 'shipmentAlerts' | 'globalCarrier',
+  ) => void;
 }
 
 type ViewType = 'list' | 'edit';
