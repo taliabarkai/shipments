@@ -209,7 +209,7 @@ export default function PackingInstructionsApp() {
               </Button>
               <Button type="button" onClick={openCreate} className="bg-[#1976d2] text-white hover:bg-[#1565c0]">
                 <Plus className="mr-2 h-4 w-4" />
-                Add Instruction
+                New Instruction
               </Button>
             </div>
           </div>
@@ -256,14 +256,25 @@ export default function PackingInstructionsApp() {
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl bg-white">
           <div className="relative flex min-h-0 flex-1 flex-col">
             <div className="min-h-0 flex-1 overflow-auto">
-              <table className="relative w-full">
+              <table className="relative w-full table-fixed">
+                <colgroup>
+                  <col className="w-[40%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[14%]" />
+                </colgroup>
                 <thead className="sticky top-0 z-10 border-b bg-white">
                   <tr>
-                    <th className="px-4 py-4 text-left text-sm font-medium text-gray-700">Instruction Name</th>
-                    <th className="px-4 py-4 text-left text-sm font-medium text-gray-700">Display Level</th>
-                    <th className="px-4 py-4 text-left text-sm font-medium text-gray-700">Start Date</th>
-                    <th className="px-4 py-4 text-left text-sm font-medium text-gray-700">End Date</th>
-                    <th className="px-4 py-4 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">
+                      Instruction Name
+                    </th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">
+                      Display Level
+                    </th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Start Date</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">End Date</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Status</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -289,11 +300,15 @@ export default function PackingInstructionsApp() {
                         role="button"
                         aria-label={`Edit instruction: ${row.instructionName}`}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-700">{row.instructionName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{row.displayLevel}</td>
+                        <td className="min-w-0 px-4 py-3 text-sm text-gray-700">
+                          <span className="block truncate" title={row.instructionName}>
+                            {row.instructionName}
+                          </span>
+                        </td>
+                        <td className="min-w-0 px-4 py-3 text-sm text-gray-700">{row.displayLevel}</td>
                         <td
                           className={cn(
-                            'px-4 py-3 text-sm text-left',
+                            'min-w-0 px-4 py-3 text-sm text-left whitespace-nowrap',
                             row.startDate.trim() ? 'text-gray-700' : 'text-gray-400',
                           )}
                         >
@@ -301,13 +316,13 @@ export default function PackingInstructionsApp() {
                         </td>
                         <td
                           className={cn(
-                            'px-4 py-3 text-sm text-left',
+                            'min-w-0 px-4 py-3 text-sm text-left whitespace-nowrap',
                             row.endDate.trim() ? 'text-gray-700' : 'text-gray-400',
                           )}
                         >
                           {row.endDate.trim() ? formatDisplayDate(row.endDate) : emptyDateCell()}
                         </td>
-                        <td className="px-4 py-3 text-left">
+                        <td className="min-w-0 px-4 py-3 text-left whitespace-nowrap">
                           <span
                             className={`inline-flex rounded-[8px] px-2.5 py-0.5 text-xs font-medium ${statusChipClass(row.status)}`}
                           >

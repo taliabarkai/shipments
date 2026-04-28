@@ -572,7 +572,7 @@ export default function ShippingProductCatalogApp() {
                 onClick={() => setPackingDrawerOpen(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
-                Add Packing Item
+                New Packing Item
               </Button>
             </div>
           </div>

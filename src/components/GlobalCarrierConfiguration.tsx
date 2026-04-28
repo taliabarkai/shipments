@@ -357,7 +357,7 @@ export default function GlobalCarrierConfiguration({ onSectionChange }: GlobalCa
                     className="bg-[#1976d2] hover:bg-[#1565c0] text-white"
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    Add Carrier
+                    New Carrier
                   </Button>
                 </div>
               </div>
