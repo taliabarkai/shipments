@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
-import itemLevelImg from '../assets/placement-guide-item-level.jpg';
-import shipmentLevelImg from '../assets/placement-guide-shipment-level.jpg';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { cn } from './ui/utils';
+
+/** Hosted on Komodo Decks CDN — avoids bundling large assets in deploy. */
+const PLACEMENT_GUIDE_ITEM_LEVEL_IMAGE =
+  'https://plain-eeur-prod-public.komododecks.com/202604/28/RJcCPTM4a2PimpBucz5E/image.jpg';
+const PLACEMENT_GUIDE_SHIPMENT_LEVEL_IMAGE =
+  'https://plain-eeur-prod-public.komododecks.com/202604/28/bsutH9bGEnF5xg6JW5an/image.jpg';
 
 export interface PlacementGuideDialogProps {
   open: boolean;
@@ -61,18 +65,22 @@ export default function PlacementGuideDialog({ open, onOpenChange }: PlacementGu
           <TabsContent value="item" className="m-0 min-h-0 flex-1 overflow-y-auto focus-visible:outline-none">
             <div className="bg-[#FAFAFA] px-4 py-4">
               <img
-                src={itemLevelImg}
+                src={PLACEMENT_GUIDE_ITEM_LEVEL_IMAGE}
                 alt="Packing instructions placement at item level in the packing screen"
                 className="mx-auto block w-full max-w-full rounded-md border border-gray-200 bg-white"
+                loading="lazy"
+                decoding="async"
               />
             </div>
           </TabsContent>
           <TabsContent value="shipment" className="m-0 min-h-0 flex-1 overflow-y-auto focus-visible:outline-none">
             <div className="bg-[#FAFAFA] px-4 py-4">
               <img
-                src={shipmentLevelImg}
+                src={PLACEMENT_GUIDE_SHIPMENT_LEVEL_IMAGE}
                 alt="Packing instructions placement at shipment level in the packing screen"
                 className="mx-auto block w-full max-w-full rounded-md border border-gray-200 bg-white"
+                loading="lazy"
+                decoding="async"
               />
             </div>
           </TabsContent>
