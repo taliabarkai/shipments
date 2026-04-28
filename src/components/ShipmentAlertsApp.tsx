@@ -714,11 +714,8 @@ function ReleaseLogicCell({ logic }: { logic: ShipmentAlertReleaseLogic }) {
     return <span className="text-sm text-[#101828]">Manual</span>;
   }
   return (
-    <span className="inline-flex items-center gap-2 text-sm text-[#101828]">
-      <span>Status:</span>
-      <span className="inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2.5 py-0.5 text-xs font-medium text-gray-600">
-        {logic.value}
-      </span>
+    <span className="text-sm text-[#101828]">
+      Status — {logic.value}
     </span>
   );
 }

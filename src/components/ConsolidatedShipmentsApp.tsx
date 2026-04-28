@@ -65,6 +65,7 @@ interface ConsolidatedShipmentsAppProps {
       | 'routes'
       | 'shipmentAlerts'
       | 'shippingProductCatalog'
+      | 'packingInstructions'
       | 'globalCarrier',
   ) => void;
 }

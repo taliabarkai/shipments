@@ -1,19 +1,16 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import type { ShippingCatalogRow } from './shippingCatalogModel';
+import { generateUniqueManualPackingSku } from './shippingCatalogModel';
 import {
-  MANUAL_PACKING_SITE_SKU_LENGTH_MESSAGE,
-  MANUAL_PACKING_SKU_LENGTH_MESSAGE,
-  manualPackingSkuErrorForDisplay,
-  validateManualPackingSkuFields,
-} from './shippingCatalogModel';
-import {
-  PackingItemFormFields,
-  emptyPackingItemForm,
-  isPackingItemFormComplete,
-  packingItemFormToRow,
-  type PackingItemFormState,
+  ManualPackingCreateFormFields,
+  emptyManualPackingCreateForm,
+  isManualPackingCreateFormComplete,
+  manualPackingSlimFormToRow,
+  type ManualPackingCreateFormState,
 } from './packingItemFormShared';
 
 interface CreateManualPackingItemDrawerProps {
@@ -29,46 +26,26 @@ export default function CreateManualPackingItemDrawer({
   onCreate,
   existingRows,
 }: CreateManualPackingItemDrawerProps) {
-  const [form, setForm] = useState(() => emptyPackingItemForm());
-  const [skuBlurred, setSkuBlurred] = useState(false);
-  const [siteSkuBlurred, setSiteSkuBlurred] = useState(false);
+  const [form, setForm] = useState(() => emptyManualPackingCreateForm());
+  const [draftSku, setDraftSku] = useState('');
 
   useEffect(() => {
     if (isOpen) {
-      setForm(emptyPackingItemForm());
-      setSkuBlurred(false);
-      setSiteSkuBlurred(false);
+      setForm(emptyManualPackingCreateForm());
+      setDraftSku(generateUniqueManualPackingSku(existingRows));
     }
-  }, [isOpen]);
+  }, [isOpen, existingRows]);
 
-  const skuFieldErrors = useMemo(
-    () => validateManualPackingSkuFields(form.sku, form.siteSku, existingRows),
-    [form.sku, form.siteSku, existingRows],
-  );
+  const canSubmit = isManualPackingCreateFormComplete(form);
 
-  const displaySkuError = manualPackingSkuErrorForDisplay(
-    skuFieldErrors.sku,
-    skuBlurred,
-    MANUAL_PACKING_SKU_LENGTH_MESSAGE,
-  );
-  const displaySiteSkuError = manualPackingSkuErrorForDisplay(
-    skuFieldErrors.siteSku,
-    siteSkuBlurred,
-    MANUAL_PACKING_SITE_SKU_LENGTH_MESSAGE,
-  );
-
-  const canSubmit =
-    isPackingItemFormComplete(form, { packingMaterialFixed: true }) &&
-    !skuFieldErrors.sku &&
-    !skuFieldErrors.siteSku;
-
-  const setField = <K extends keyof PackingItemFormState>(key: K, value: PackingItemFormState[K]) => {
+  const setField = <K extends keyof ManualPackingCreateFormState>(key: K, value: ManualPackingCreateFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSubmit = () => {
-    if (!canSubmit) return;
-    const row = packingItemFormToRow(`new-${Date.now()}`, form, { forceMaterialPackingItem: true });
+    if (!canSubmit || !draftSku.trim()) return;
+    const sku = draftSku.trim();
+    const row = manualPackingSlimFormToRow(`new-${Date.now()}`, form, { sku, siteSku: sku, isManualPackingItem: true });
     onCreate(row);
     onClose();
   };
@@ -86,16 +63,19 @@ export default function CreateManualPackingItemDrawer({
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <PackingItemFormFields
-            form={form}
-            setField={setField}
-            idPrefix="create-packing"
-            materialMode="packingItemFixed"
-            skuError={displaySkuError}
-            siteSkuError={displaySiteSkuError}
-            onSkuBlur={() => setSkuBlurred(true)}
-            onSiteSkuBlur={() => setSiteSkuBlurred(true)}
-          />
+          <div className="mb-4">
+            <Label htmlFor="create-packing-sku" className="mb-2 block text-sm font-medium text-gray-800">
+              SKU
+            </Label>
+            <Input
+              id="create-packing-sku"
+              readOnly
+              value={draftSku}
+              className="border-gray-300 bg-gray-50 text-gray-800"
+              aria-readonly
+            />
+          </div>
+          <ManualPackingCreateFormFields form={form} setField={setField} idPrefix="create-packing" />
         </div>
 
         <div className="flex shrink-0 items-center justify-between gap-3 border-t bg-white px-6 py-4">
