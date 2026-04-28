@@ -213,7 +213,7 @@ export default function CreateCarrierDrawer({
         >
           <SheetHeader className="px-6 pt-4 pb-3 border-b shrink-0">
             <div className="flex items-center justify-between">
-              <SheetTitle className="text-xl">{title}</SheetTitle>
+              <SheetTitle>{title}</SheetTitle>
               {carrier?.activeRoutes && (
                 <div className={`${carrier.activeRoutes === '0' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'} px-3 py-1.5 rounded text-xs font-medium mt-[0px] mr-[24px] mb-[0px] ml-[0px]`}>
                   {carrier.activeRoutes === '0' ? 'No Active Routes' : `${carrier.activeRoutes} Active Routes`}

@@ -216,7 +216,7 @@ export default function EditConsolidatedShipmentDrawer({ isOpen, onClose, shipme
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col">
         <SheetHeader className="px-6 py-4 border-b">
-          <SheetTitle className="text-xl">Edit Consolidated Shipment</SheetTitle>
+          <SheetTitle>Edit Consolidated Shipment</SheetTitle>
           <SheetDescription className="text-sm text-gray-500">
             Shipment ID: {shipment.id}
           </SheetDescription>

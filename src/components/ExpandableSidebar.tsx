@@ -3,7 +3,7 @@ import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import routeIconPaths from '../imports/svg-yb48l66bfs';
-import { ChevronLeft, ChevronRight, Megaphone, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Megaphone, Package, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from './ui/utils';
 
@@ -13,6 +13,7 @@ export type ExpandableNavSection =
   | 'consolidated'
   | 'routes'
   | 'shipmentAlerts'
+  | 'shippingProductCatalog'
   | 'globalCarrier';
 
 interface ExpandableSidebarProps {
@@ -69,7 +70,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           </div>
                           {/* Text - only visible when expanded */}
                           <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
-                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[16px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
                               Shipments
                             </p>
                           </div>
@@ -119,7 +120,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           </div>
                           {/* Text - only visible when expanded */}
                           <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
-                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[16px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
                               Shipment Collections
                             </p>
                           </div>
@@ -169,7 +170,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           </div>
                           {/* Text - only visible when expanded */}
                           <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
-                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[16px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
                               Consolidated Shipments
                             </p>
                           </div>
@@ -217,7 +218,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           </div>
                           {/* Text - only visible when expanded */}
                           <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
-                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[16px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
                               Shipping Routes
                             </p>
                           </div>
@@ -268,7 +269,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           <div
                             className={`relative box-border flex flex-col items-start overflow-hidden px-0 py-[4px] transition-all duration-300 ${isExpanded ? 'ml-[8px] w-auto opacity-100' : 'w-0 opacity-0'}`}
                           >
-                            <p className="relative shrink-0 whitespace-nowrap font-['Roboto',sans-serif] text-[16px] leading-[1.5] tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
+                            <p className="relative shrink-0 whitespace-nowrap font-['Roboto',sans-serif] text-[14px] leading-[1.5] tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
                               Shipment Alerts
                             </p>
                           </div>
@@ -280,6 +281,57 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 {!isExpanded && (
                   <TooltipContent side="bottom">
                     <p>Shipment Alerts</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+
+            {/* Shipping Product Catalog */}
+            <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
+              <Tooltip key={`shippingProductCatalog-${isExpanded}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full cursor-pointer rounded-[4px] hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSectionChange?.('shippingProductCatalog');
+                    }}
+                  >
+                    <div className="relative shrink-0 w-full">
+                      <div className="flex size-full flex-row items-center overflow-clip rounded-[inherit]">
+                        <div className="relative box-border flex w-full items-center px-[16px] py-[8px] pl-[10px] pr-[16px] pt-[8px] pb-[8px]">
+                          <div className="relative box-border flex w-[40px] shrink-0 flex-col items-center justify-center overflow-clip rounded-[100px] p-[8px]">
+                            <div className="relative flex shrink-0 items-center justify-center">
+                              <Package
+                                className={cn(
+                                  'size-6',
+                                  activeSection === 'shippingProductCatalog'
+                                    ? 'text-[#1976D2]'
+                                    : 'text-[rgba(0,0,0,0.56)]',
+                                )}
+                                strokeWidth={1.75}
+                                aria-hidden
+                              />
+                            </div>
+                            {activeSection === 'shippingProductCatalog' && (
+                              <div className="absolute left-1/2 top-1/2 size-[36px] translate-x-[-50%] translate-y-[-50%] rounded-[100px] bg-[rgba(25,118,210,0.3)]" />
+                            )}
+                          </div>
+                          <div
+                            className={`relative box-border flex flex-col items-start overflow-hidden px-0 py-[4px] transition-all duration-300 ${isExpanded ? 'ml-[8px] w-auto opacity-100' : 'w-0 opacity-0'}`}
+                          >
+                            <p className="relative shrink-0 whitespace-nowrap font-['Roboto',sans-serif] text-[14px] leading-[1.5] tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
+                              Shipping Product Catalog
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                {!isExpanded && (
+                  <TooltipContent side="bottom">
+                    <p>Shipping Product Catalog</p>
                   </TooltipContent>
                 )}
               </Tooltip>
@@ -310,7 +362,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           </div>
                           {/* Text - only visible when expanded */}
                           <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
-                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[16px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
                               Global Carrier Settings
                             </p>
                           </div>
