@@ -8,6 +8,8 @@ export const CATALOG_CATEGORIES = [
   'ring',
   'gift_box',
   'gift_note',
+  /** Manual packing items created in Shipping; shown as "Packing Item" in the Category column. */
+  'packing_item',
 ] as const;
 
 export type CatalogCategory = (typeof CATALOG_CATEGORIES)[number];
@@ -40,11 +42,35 @@ export interface ShippingCatalogRow {
   diamond: boolean;
   nonProd: boolean;
   status: CatalogItemStatus;
+  /** When true, row was created via Manual Packing Item flow (not in master catalog). */
+  isManualPackingItem?: boolean;
 }
 
-/** Manual packing rows use `material: 'packing_item'` (shown as "Packing Item"). */
-export function isManualPackingCatalogRow(row: Pick<ShippingCatalogRow, 'material'>): boolean {
-  return row.material === 'packing_item';
+export function isManualPackingCatalogRow(row: ShippingCatalogRow): boolean {
+  return Boolean(row.isManualPackingItem);
+}
+
+/** Display label for catalog category (table, filters, details). */
+export function formatCatalogCategoryLabel(c: CatalogCategory): string {
+  if (c === 'packing_item') return 'Packing Item';
+  return c;
+}
+
+/** Unique SKU for manual packing items (9–23 chars per `isCatalogSkuOrSiteSkuLengthValid`). */
+export function generateUniqueManualPackingSku(existingRows: Pick<ShippingCatalogRow, 'sku'>[]): string {
+  const used = new Set(existingRows.map((r) => r.sku.trim().toLowerCase()));
+  for (let n = 0; n < 5000; n++) {
+    const candidate = n === 0 ? `PKG-${Date.now()}` : `PKG-${Date.now()}-${n}`;
+    if (
+      candidate.length < 24 &&
+      isCatalogSkuOrSiteSkuLengthValid(candidate) &&
+      !used.has(candidate.toLowerCase())
+    ) {
+      return candidate;
+    }
+  }
+  const fallback = `PKG-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return fallback.slice(0, 23);
 }
 
 export function formatCatalogMaterialLabel(m: CatalogMaterialType): string {

@@ -3,22 +3,19 @@ import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { cn } from './ui/utils';
 import {
+  formatCatalogCategoryLabel,
   formatCatalogMaterialLabel,
   HS_CODE_OPTIONS,
   isManualPackingCatalogRow,
-  MANUAL_PACKING_SITE_SKU_LENGTH_MESSAGE,
-  MANUAL_PACKING_SKU_LENGTH_MESSAGE,
-  manualPackingSkuErrorForDisplay,
-  validateManualPackingSkuFields,
   type ShippingCatalogRow,
 } from './shippingCatalogModel';
 import {
-  PackingItemFormFields,
-  emptyPackingItemForm,
-  isPackingItemFormComplete,
-  packingItemFormToRow,
-  rowToPackingItemForm,
-  type PackingItemFormState,
+  ManualPackingCreateFormFields,
+  emptyManualPackingCreateForm,
+  isManualPackingCreateFormComplete,
+  manualPackingSlimFormToRow,
+  rowToManualPackingSlimForm,
+  type ManualPackingCreateFormState,
 } from './packingItemFormShared';
 
 function DetailBlock({ label, value }: { label: string; value: string }) {
@@ -36,6 +33,8 @@ function CatalogReadOnlyBody({ row }: { row: ShippingCatalogRow }) {
     return opt ? `${row.hsCode} ${opt.description}` : row.hsCode;
   }, [row.hsCode]);
 
+  const masterStatus = row.isManualPackingItem === true ? '-' : row.status;
+
   return (
     <div className="space-y-4">
       <DetailBlock label="SKU" value={row.sku} />
@@ -43,13 +42,13 @@ function CatalogReadOnlyBody({ row }: { row: ShippingCatalogRow }) {
       <DetailBlock label="Supplier Item ID" value={row.supplierItemId || '—'} />
       <DetailBlock label="Product Name" value={row.productName} />
       <DetailBlock label="HS Code" value={hsLine} />
-      <DetailBlock label="Category" value={row.category} />
+      <DetailBlock label="Category" value={formatCatalogCategoryLabel(row.category)} />
       <DetailBlock label="Country of Origin" value={row.country} />
       <DetailBlock label="Material Type" value={formatCatalogMaterialLabel(row.material)} />
       <DetailBlock label="Weight" value={row.weight} />
       <DetailBlock label="Diamond Product" value={row.diamond ? 'Yes' : 'No'} />
       <DetailBlock label="Non Producible Product" value={row.nonProd ? 'Yes' : 'No'} />
-      <DetailBlock label="Status" value={row.status} />
+      <DetailBlock label="Master Catalog Status" value={masterStatus} />
     </div>
   );
 }
@@ -59,7 +58,6 @@ interface ShippingCatalogRowDrawerProps {
   row: ShippingCatalogRow | null;
   onClose: () => void;
   onSave: (row: ShippingCatalogRow) => void;
-  existingRows: ShippingCatalogRow[];
 }
 
 export default function ShippingCatalogRowDrawer({
@@ -67,49 +65,30 @@ export default function ShippingCatalogRowDrawer({
   row,
   onClose,
   onSave,
-  existingRows,
 }: ShippingCatalogRowDrawerProps) {
   const editable = row ? isManualPackingCatalogRow(row) : false;
-  const [form, setForm] = useState(() => emptyPackingItemForm());
-  const [skuBlurred, setSkuBlurred] = useState(false);
-  const [siteSkuBlurred, setSiteSkuBlurred] = useState(false);
+  const [form, setForm] = useState(() => emptyManualPackingCreateForm());
 
   useEffect(() => {
     if (isOpen && row && isManualPackingCatalogRow(row)) {
-      setForm(rowToPackingItemForm(row));
-      setSkuBlurred(false);
-      setSiteSkuBlurred(false);
+      setForm(rowToManualPackingSlimForm(row));
     }
   }, [isOpen, row]);
 
-  const skuFieldErrors = useMemo(() => {
-    if (!row || !editable) return {};
-    return validateManualPackingSkuFields(form.sku, form.siteSku, existingRows, row.id);
-  }, [form.sku, form.siteSku, existingRows, row, editable]);
+  const canSave = Boolean(row) && isManualPackingCreateFormComplete(form);
 
-  const displaySkuError = manualPackingSkuErrorForDisplay(
-    skuFieldErrors.sku,
-    skuBlurred,
-    MANUAL_PACKING_SKU_LENGTH_MESSAGE,
-  );
-  const displaySiteSkuError = manualPackingSkuErrorForDisplay(
-    skuFieldErrors.siteSku,
-    siteSkuBlurred,
-    MANUAL_PACKING_SITE_SKU_LENGTH_MESSAGE,
-  );
-
-  const canSave =
-    isPackingItemFormComplete(form, { packingMaterialFixed: true }) &&
-    !skuFieldErrors.sku &&
-    !skuFieldErrors.siteSku;
-
-  const setField = <K extends keyof PackingItemFormState>(key: K, value: PackingItemFormState[K]) => {
+  const setField = <K extends keyof ManualPackingCreateFormState>(key: K, value: ManualPackingCreateFormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
   const handleSave = () => {
     if (!row || !canSave) return;
-    onSave(packingItemFormToRow(row.id, form, { forceMaterialPackingItem: true }));
+    const updated = manualPackingSlimFormToRow(row.id, form, {
+      sku: row.sku,
+      siteSku: row.siteSku,
+      isManualPackingItem: true,
+    });
+    onSave(updated);
     onClose();
   };
 
@@ -130,16 +109,16 @@ export default function ShippingCatalogRowDrawer({
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {row ? (
             editable ? (
-              <PackingItemFormFields
-                form={form}
-                setField={setField}
-                idPrefix="catalog-row"
-                materialMode="packingItemFixed"
-                skuError={displaySkuError}
-                siteSkuError={displaySiteSkuError}
-                onSkuBlur={() => setSkuBlurred(true)}
-                onSiteSkuBlur={() => setSiteSkuBlurred(true)}
-              />
+              <div className="space-y-4">
+                <div>
+                  <div className="mb-2 text-sm font-medium text-gray-800">SKU</div>
+                  <div className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+                    {row.sku}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">SKU cannot be changed.</p>
+                </div>
+                <ManualPackingCreateFormFields form={form} setField={setField} idPrefix="catalog-row" />
+              </div>
             ) : (
               <CatalogReadOnlyBody row={row} />
             )

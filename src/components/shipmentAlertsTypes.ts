@@ -1,4 +1,4 @@
-/** Manual = plain text; status = chip-style value in table cells. */
+/** Manual = plain text; status = plain “Status — value” in table cells. */
 export type ShipmentAlertReleaseLogic = { kind: 'manual' } | { kind: 'status'; value: string };
 
 export type ShipmentAlertStatus = 'Draft' | 'Live';
@@ -16,9 +16,9 @@ export interface ShipmentAlertRow {
 }
 
 export function releaseLogicFilterValue(logic: ShipmentAlertReleaseLogic): string {
-  return logic.kind === 'manual' ? 'Manual' : logic.value;
+  return logic.kind === 'manual' ? 'Manual' : `Status — ${logic.value}`;
 }
 
 export function releaseLogicCsvValue(logic: ShipmentAlertReleaseLogic): string {
-  return logic.kind === 'manual' ? 'Manual' : `Status: ${logic.value}`;
+  return logic.kind === 'manual' ? 'Manual' : `Status — ${logic.value}`;
 }

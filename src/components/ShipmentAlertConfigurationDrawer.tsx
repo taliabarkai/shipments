@@ -542,7 +542,7 @@ export default function ShipmentAlertConfigurationDrawer({
               <p className={cn(sectionTitleClass, 'mb-3')}>Rule Builder</p>
               <div className={cardClass}>
                 <div className="mb-3">
-                  <span className="text-sm font-medium text-[#101828]">Activation Logic</span>
+                  <Label className="text-xs text-gray-600">Activation Logic</Label>
                 </div>
                 <div className="flex flex-col gap-3">
                   {rows.map((row, index) => (
@@ -715,7 +715,7 @@ export default function ShipmentAlertConfigurationDrawer({
             </div>
 
             <div>
-              <p className={cn(sectionTitleClass, 'mb-3')}>Status &amp; Scheduling</p>
+              <p className={cn(sectionTitleClass, 'mb-3')}>Status &amp; Effective Dates</p>
               <div className={cn(cardClass, 'flex flex-col gap-4')}>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-gray-600">Status</Label>

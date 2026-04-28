@@ -38,6 +38,7 @@ interface ShipmentsListProps {
       | 'routes'
       | 'shipmentAlerts'
       | 'shippingProductCatalog'
+      | 'packingInstructions'
       | 'globalCarrier',
   ) => void;
 }

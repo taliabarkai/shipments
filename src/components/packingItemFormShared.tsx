@@ -1,3 +1,4 @@
+import { HsCodeControlledPicker } from './HsCodeControlledPicker';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import {
@@ -11,7 +12,6 @@ import { cn } from './ui/utils';
 import {
   CATALOG_MATERIAL_TYPES,
   formatCatalogMaterialLabel,
-  HS_CODE_OPTIONS,
   type CatalogCategory,
   type CatalogMaterialType,
   type CatalogItemStatus,
@@ -221,18 +221,12 @@ export function PackingItemFormFields({
 
       <div>
         <Label className="mb-2 block text-sm font-medium text-gray-800">HS Code</Label>
-        <Select value={form.hsCode || undefined} onValueChange={(v) => setField('hsCode', v)}>
-          <SelectTrigger className={PACKING_ITEM_SELECT_TRIGGER_CLASS}>
-            <SelectValue placeholder="Select HS code" />
-          </SelectTrigger>
-          <SelectContent className="max-h-[min(20rem,55vh)] min-w-[min(20rem,var(--radix-select-trigger-width))] max-w-[min(28rem,calc(100vw-2rem))]">
-            {HS_CODE_OPTIONS.map((opt) => (
-              <SelectItem key={opt.code} value={opt.code} className="whitespace-normal py-2">
-                {opt.code} — {opt.description}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <HsCodeControlledPicker
+          value={form.hsCode}
+          onChange={(v) => setField('hsCode', v)}
+          variant="form"
+          aria-label={`${idPrefix} HS code`}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -356,6 +350,156 @@ export function PackingItemFormFields({
             <SelectItem value="archived">Archived</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+    </div>
+  );
+}
+
+/** Minimal fields for creating / editing a manual packing item (SKU generated or read-only elsewhere). */
+export type ManualPackingCreateFormState = {
+  productName: string;
+  hsCode: string;
+  weight: string;
+  material: '' | CatalogMaterialType;
+  country: string;
+};
+
+export function emptyManualPackingCreateForm(): ManualPackingCreateFormState {
+  return {
+    productName: '',
+    hsCode: '',
+    weight: '',
+    material: '',
+    country: '',
+  };
+}
+
+export function isManualPackingCreateFormComplete(form: ManualPackingCreateFormState): boolean {
+  return (
+    form.productName.trim() !== '' &&
+    form.hsCode !== '' &&
+    form.weight.trim() !== '' &&
+    form.material !== '' &&
+    form.country.trim() !== ''
+  );
+}
+
+export function rowToManualPackingSlimForm(row: ShippingCatalogRow): ManualPackingCreateFormState {
+  return {
+    productName: row.productName,
+    hsCode: row.hsCode,
+    weight: weightStoredToFormDigits(row.weight),
+    material: row.material,
+    country: row.country,
+  };
+}
+
+export function manualPackingSlimFormToRow(
+  id: string,
+  form: ManualPackingCreateFormState,
+  options: { sku: string; siteSku?: string; isManualPackingItem?: boolean },
+): ShippingCatalogRow {
+  const sku = options.sku.trim();
+  return {
+    id,
+    sku,
+    siteSku: (options.siteSku ?? sku).trim(),
+    supplierItemId: '',
+    productName: form.productName.trim(),
+    category: 'packing_item',
+    hsCode: form.hsCode,
+    country: form.country.trim(),
+    material: form.material as CatalogMaterialType,
+    weight: normalizeWeight(form.weight),
+    diamond: false,
+    nonProd: true,
+    status: 'Online',
+    isManualPackingItem: options.isManualPackingItem !== false,
+  };
+}
+
+const MATERIAL_SELECT_PLACEHOLDER = 'Select material';
+
+export function ManualPackingCreateFormFields({
+  form,
+  setField,
+  idPrefix,
+}: {
+  form: ManualPackingCreateFormState;
+  setField: <K extends keyof ManualPackingCreateFormState>(key: K, value: ManualPackingCreateFormState[K]) => void;
+  idPrefix: string;
+}) {
+  return (
+    <div className="space-y-4">
+      <div>
+        <Label htmlFor={`${idPrefix}-product-name`} className="mb-2 block text-sm font-medium text-gray-800">
+          Product Name
+        </Label>
+        <Input
+          id={`${idPrefix}-product-name`}
+          placeholder="e.g. Custom tissue paper"
+          value={form.productName}
+          onChange={(e) => setField('productName', e.target.value)}
+          className="border-gray-300 bg-white"
+        />
+      </div>
+
+      <div>
+        <Label className="mb-2 block text-sm font-medium text-gray-800">HS Code</Label>
+        <HsCodeControlledPicker
+          value={form.hsCode}
+          onChange={(v) => setField('hsCode', v)}
+          variant="form"
+          aria-label={`${idPrefix} HS code`}
+        />
+      </div>
+
+      <div>
+        <Label htmlFor={`${idPrefix}-weight`} className="mb-2 block text-sm font-medium text-gray-800">
+          Weight (g)
+        </Label>
+        <Input
+          id={`${idPrefix}-weight`}
+          placeholder="e.g. 200"
+          inputMode="numeric"
+          maxLength={3}
+          autoComplete="off"
+          value={form.weight}
+          onChange={(e) => setField('weight', e.target.value.replace(/\D/g, '').slice(0, 3))}
+          className="border-gray-300 bg-white"
+        />
+      </div>
+
+      <div>
+        <Label className="mb-2 block text-sm font-medium text-gray-800">Material</Label>
+        <Select
+          value={form.material || undefined}
+          onValueChange={(v) => setField('material', v as CatalogMaterialType)}
+        >
+          <SelectTrigger className={PACKING_ITEM_SELECT_TRIGGER_CLASS}>
+            <SelectValue placeholder={MATERIAL_SELECT_PLACEHOLDER} />
+          </SelectTrigger>
+          <SelectContent className="max-h-[min(18rem,50vh)]">
+            {CATALOG_MATERIAL_TYPES.map((m) => (
+              <SelectItem key={m} value={m}>
+                {formatCatalogMaterialLabel(m)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div>
+        <Label htmlFor={`${idPrefix}-country`} className="mb-2 block text-sm font-medium text-gray-800">
+          Country of Origin
+        </Label>
+        <Input
+          id={`${idPrefix}-country`}
+          placeholder="e.g. Israel"
+          value={form.country}
+          onChange={(e) => setField('country', e.target.value)}
+          className="border-gray-300 bg-white"
+        />
       </div>
     </div>
   );

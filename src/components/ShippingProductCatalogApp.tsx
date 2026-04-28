@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ChevronDown, ChevronsUpDown, Download, Minus, Plus, Search } from 'lucide-react';
+import { Check, ChevronsUpDown, Download, Minus, Plus, Search } from 'lucide-react';
 import CreateManualPackingItemDrawer from './CreateManualPackingItemDrawer';
+import { HsCodeControlledPicker } from './HsCodeControlledPicker';
 import ShippingCatalogRowDrawer from './ShippingCatalogRowDrawer';
 import {
   CATALOG_CATEGORIES,
   CATALOG_MATERIAL_TYPES,
+  formatCatalogCategoryLabel,
   formatCatalogMaterialLabel,
   HS_CODE_OPTIONS,
   type CatalogCategory,
@@ -20,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from './ui/utils';
 
 export type { CatalogCategory, CatalogItemStatus, CatalogMaterialType, ShippingCatalogRow } from './shippingCatalogModel';
-export { CATALOG_CATEGORIES, CATALOG_MATERIAL_TYPES } from './shippingCatalogModel';
+export { CATALOG_CATEGORIES, CATALOG_MATERIAL_TYPES, formatCatalogCategoryLabel } from './shippingCatalogModel';
 
 const COLUMNS = [
   { id: 'sku' as const, label: 'SKU' },
@@ -34,7 +36,7 @@ const COLUMNS = [
   { id: 'category' as const, label: 'Category' },
   { id: 'diamond' as const, label: 'Diamond' },
   { id: 'nonProd' as const, label: 'Non-Prod.' },
-  { id: 'status' as const, label: 'Status' },
+  { id: 'status' as const, label: 'Master Catalog Status' },
 ] as const;
 
 /** SKU (first column): max width 110px; long values truncate (see body `title`). */
@@ -66,8 +68,8 @@ const CENTERED_CATALOG_COLUMN_IDS = new Set<string>(['country', 'weight', 'diamo
 /** Columns that show filter controls inside the header popover. */
 const FILTERABLE_COLUMN_IDS = new Set<string>(['category', 'hsCode', 'material', 'diamond', 'nonProd']);
 
-/** Master catalog status grouping (same tab chrome as consolidated shipments list). */
-type CatalogMasterStatusTab = 'All' | 'Online' | 'Archived';
+/** Catalog list scope: all rows, master online/archived, or locally created manual packing items only. */
+type CatalogMasterStatusTab = 'All' | 'ManualPackingItems' | 'Online' | 'Archived';
 
 type CatalogYesNoFilterChoice = 'yes' | 'no';
 
@@ -226,11 +228,73 @@ const MOCK_ROWS: ShippingCatalogRow[] = [
     nonProd: true,
     status: 'Online',
   },
+  {
+    id: 'mp-proto-1',
+    sku: 'PKG-MANUAL-01',
+    siteSku: 'PKG-MANUAL-01',
+    supplierItemId: '',
+    productName: 'Branded tissue paper (A4)',
+    category: 'packing_item',
+    hsCode: '4819200000',
+    country: 'IL',
+    material: 'packing_item',
+    weight: '50 g',
+    diamond: false,
+    nonProd: true,
+    status: 'Online',
+    isManualPackingItem: true,
+  },
+  {
+    id: 'mp-proto-2',
+    sku: 'PKG-MANUAL-02',
+    siteSku: 'PKG-MANUAL-02',
+    supplierItemId: '',
+    productName: 'Kraft mailer box — small',
+    category: 'packing_item',
+    hsCode: '4202920000',
+    country: 'US',
+    material: 'jewelry_brass',
+    weight: '120 g',
+    diamond: false,
+    nonProd: true,
+    status: 'Online',
+    isManualPackingItem: true,
+  },
+  {
+    id: 'mp-proto-3',
+    sku: 'PKG-MANUAL-03',
+    siteSku: 'PKG-MANUAL-03',
+    supplierItemId: '',
+    productName: 'Ribbon roll — navy',
+    category: 'packing_item',
+    hsCode: '7117190000',
+    country: 'IL',
+    material: 'jewelry_stainless_steel',
+    weight: '15 g',
+    diamond: false,
+    nonProd: true,
+    status: 'Online',
+    isManualPackingItem: true,
+  },
 ];
 
 function statusChipClass(status: CatalogItemStatus): string {
   if (status === 'Online') return 'bg-green-100 text-green-800';
   return 'bg-gray-200 text-gray-800';
+}
+
+/** Weight column: numeric value primary, ` g` suffix secondary (muted). */
+function CatalogWeightCell({ value }: { value: string }) {
+  const m = value.match(/^([\d.]+)(\s+g)$/i);
+  if (!m) {
+    return <span className="text-gray-700">{value}</span>;
+  }
+  return (
+    <>
+      <span className="text-gray-700">{m[1]}</span>
+      <span className="text-gray-500">{m[2]}</span>
+    </>
+  );
 }
 
 function HsCodePickerCell({
@@ -240,130 +304,14 @@ function HsCodePickerCell({
   row: ShippingCatalogRow;
   onSelectCode: (rowId: string, code: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [listQuery, setListQuery] = useState('');
-
-  const selectedOption = useMemo(
-    () => [...HS_CODE_OPTIONS].find((o) => o.code === row.hsCode),
-    [row.hsCode],
-  );
-
-  const filteredOptions = useMemo(() => {
-    const q = listQuery.trim().toLowerCase();
-    if (!q) return [...HS_CODE_OPTIONS];
-    return HS_CODE_OPTIONS.filter(
-      (o) => o.code.toLowerCase().includes(q) || o.description.toLowerCase().includes(q),
-    );
-  }, [listQuery]);
-
-  useEffect(() => {
-    if (!open) setListQuery('');
-  }, [open]);
-
-  const triggerTitle = selectedOption
-    ? `${selectedOption.code} \u2014 ${selectedOption.description}`
-    : row.hsCode;
-
   return (
     <div className="block w-full min-w-0" onClick={(e) => e.stopPropagation()}>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <button
-            type="button"
-            title={triggerTitle}
-            aria-label={`HS code for ${row.sku}, open picker`}
-            aria-expanded={open}
-            aria-haspopup="listbox"
-            className={cn(
-              'flex w-full min-w-0 items-center justify-between gap-2 rounded-[6px] border border-gray-200 bg-white px-2.5 py-1.5 text-left text-xs text-[#101828] transition-colors',
-              'hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-1',
-              open && 'bg-gray-50 ring-1 ring-gray-200',
-            )}
-          >
-            <span className="min-w-0 flex-1 overflow-hidden text-left">
-              {selectedOption ? (
-                <span className="block min-w-0 truncate text-xs font-normal leading-snug text-[#101828]">
-                  <span className="font-mono">{selectedOption.code}</span>
-                  <span className="font-sans">{` \u2014 ${selectedOption.description}`}</span>
-                </span>
-              ) : (
-                <span className="block min-w-0 truncate font-mono text-xs font-normal leading-snug text-[#101828]">
-                  {row.hsCode}
-                </span>
-              )}
-            </span>
-            <ChevronDown className="h-4 w-4 shrink-0 text-gray-600" strokeWidth={2} aria-hidden />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          align="start"
-          sideOffset={6}
-          className="flex w-max max-w-[min(440px,calc(100vw-1.5rem))] min-w-[220px] flex-col overflow-hidden rounded-[8px] border border-gray-200 bg-white p-0 text-left shadow-lg"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="w-full self-stretch border-b border-gray-100 p-2">
-            <div className="relative w-full min-w-0">
-              <Search
-                className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400"
-                aria-hidden
-              />
-              <Input
-                placeholder="Search HS codes by code or description"
-                value={listQuery}
-                onChange={(e) => setListQuery(e.target.value)}
-                className="h-9 w-full min-w-0 border-gray-200 pl-9 text-sm"
-                aria-label="Search HS codes by code or description"
-              />
-            </div>
-          </div>
-          <div
-            className="max-h-[min(18rem,50vh)] min-w-0 w-full overflow-x-auto overflow-y-auto p-1"
-            role="listbox"
-            aria-label="HS codes"
-          >
-            {filteredOptions.map((opt) => {
-              const selected = row.hsCode === opt.code;
-              return (
-                <button
-                  key={opt.code}
-                  type="button"
-                  role="option"
-                  aria-selected={selected}
-                  title={`${opt.code} ${opt.description}`}
-                  className={cn(
-                    'flex w-full min-w-0 flex-row flex-nowrap items-center justify-between gap-2 rounded-[6px] px-2 py-2 text-left transition-colors',
-                    selected ? 'bg-blue-50' : 'hover:bg-gray-50',
-                  )}
-                  onClick={() => {
-                    onSelectCode(row.id, opt.code);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="flex min-w-0 flex-1 items-baseline gap-1 overflow-hidden">
-                    <span className="shrink-0 whitespace-nowrap font-mono text-[12px] font-normal leading-snug text-[#1976d2]">
-                      {opt.code}
-                    </span>
-                    <span className="min-w-0 truncate text-left text-[12px] font-normal leading-snug text-gray-700">
-                      {opt.description}
-                    </span>
-                  </span>
-                  {selected ? (
-                    <Check className="h-4 w-4 shrink-0 text-[#1976d2]" aria-hidden />
-                  ) : (
-                    <span className="inline-flex h-4 w-4 shrink-0" aria-hidden />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex w-full flex-row items-center justify-between gap-2 border-t border-gray-100 px-3 py-2 text-left text-xs font-normal text-gray-500">
-            <span className="min-w-0 shrink">
-              {filteredOptions.length} of {HS_CODE_OPTIONS.length} codes
-            </span>
-            <span className="shrink-0 text-right">Managed in Shipping</span>
-          </div>
-        </PopoverContent>
-      </Popover>
+      <HsCodeControlledPicker
+        value={row.hsCode}
+        onChange={(code) => onSelectCode(row.id, code)}
+        variant="catalogTable"
+        aria-label={`HS code for ${row.sku}, open picker`}
+      />
     </div>
   );
 }
@@ -398,11 +346,21 @@ export default function ShippingProductCatalogApp() {
   const catalogStatusTabCounts = useMemo(() => {
     let online = 0;
     let archived = 0;
+    let manualPacking = 0;
     for (const r of rows) {
+      if (r.isManualPackingItem) {
+        manualPacking += 1;
+        continue;
+      }
       if (r.status === 'Online') online += 1;
       else if (r.status === 'Archived') archived += 1;
     }
-    return { All: rows.length, Online: online, Archived: archived };
+    return {
+      All: rows.length,
+      ManualPackingItems: manualPacking,
+      Online: online,
+      Archived: archived,
+    };
   }, [rows]);
 
   const searchFilteredRows = useMemo(() => {
@@ -421,10 +379,12 @@ export default function ShippingProductCatalogApp() {
   const columnFilteredRows = useMemo(() => {
     let list = searchFilteredRows;
 
-    if (catalogStatusTab === 'Online') {
-      list = list.filter((r) => r.status === 'Online');
+    if (catalogStatusTab === 'ManualPackingItems') {
+      list = list.filter((r) => r.isManualPackingItem === true);
+    } else if (catalogStatusTab === 'Online') {
+      list = list.filter((r) => !r.isManualPackingItem && r.status === 'Online');
     } else if (catalogStatusTab === 'Archived') {
-      list = list.filter((r) => r.status === 'Archived');
+      list = list.filter((r) => !r.isManualPackingItem && r.status === 'Archived');
     }
 
     const f = catalogFilters;
@@ -463,16 +423,16 @@ export default function ShippingProductCatalogApp() {
         [
           row.sku,
           row.siteSku,
-          row.supplierItemId,
+          row.isManualPackingItem ? '-' : row.supplierItemId,
           row.productName,
           row.hsCode,
           row.weight,
           row.country,
-          row.material,
-          row.category,
+          formatCatalogMaterialLabel(row.material),
+          formatCatalogCategoryLabel(row.category),
           row.diamond ? 'Yes' : 'No',
           row.nonProd ? 'Yes' : 'No',
-          row.status,
+          row.isManualPackingItem ? '-' : row.status,
         ]
           .map(escape)
           .join(','),
@@ -649,6 +609,20 @@ export default function ShippingProductCatalogApp() {
             <button
               type="button"
               onClick={() => {
+                setCatalogStatusTab('ManualPackingItems');
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                catalogStatusTab === 'ManualPackingItems'
+                  ? 'bg-[#1976d2] text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Manual Packing Items ({catalogStatusTabCounts.ManualPackingItems})
+            </button>
+            <button
+              type="button"
+              onClick={() => {
                 setCatalogStatusTab('Online');
                 setCurrentPage(1);
               }}
@@ -772,7 +746,7 @@ export default function ShippingProductCatalogApp() {
                                                 onCheckedChange={() => toggleCategoryFilter(c)}
                                               />
                                               <Label htmlFor={`cat-f-${c}`} className="cursor-pointer text-sm leading-none">
-                                                {c}
+                                                {formatCatalogCategoryLabel(c)}
                                               </Label>
                                             </div>
                                           ))}
@@ -922,12 +896,21 @@ export default function ShippingProductCatalogApp() {
                         </td>
                         <td
                           className={cn(
-                            'px-4 py-3 text-left align-middle text-xs text-gray-700',
+                            'px-4 py-3 align-middle text-xs text-gray-700',
                             SUPPLIER_ID_BODY_CELL,
+                            row.isManualPackingItem ? 'text-center text-gray-600' : 'text-left',
                           )}
-                          title={row.supplierItemId}
+                          title={row.isManualPackingItem ? undefined : row.supplierItemId || undefined}
                         >
-                          <div className="block w-full truncate">{row.supplierItemId}</div>
+                          {row.isManualPackingItem ? (
+                            <div className="flex justify-center">
+                              <span className="inline-flex justify-center">
+                                <Minus className="h-4 w-4 text-gray-400" aria-label="No supplier ID" />
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="block w-full truncate">{row.supplierItemId}</div>
+                          )}
                         </td>
                         <td
                           className="px-4 py-3 text-left align-middle text-xs text-gray-700"
@@ -938,7 +921,9 @@ export default function ShippingProductCatalogApp() {
                         <td className={cn('px-4 py-3 text-left align-middle text-xs text-gray-700', HS_CODE_BODY_CELL)}>
                           <HsCodePickerCell row={row} onSelectCode={handleHsCodeSelect} />
                         </td>
-                        <td className="px-4 py-3 text-center align-middle text-xs text-gray-700">{row.weight}</td>
+                        <td className="px-4 py-3 text-center align-middle text-xs">
+                          <CatalogWeightCell value={row.weight} />
+                        </td>
                         <td className="px-4 py-3 text-center align-middle text-xs text-gray-700">{row.country}</td>
                         <td
                           className="max-w-[140px] truncate px-4 py-3 text-left align-middle text-xs text-gray-700"
@@ -946,7 +931,9 @@ export default function ShippingProductCatalogApp() {
                         >
                           {formatCatalogMaterialLabel(row.material)}
                         </td>
-                        <td className="px-4 py-3 text-left align-middle text-xs text-gray-700">{row.category}</td>
+                        <td className="px-4 py-3 text-left align-middle text-xs text-gray-700">
+                          {formatCatalogCategoryLabel(row.category)}
+                        </td>
                         <td className="px-4 py-3 text-center align-middle text-xs text-gray-600">
                           <span className="inline-flex justify-center">
                             {row.diamond ? (
@@ -965,15 +952,25 @@ export default function ShippingProductCatalogApp() {
                             )}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-left align-middle">
-                          <span
-                            className={cn(
-                              'inline-flex rounded-[8px] px-2.5 py-0.5 text-xs font-medium',
-                              statusChipClass(row.status),
-                            )}
-                          >
-                            {row.status}
-                          </span>
+                        <td className="px-4 py-3 align-middle text-xs text-gray-700">
+                          {row.isManualPackingItem ? (
+                            <div className="flex justify-center text-gray-600">
+                              <span className="inline-flex justify-center">
+                                <Minus className="h-4 w-4 text-gray-400" aria-label="Not in master catalog" />
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex w-full justify-start text-left">
+                              <span
+                                className={cn(
+                                  'inline-flex rounded-[8px] px-2.5 py-0.5 text-xs font-medium',
+                                  statusChipClass(row.status),
+                                )}
+                              >
+                                {row.status}
+                              </span>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))
@@ -1049,7 +1046,6 @@ export default function ShippingProductCatalogApp() {
         row={selectedCatalogRow}
         onClose={() => setSelectedCatalogRowId(null)}
         onSave={handleSaveCatalogRow}
-        existingRows={rows}
       />
     </div>
   );
