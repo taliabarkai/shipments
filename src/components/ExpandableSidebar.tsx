@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import CampaignOutlined from '@mui/icons-material/CampaignOutlined';
 import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
 import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import routeIconPaths from '../imports/svg-yb48l66bfs';
-import { ChevronLeft, ChevronRight, Megaphone, Package, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from './ui/utils';
 
@@ -304,14 +305,14 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                         <div className="relative box-border flex w-full items-center px-[16px] py-[8px] pl-[10px] pr-[16px] pt-[8px] pb-[8px]">
                           <div className="relative box-border flex w-[40px] shrink-0 flex-col items-center justify-center overflow-clip rounded-[100px] p-[8px]">
                             <div className="relative flex shrink-0 items-center justify-center">
-                              <Megaphone
-                                className={cn(
-                                  'size-6',
-                                  activeSection === 'shipmentAlerts'
-                                    ? 'text-[#1976D2]'
-                                    : 'text-[rgba(0,0,0,0.56)]',
-                                )}
-                                strokeWidth={1.75}
+                              <CampaignOutlined
+                                sx={{
+                                  fontSize: 24,
+                                  color:
+                                    activeSection === 'shipmentAlerts'
+                                      ? '#1976D2'
+                                      : 'rgba(0,0,0,0.56)',
+                                }}
                                 aria-hidden
                               />
                             </div>

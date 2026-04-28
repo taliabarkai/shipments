@@ -11,12 +11,27 @@ import {
 import { cn } from './ui/utils';
 import {
   CATALOG_MATERIAL_TYPES,
+  formatCatalogCategoryLabel,
   formatCatalogMaterialLabel,
   type CatalogCategory,
   type CatalogMaterialType,
   type CatalogItemStatus,
   type ShippingCatalogRow,
 } from './shippingCatalogModel';
+
+/** Material sub-type only; category is fixed "Packing Item" for manual packing rows. */
+const MANUAL_PACKING_MATERIAL_OPTIONS = CATALOG_MATERIAL_TYPES.filter((m) => m !== 'packing_item');
+
+export const MANUAL_PACKING_COUNTRY_CODES = ['IL', 'HU', 'TH', 'US'] as const;
+export type ManualPackingCountryCode = (typeof MANUAL_PACKING_COUNTRY_CODES)[number];
+
+function countryCodeFromStoredCountry(stored: string): '' | ManualPackingCountryCode {
+  const up = stored.trim().toUpperCase();
+  if ((MANUAL_PACKING_COUNTRY_CODES as readonly string[]).includes(up)) {
+    return up as ManualPackingCountryCode;
+  }
+  return '';
+}
 
 export const PACKING_FORM_CATEGORIES: CatalogCategory[] = [
   'necklace',
@@ -361,7 +376,7 @@ export type ManualPackingCreateFormState = {
   hsCode: string;
   weight: string;
   material: '' | CatalogMaterialType;
-  country: string;
+  country: '' | ManualPackingCountryCode;
 };
 
 export function emptyManualPackingCreateForm(): ManualPackingCreateFormState {
@@ -380,7 +395,7 @@ export function isManualPackingCreateFormComplete(form: ManualPackingCreateFormS
     form.hsCode !== '' &&
     form.weight.trim() !== '' &&
     form.material !== '' &&
-    form.country.trim() !== ''
+    form.country !== ''
   );
 }
 
@@ -389,8 +404,8 @@ export function rowToManualPackingSlimForm(row: ShippingCatalogRow): ManualPacki
     productName: row.productName,
     hsCode: row.hsCode,
     weight: weightStoredToFormDigits(row.weight),
-    material: row.material,
-    country: row.country,
+    material: row.material === 'packing_item' ? '' : row.material,
+    country: countryCodeFromStoredCountry(row.country),
   };
 }
 
@@ -408,7 +423,7 @@ export function manualPackingSlimFormToRow(
     productName: form.productName.trim(),
     category: 'packing_item',
     hsCode: form.hsCode,
-    country: form.country.trim(),
+    country: form.country,
     material: form.material as CatalogMaterialType,
     weight: normalizeWeight(form.weight),
     diamond: false,
@@ -419,6 +434,7 @@ export function manualPackingSlimFormToRow(
 }
 
 const MATERIAL_SELECT_PLACEHOLDER = 'Select material';
+const COUNTRY_SELECT_PLACEHOLDER = 'Select';
 
 export function ManualPackingCreateFormFields({
   form,
@@ -480,7 +496,7 @@ export function ManualPackingCreateFormFields({
             <SelectValue placeholder={MATERIAL_SELECT_PLACEHOLDER} />
           </SelectTrigger>
           <SelectContent className="max-h-[min(18rem,50vh)]">
-            {CATALOG_MATERIAL_TYPES.map((m) => (
+            {MANUAL_PACKING_MATERIAL_OPTIONS.map((m) => (
               <SelectItem key={m} value={m}>
                 {formatCatalogMaterialLabel(m)}
               </SelectItem>
@@ -490,16 +506,36 @@ export function ManualPackingCreateFormFields({
       </div>
 
       <div>
+        <Label htmlFor={`${idPrefix}-category`} className="mb-2 block text-sm font-medium text-gray-800">
+          Category
+        </Label>
+        <div
+          id={`${idPrefix}-category`}
+          className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800"
+        >
+          {formatCatalogCategoryLabel('packing_item')}
+        </div>
+      </div>
+
+      <div>
         <Label htmlFor={`${idPrefix}-country`} className="mb-2 block text-sm font-medium text-gray-800">
           Country of Origin
         </Label>
-        <Input
-          id={`${idPrefix}-country`}
-          placeholder="e.g. Israel"
-          value={form.country}
-          onChange={(e) => setField('country', e.target.value)}
-          className="border-gray-300 bg-white"
-        />
+        <Select
+          value={form.country || undefined}
+          onValueChange={(v) => setField('country', v as ManualPackingCountryCode)}
+        >
+          <SelectTrigger id={`${idPrefix}-country`} className={PACKING_ITEM_SELECT_TRIGGER_CLASS}>
+            <SelectValue placeholder={COUNTRY_SELECT_PLACEHOLDER} />
+          </SelectTrigger>
+          <SelectContent>
+            {MANUAL_PACKING_COUNTRY_CODES.map((code) => (
+              <SelectItem key={code} value={code}>
+                {code}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
     </div>
   );

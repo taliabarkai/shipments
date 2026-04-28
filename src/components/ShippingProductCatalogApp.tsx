@@ -36,7 +36,7 @@ const COLUMNS = [
   { id: 'category' as const, label: 'Category' },
   { id: 'diamond' as const, label: 'Diamond' },
   { id: 'nonProd' as const, label: 'Non-Prod.' },
-  { id: 'status' as const, label: 'Master Catalog Status' },
+  { id: 'status' as const, label: 'Catalog Status' },
 ] as const;
 
 /** SKU (first column): max width 110px; long values truncate (see body `title`). */

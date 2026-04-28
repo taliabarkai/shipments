@@ -502,7 +502,7 @@ export default function ShipmentAlertsApp() {
                         role="button"
                         aria-label={`Edit alert: ${row.alertName}`}
                       >
-                        <td className="px-4 py-3 text-sm font-medium text-[#101828]">{row.alertName}</td>
+                        <td className="px-4 py-3 text-sm text-[#101828]">{row.alertName}</td>
                         <td className="max-w-md px-4 py-3 text-sm text-gray-700">
                           <LogicExpression text={row.activationLogic} />
                         </td>

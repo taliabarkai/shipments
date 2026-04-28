@@ -48,7 +48,7 @@ function CatalogReadOnlyBody({ row }: { row: ShippingCatalogRow }) {
       <DetailBlock label="Weight" value={row.weight} />
       <DetailBlock label="Diamond Product" value={row.diamond ? 'Yes' : 'No'} />
       <DetailBlock label="Non Producible Product" value={row.nonProd ? 'Yes' : 'No'} />
-      <DetailBlock label="Master Catalog Status" value={masterStatus} />
+      <DetailBlock label="Catalog Status" value={masterStatus} />
     </div>
   );
 }
