@@ -802,12 +802,7 @@ export default function ShipmentAlertConfigurationDrawer({
             type="button"
             onClick={handleSubmit}
             disabled={!submitEnabled}
-            className={cn(
-              'min-w-[120px] text-[15px] font-medium',
-              submitEnabled
-                ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]'
-                : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]',
-            )}
+            className="min-w-[120px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:opacity-50"
           >
             {isEdit ? 'Update Alert' : 'Create Alert'}
           </Button>

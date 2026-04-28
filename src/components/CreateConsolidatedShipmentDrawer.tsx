@@ -156,7 +156,7 @@ export default function CreateConsolidatedShipmentDrawer({ isOpen, onClose, onCr
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent side="right" className="w-full sm:max-w-[560px] p-0 flex flex-col">
         <SheetHeader className="px-6 py-4 border-b">
-          <SheetTitle className="text-xl">New Consolidated Shipment</SheetTitle>
+          <SheetTitle>New Consolidated Shipment</SheetTitle>
           <SheetDescription className="text-sm text-gray-500">
             Shipment ID: {tempShipmentId}
           </SheetDescription>

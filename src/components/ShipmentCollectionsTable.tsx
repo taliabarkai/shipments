@@ -217,7 +217,7 @@ export default function ShipmentCollectionsTable({
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setActiveTab('all')}
-                  className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-[8px] transition-colors ${
                     activeTab === 'all'
                       ? 'bg-[#1976d2] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -227,7 +227,7 @@ export default function ShipmentCollectionsTable({
                 </button>
                 <button
                   onClick={() => setActiveTab('Pending')}
-                  className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-[8px] transition-colors ${
                     activeTab === 'Pending'
                       ? 'bg-[#1976d2] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -237,7 +237,7 @@ export default function ShipmentCollectionsTable({
                 </button>
                 <button
                   onClick={() => setActiveTab('Picked Up')}
-                  className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                  className={`px-3 py-1.5 text-sm rounded-[8px] transition-colors ${
                     activeTab === 'Picked Up'
                       ? 'bg-[#1976d2] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

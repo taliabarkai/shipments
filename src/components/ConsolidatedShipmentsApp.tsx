@@ -58,7 +58,14 @@ export interface ConsolidatedShipment {
 
 interface ConsolidatedShipmentsAppProps {
   onSectionChange?: (
-    section: 'shipments' | 'collections' | 'consolidated' | 'routes' | 'shipmentAlerts' | 'globalCarrier',
+    section:
+      | 'shipments'
+      | 'collections'
+      | 'consolidated'
+      | 'routes'
+      | 'shipmentAlerts'
+      | 'shippingProductCatalog'
+      | 'globalCarrier',
   ) => void;
 }
 

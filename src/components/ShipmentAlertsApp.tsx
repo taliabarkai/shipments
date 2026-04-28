@@ -511,7 +511,7 @@ export default function ShipmentAlertsApp() {
                         </td>
                         <td className="px-4 py-3">
                           <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${alertStatusChipClass(row.status)}`}
+                            className={`inline-flex rounded-[8px] px-2.5 py-0.5 text-xs font-medium ${alertStatusChipClass(row.status)}`}
                           >
                             {row.status}
                           </span>

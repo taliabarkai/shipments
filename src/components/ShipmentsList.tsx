@@ -31,7 +31,14 @@ interface ShipmentsListProps {
   onCreateNew: () => void;
   onUpdateShipment: (shipment: ConsolidatedShipment) => void;
   onSectionChange?: (
-    section: 'shipments' | 'collections' | 'consolidated' | 'routes' | 'shipmentAlerts' | 'globalCarrier',
+    section:
+      | 'shipments'
+      | 'collections'
+      | 'consolidated'
+      | 'routes'
+      | 'shipmentAlerts'
+      | 'shippingProductCatalog'
+      | 'globalCarrier',
   ) => void;
 }
 
