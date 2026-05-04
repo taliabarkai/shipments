@@ -5,6 +5,7 @@ import Header from './imports/Header';
 import ExpandableSidebar from './components/ExpandableSidebar';
 import MainMenuSidebar from './imports/MainMenuSidebar';
 import ShipmentsTable, { Shipment } from './components/ShipmentsTable';
+import type { AlertFilterId } from './components/alertFilterRules';
 import ShipmentCollectionsTable, { ShipmentCollection, CollectionStatus } from './components/ShipmentCollectionsTable';
 import ConsolidatedShipmentsApp from './components/ConsolidatedShipmentsApp';
 import AddCollectionDialog from './components/AddCollectionDialog';
@@ -622,6 +623,7 @@ export default function App() {
       status: 'Label Created',
       consolidatedId: '273133181',
       consolidatedPack: 1,
+      shipmentAlerts: ['not_packed_24h'] as AlertFilterId[],
     },
     {
       orderId: '273133182',
@@ -636,6 +638,7 @@ export default function App() {
       status: 'Delivered',
       consolidatedId: '273133181',
       consolidatedPack: 2,
+      shipmentAlerts: ['draft_12h'] as AlertFilterId[],
     },
     {
       orderId: '273133183',
@@ -650,6 +653,7 @@ export default function App() {
       status: 'Out for Delivery',
       consolidatedId: '273133181',
       consolidatedPack: 3,
+      shipmentAlerts: ['packed_12h'] as AlertFilterId[],
     },
     {
       orderId: '273133184',

@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { consolidatedCancelDialogCounts } from './consolidatedShipmentConstants';
+import type { AlertFilterId } from './alertFilterRules';
 
 export type ShipmentStatus = 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
@@ -54,6 +55,8 @@ export interface ConsolidatedShipment {
   /** When status is Cancelled — shown on detail timeline */
   cancelledAt?: string;
   cancelledBy?: string;
+  /** When set, shows alert chips in the list and participates in alert filters. */
+  consolidationAlerts?: AlertFilterId[];
 }
 
 interface ConsolidatedShipmentsAppProps {
@@ -120,7 +123,8 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
         { id: 2, orders: Array.from({ length: 20 }, (_, i) => `ORD-${1015 + i}`) },
         { id: 3, orders: Array.from({ length: 7 }, (_, i) => `ORD-${1035 + i}`) },
       ],
-      dateCreated: '10/1/2023'
+      dateCreated: '10/1/2023',
+      consolidationAlerts: ['not_packed_24h'],
     },
     {
       id: '273133199',
@@ -138,6 +142,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
         { id: 2, orders: Array.from({ length: 5 }, (_, i) => `ORD-${3006 + i}`) },
       ],
       dateCreated: '10/19/2023',
+      consolidationAlerts: ['draft_12h'],
     },
     {
       id: '273133182',
@@ -157,7 +162,8 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       ],
       hasCancelledItems: true,
       cancelledOrders: ['ORD-1105'],
-      dateCreated: '10/2/2023'
+      dateCreated: '10/2/2023',
+      consolidationAlerts: ['packed_12h'],
     },
     {
       id: '273133183',

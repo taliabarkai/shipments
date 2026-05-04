@@ -43,7 +43,7 @@ export async function fetchPackingInstructionRuleLookups(): Promise<PackingRuleL
   return {
     productCategories: ['Rings', 'Necklaces', 'Bracelets', 'Earrings', 'Watches', 'Charms'],
     orderItemSkus: ['SKU-RING-001', 'SKU-BRC-042', 'SKU-NECK-88', 'SKU-EAR-12', 'SKU-WCH-900', 'SKU-CHM-301'],
-    brands: ['Acme Jewelry', 'LuxCo', 'Artisan', 'House Brand', 'Partner A'],
+    brands: ['OAL', 'TGR', 'MNN', 'LAL', 'SETT', 'FEM', 'IB'],
     destinationCountries: ['USA', 'Canada', 'United Kingdom', 'Germany', 'Israel', 'Thailand', 'Hungary'],
     shippingServiceLevels: ['Standard', 'Express', 'Overnight', 'Economy', 'International Priority'],
     eventLevels: ['Item created', 'Packed', 'Shipped', 'Delivered', 'Return initiated', 'Exception'],

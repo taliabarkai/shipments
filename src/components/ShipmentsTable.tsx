@@ -1,4 +1,13 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { AlertFilterAddControl, AlertFilterActiveChips } from './AlertFilterTags';
+import {
+  matchesAnyAlertRule,
+  shipmentAppliesAlert,
+  countRowsPerAlertRule,
+  getShipmentDisplayAlerts,
+  alertLabelForId,
+  type AlertFilterId,
+} from './alertFilterRules';
 import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -27,6 +36,7 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'documents', label: 'Documents', visible: true },
   { id: 'orderCost', label: 'Order Cost', visible: true },
   { id: 'status', label: 'Status', visible: true },
+  { id: 'alerts', label: 'Alerts', visible: false },
 ] as const;
 
 export type ShipmentStatus = 'Label Created' | 'Delivered' | 'Out for Delivery' | 'On the Way';
@@ -44,6 +54,8 @@ export interface Shipment {
   status: ShipmentStatus;
   consolidatedId?: string;
   consolidatedPack?: number;
+  /** When set, drives alert chips and filter membership for this row. */
+  shipmentAlerts?: AlertFilterId[];
 }
 
 interface ShipmentsTableProps {
@@ -69,6 +81,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     siteId: [] as string[],
     status: [] as string[],
   });
+  const [appliedAlertFilters, setAppliedAlertFilters] = useState<AlertFilterId[]>([]);
 
   const [columns, setColumns] = useState(() => DEFAULT_SHIPMENTS_COLUMNS.map((c) => ({ ...c })));
 
@@ -91,6 +104,11 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     status: Array.from(new Set(shipments.map(s => s.status))).sort(),
   };
 
+  const alertCounts = useMemo(
+    () => countRowsPerAlertRule(shipments, shipmentAppliesAlert),
+    [shipments]
+  );
+
   const toggleFilter = (filterType: keyof typeof filters, value: string) => {
     setFilters(prev => ({
       ...prev,
@@ -103,8 +121,11 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
 
   // Apply filters
   const filteredShipments = shipments.filter(shipment => {
-    if (searchQuery && !shipment.orderId.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchesOrder = shipment.orderId.toLowerCase().includes(q);
+      const matchesTracking = shipment.trackingId.toLowerCase().includes(q);
+      if (!matchesOrder && !matchesTracking) return false;
     }
     if (filters.packingFacility.length > 0 && !filters.packingFacility.includes(shipment.packingFacility)) {
       return false;
@@ -121,6 +142,9 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     if (filters.status.length > 0 && !filters.status.includes(shipment.status)) {
       return false;
     }
+    if (!matchesAnyAlertRule(shipment, appliedAlertFilters, shipmentAppliesAlert)) {
+      return false;
+    }
     return true;
   });
 
@@ -130,7 +154,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     currentPage * rowsPerPage
   );
 
-  const hasActiveFilters = Object.values(filters).some(arr => arr.length > 0);
+  const hasActiveColumnFilters = Object.values(filters).some((arr) => arr.length > 0);
 
   const clearColumnFilter = (filterKey: keyof typeof filters) => {
     setFilters(prev => ({
@@ -166,7 +190,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
               <div className="flex items-start justify-between mb-[16px] mt-[0px] mr-[0px] ml-[0px]">
                 <div>
                   <h1 className="text-3xl mb-2">Shipments</h1>
-                  <p className="text-gray-500">Track all shipments</p>
+                  <p className="text-gray-500">Browse all shipments in one place</p>
                 </div>
                 <div className="flex gap-3">
                   <Button
@@ -179,34 +203,52 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <Input
-                    placeholder="Search by Shipment ID, Order ID, Tracking ID..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-[600px] bg-white border-gray-300"
+              <div className="flex w-full flex-col gap-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="relative w-full max-w-[360px] shrink-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                    <Input
+                      placeholder="Search by Order or Tracking ID"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full max-w-[360px] pl-10 bg-white border-gray-300"
+                    />
+                  </div>
+                  <AlertFilterAddControl
+                    appliedIds={appliedAlertFilters}
+                    onAppliedIdsChange={(ids) => {
+                      setAppliedAlertFilters(ids);
+                      setCurrentPage(1);
+                    }}
                   />
+                  <div className="ml-auto flex shrink-0 items-center gap-2">
+                    {hasActiveColumnFilters && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setFilters({
+                            packingFacility: [],
+                            destination: [],
+                            carrier: [],
+                            siteId: [],
+                            status: [],
+                          });
+                        }}
+                      >
+                        Clear All Filters
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="ml-auto flex items-center gap-2">
-                  {hasActiveFilters && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFilters({
-                        packingFacility: [],
-                        destination: [],
-                        carrier: [],
-                        siteId: [],
-                        status: [],
-                      })}
-                    >
-                      Clear All Filters
-                    </Button>
-                  )}
-                </div>
+                <AlertFilterActiveChips
+                  appliedIds={appliedAlertFilters}
+                  alertCounts={alertCounts}
+                  onAppliedIdsChange={(ids) => {
+                    setAppliedAlertFilters(ids);
+                    setCurrentPage(1);
+                  }}
+                />
               </div>
             </div>
 
@@ -258,7 +300,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                                   <PopoverContent className="w-56" align="start">
                                     <div className="space-y-3">
                                       <div className="flex items-center justify-between">
-                                        <h4 className="font-medium text-sm">Filter by {column.label}</h4>
+                                        <h4 className="text-sm font-normal">Filter by {column.label}</h4>
                                         {hasFilter && (
                                           <button
                                             onClick={() => clearColumnFilter(filterKey)}
@@ -401,6 +443,24 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                               <Badge className={getStatusVariant(shipment.status)}>
                                 {shipment.status}
                               </Badge>
+                            ) : column.id === 'alerts' ? (
+                              <div
+                                className="flex max-w-[280px] flex-wrap gap-1"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {getShipmentDisplayAlerts(shipment).length === 0 ? (
+                                  <span className="text-gray-400">—</span>
+                                ) : (
+                                  getShipmentDisplayAlerts(shipment).map((aid) => (
+                                    <span
+                                      key={aid}
+                                      className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+                                    >
+                                      {alertLabelForId(aid)}
+                                    </span>
+                                  ))
+                                )}
+                              </div>
                             ) : column.id === 'documents' ? (
                               <div className="flex items-center gap-3">
                                 <Tooltip>

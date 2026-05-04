@@ -36,7 +36,7 @@ export default function FiltersPanel({ filters, onFiltersChange, shipments }: Fi
     <div className="mt-4 p-4 bg-gray-50 rounded-lg grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       {/* Packing Facility */}
       <div>
-        <h3 className="font-medium mb-3">Packing Facility</h3>
+        <h3 className="mb-3 text-sm font-normal">Packing Facility</h3>
         <div className="space-y-2">
           {uniqueFacilities.map(facility => (
             <div key={facility} className="flex items-center space-x-2">
@@ -55,7 +55,7 @@ export default function FiltersPanel({ filters, onFiltersChange, shipments }: Fi
 
       {/* Destination */}
       <div>
-        <h3 className="font-medium mb-3">Destination</h3>
+        <h3 className="mb-3 text-sm font-normal">Destination</h3>
         <div className="space-y-2">
           {uniqueDestinations.map(destination => (
             <div key={destination} className="flex items-center space-x-2">
@@ -74,7 +74,7 @@ export default function FiltersPanel({ filters, onFiltersChange, shipments }: Fi
 
       {/* Carrier */}
       <div>
-        <h3 className="font-medium mb-3">Carrier</h3>
+        <h3 className="mb-3 text-sm font-normal">Carrier</h3>
         <div className="space-y-2">
           {uniqueCarriers.map(carrier => (
             <div key={carrier} className="flex items-center space-x-2">
@@ -93,7 +93,7 @@ export default function FiltersPanel({ filters, onFiltersChange, shipments }: Fi
 
       {/* Status */}
       <div>
-        <h3 className="font-medium mb-3">Status</h3>
+        <h3 className="mb-3 text-sm font-normal">Status</h3>
         <div className="space-y-2">
           {statuses.map(status => (
             <div key={status} className="flex items-center space-x-2">

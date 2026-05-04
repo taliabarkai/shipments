@@ -307,7 +307,7 @@ export default function ShipmentAlertsApp() {
               </Button>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative w-full max-w-[360px] shrink-0">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search by Alert Name"
@@ -316,7 +316,7 @@ export default function ShipmentAlertsApp() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full max-w-[600px] border-gray-300 bg-white pl-10 md:w-[600px]"
+              className="w-full max-w-[360px] border-gray-300 bg-white pl-10"
             />
           </div>
         </div>
@@ -442,7 +442,7 @@ export default function ShipmentAlertsApp() {
                               <PopoverContent className="w-56" align="start">
                                 <div className="space-y-3">
                                   <div className="flex items-center justify-between">
-                                    <h4 className="text-sm font-medium">Filter by {column.label}</h4>
+                                    <h4 className="text-sm font-normal">Filter by {column.label}</h4>
                                     {hasFilter && (
                                       <button
                                         type="button"

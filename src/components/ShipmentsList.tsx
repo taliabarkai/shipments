@@ -22,6 +22,15 @@ import InvoiceDialog from './InvoiceDialog';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 import { Toaster } from './ui/sonner';
 import { DateRangePicker } from './DateRangePicker';
+import { AlertFilterAddControl, AlertFilterActiveChips } from './AlertFilterTags';
+import {
+  matchesAnyAlertRule,
+  consolidationAppliesAlert,
+  countRowsPerAlertRule,
+  getConsolidationDisplayAlerts,
+  alertLabelForId,
+  type AlertFilterId,
+} from './alertFilterRules';
 
 type ConsolidatedListStatusTab = 'All' | 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
@@ -55,7 +64,8 @@ export type ConsolidatedListColumnId =
   | 'shippedDate'
   | 'id'
   | 'documents'
-  | 'status';
+  | 'status'
+  | 'alerts';
 
 /** Always visible; not controlled by column menu */
 const PINNED_CONSOLIDATED_COLUMNS: { id: ConsolidatedListColumnId; label: string }[] = [
@@ -74,6 +84,7 @@ const DEFAULT_OPTIONAL_COLUMNS: { id: ConsolidatedListColumnId; label: string; v
   { id: 'createdDate', label: 'Created date', visible: false },
   { id: 'packedDate', label: 'Packed date', visible: false },
   { id: 'shippedDate', label: 'Shipped date', visible: false },
+  { id: 'alerts', label: 'Alerts', visible: false },
 ];
 
 type EnrichedConsolidated = ConsolidatedShipment & {
@@ -124,9 +135,16 @@ export default function ShipmentsList({
   const [filters, setFilters] = useState({
     packingFacility: [] as string[],
     destination: [] as string[],
+    status: [] as string[],
   });
+  const [appliedAlertFilters, setAppliedAlertFilters] = useState<AlertFilterId[]>([]);
 
   const enrichedShipments = useMemo(() => enrichConsolidated(shipments), [shipments]);
+
+  const alertCounts = useMemo(
+    () => countRowsPerAlertRule(shipments, consolidationAppliesAlert),
+    [shipments]
+  );
 
   // Date range filter state
   const [dateRange, setDateRange] = useState<{
@@ -141,6 +159,7 @@ export default function ShipmentsList({
   const filterOptions = {
     packingFacility: ['Thailand', 'Kiryat Gat', 'Hungary', 'Nazareth'],
     destination: ['—', 'EU', 'US', 'GB'],
+    status: ['Draft', 'Packed', 'Shipped', 'Cancelled'],
   };
 
   const toggleFilter = (column: keyof typeof filters, value: string) => {
@@ -164,7 +183,9 @@ export default function ShipmentsList({
     }));
   };
 
-  const hasActiveFilters = Object.values(filters).some(f => f.length > 0);
+  const hasActiveColumnFilters =
+    Object.values(filters).some((f) => f.length > 0) ||
+    Boolean(dateRange.startDate || dateRange.endDate);
 
   // Calculate status counts
   const statusCounts = useMemo(() => {
@@ -208,6 +229,11 @@ export default function ShipmentsList({
         return false;
       }
 
+      // Status column filter (multi-select; empty = no constraint)
+      if (filters.status.length > 0 && !filters.status.includes(shipment.status)) {
+        return false;
+      }
+
       // Date range filter
       if (dateRange.startDate && shipment.dateCreated < dateRange.startDate) {
         return false;
@@ -216,9 +242,20 @@ export default function ShipmentsList({
         return false;
       }
 
+      if (!matchesAnyAlertRule(shipment, appliedAlertFilters, consolidationAppliesAlert)) {
+        return false;
+      }
+
       return true;
     });
-  }, [enrichedShipments, searchQuery, filters, selectedStatusTab, dateRange]);
+  }, [
+    enrichedShipments,
+    searchQuery,
+    filters,
+    selectedStatusTab,
+    dateRange,
+    appliedAlertFilters,
+  ]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredShipments.length / rowsPerPage);
@@ -253,13 +290,18 @@ export default function ShipmentsList({
   };
 
   const visibleTableColumns = useMemo(() => {
-    const optionalVisible = columns.filter((c) => c.visible);
-    return [
+    const optionalVisibleNoAlerts = columns.filter((c) => c.visible && c.id !== 'alerts');
+    const alertsCol = columns.find((c) => c.id === 'alerts' && c.visible);
+    const out: { id: ConsolidatedListColumnId; label: string }[] = [
       PINNED_CONSOLIDATED_COLUMNS[0],
-      ...optionalVisible,
+      ...optionalVisibleNoAlerts,
       PINNED_CONSOLIDATED_COLUMNS[1],
       PINNED_CONSOLIDATED_COLUMNS[2],
     ];
+    if (alertsCol) {
+      out.push({ id: 'alerts', label: alertsCol.label });
+    }
+    return out;
   }, [columns]);
 
   const cellValueForExport = (s: EnrichedConsolidated, colId: ConsolidatedListColumnId): string => {
@@ -282,6 +324,10 @@ export default function ShipmentsList({
         return 'Label / Manifest / Invoice';
       case 'status':
         return s.status;
+      case 'alerts':
+        return getConsolidationDisplayAlerts(s)
+          .map((id) => alertLabelForId(id))
+          .join('; ');
       default:
         return String((s as Record<string, unknown>)[colId] ?? '');
     }
@@ -342,31 +388,51 @@ export default function ShipmentsList({
                   </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="flex items-center gap-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                    <Input
-                      placeholder="Search by Consolidation ID, Tracking ID or Order ID"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 w-[600px] bg-white border-gray-300"
+                <div className="flex w-full flex-col gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="relative w-full max-w-[360px] shrink-0">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <Input
+                        placeholder="Search by Consolidation ID, Tracking ID or Order ID"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full max-w-[360px] pl-10 bg-white border-gray-300"
+                      />
+                    </div>
+                    <AlertFilterAddControl
+                      appliedIds={appliedAlertFilters}
+                      onAppliedIdsChange={(ids) => {
+                        setAppliedAlertFilters(ids);
+                        setCurrentPage(1);
+                      }}
                     />
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
+                      {hasActiveColumnFilters && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setFilters({
+                              packingFacility: [],
+                              destination: [],
+                              status: [],
+                            });
+                            setDateRange({ startDate: '', endDate: '' });
+                          }}
+                        >
+                          Clear All Filters
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {hasActiveFilters && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>                         setFilters({
-                          packingFacility: [],
-                          destination: [],
-                        })}
-                      >
-                        Clear All Filters
-                      </Button>
-                    )}
-                  </div>
+                  <AlertFilterActiveChips
+                    appliedIds={appliedAlertFilters}
+                    alertCounts={alertCounts}
+                    onAppliedIdsChange={(ids) => {
+                      setAppliedAlertFilters(ids);
+                      setCurrentPage(1);
+                    }}
+                  />
                 </div>
               </div>
 
@@ -435,7 +501,9 @@ export default function ShipmentsList({
                       <thead className="bg-white sticky top-0 border-b z-10">
                         <tr>
                           {visibleTableColumns.map((column) => {
-                            const isFilterable = ['packingFacility', 'destination'].includes(column.id);
+                            const isFilterable = ['packingFacility', 'destination', 'status'].includes(
+                              column.id
+                            );
                             const isDateCreated = column.id === 'createdDate';
                             const filterKey = column.id as keyof typeof filters;
                             const hasFilter = isFilterable && filters[filterKey]?.length > 0;
@@ -488,7 +556,7 @@ export default function ShipmentsList({
                                       <PopoverContent className="w-56" align="start">
                                         <div className="space-y-3">
                                           <div className="flex items-center justify-between">
-                                            <h4 className="font-medium text-sm">Filter by {column.label}</h4>
+                                            <h4 className="text-sm font-normal">Filter by {column.label}</h4>
                                             {hasFilter && (
                                               <button
                                                 onClick={() => clearColumnFilter(filterKey)}
@@ -724,6 +792,25 @@ export default function ShipmentsList({
                                   >
                                     {shipment.status}
                                   </span>
+                                )}
+                                {column.id === 'alerts' && (
+                                  <div
+                                    className="flex max-w-[280px] flex-wrap gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {getConsolidationDisplayAlerts(shipment).length === 0 ? (
+                                      <span className="text-sm text-gray-400">—</span>
+                                    ) : (
+                                      getConsolidationDisplayAlerts(shipment).map((aid) => (
+                                        <span
+                                          key={aid}
+                                          className="inline-flex max-w-full truncate rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+                                        >
+                                          {alertLabelForId(aid)}
+                                        </span>
+                                      ))
+                                    )}
+                                  </div>
                                 )}
                               </td>
                             ))}

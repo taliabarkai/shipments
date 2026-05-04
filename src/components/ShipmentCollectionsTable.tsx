@@ -200,13 +200,13 @@ export default function ShipmentCollectionsTable({
 
               {/* Search Bar */}
               <div className="flex items-center gap-3">
-                <div className="relative">
+                <div className="relative w-full max-w-[360px] shrink-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <Input
                     placeholder="Search by Packing Facility, Carrier..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 w-[600px] bg-white border-gray-300"
+                    className="w-full max-w-[360px] pl-10 bg-white border-gray-300"
                   />
                 </div>
               </div>
@@ -286,7 +286,7 @@ export default function ShipmentCollectionsTable({
                             <PopoverContent className="w-56" align="start">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="font-medium text-sm">Filter by Packing Facility</h4>
+                                  <h4 className="text-sm font-normal">Filter by Packing Facility</h4>
                                   {filters.packingFacility.length > 0 && (
                                     <button
                                       onClick={() => clearColumnFilter('packingFacility')}
@@ -348,7 +348,7 @@ export default function ShipmentCollectionsTable({
                             <PopoverContent className="w-56" align="start">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="font-medium text-sm">Filter by Carrier</h4>
+                                  <h4 className="text-sm font-normal">Filter by Carrier</h4>
                                   {filters.carrier.length > 0 && (
                                     <button
                                       onClick={() => clearColumnFilter('carrier')}
@@ -439,7 +439,7 @@ export default function ShipmentCollectionsTable({
                             <PopoverContent className="w-56" align="start">
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <h4 className="font-medium text-sm">Filter by Collection Status</h4>
+                                  <h4 className="text-sm font-normal">Filter by Collection Status</h4>
                                   {filters.status.length > 0 && (
                                     <button
                                       onClick={() => clearColumnFilter('status')}
