@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, X } from 'lucide-react';
+import { Calendar, ChevronDown, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   Select,
   SelectContent,
@@ -19,6 +20,7 @@ import type {
   ShipmentAlertRow,
   ShipmentAlertStatus,
 } from './shipmentAlertsTypes';
+import { optionsForAlertRuleField, type AlertActivationFieldId } from './alertRuleLookups';
 
 export interface CreatedAlertConfiguration {
   alertName: string;
@@ -36,63 +38,21 @@ function joinerDisplay(j: RuleJoiner): string {
   return j === 'BUT_NOT' ? 'BUT NOT' : j;
 }
 
-type ActivationFieldId =
-  | 'order_brand'
-  | 'order_item_sku'
-  | 'product_category'
-  | 'destination_country'
-  | 'packing_facility'
-  | 'event_level'
-  | 'shipment_service_level'
-  | 'shipment_total_item_value'
-  | 'delivery_status'
-  | 'shipment_status'
-  | 'hours_in_status'
-  | 'label_status'
-  | 'pickup_scheduled'
-  | 'customs_status'
-  | 'destination_region'
-  | 'review_status'
-  | 'declared_value';
+type ActivationFieldId = AlertActivationFieldId;
 
 const ACTIVATION_FIELDS: {
   id: ActivationFieldId;
   label: string;
   operators: string[];
-  valuePlaceholder: string;
 }[] = [
-  { id: 'order_brand', label: 'Brand', operators: ['in', 'not_in'], valuePlaceholder: 'Myka, BrandB' },
-  { id: 'order_item_sku', label: 'Item SKU', operators: ['in', 'not_in'], valuePlaceholder: '123456, 654321' },
-  { id: 'product_category', label: 'Product category', operators: ['in', 'not_in'], valuePlaceholder: 'ring, necklace' },
-  {
-    id: 'destination_country',
-    label: 'Destination country',
-    operators: ['in', 'not_in'],
-    valuePlaceholder: 'US, IL, HU',
-  },
-  { id: 'packing_facility', label: 'Packing facility', operators: ['in', 'not_in'], valuePlaceholder: 'NZ, KG, TH' },
-  { id: 'event_level', label: 'Event level', operators: ['in', 'not_in'], valuePlaceholder: 'standard, premium, vip' },
-  {
-    id: 'shipment_service_level',
-    label: 'Shipment service level',
-    operators: ['in', 'not_in'],
-    valuePlaceholder: 'express, expedited, free',
-  },
-  {
-    id: 'shipment_total_item_value',
-    label: 'Shipment total item value',
-    operators: ['>', '<', '>=', '<='],
-    valuePlaceholder: '200.00',
-  },
-  { id: 'delivery_status', label: 'Delivery status', operators: ['in', 'not_in'], valuePlaceholder: 'pending, in_transit' },
-  { id: 'shipment_status', label: 'Shipment status', operators: ['in', 'not_in'], valuePlaceholder: 'draft, packed' },
-  { id: 'hours_in_status', label: 'Hours in status', operators: ['>', '<', '>=', '<='], valuePlaceholder: '12' },
-  { id: 'label_status', label: 'Label status', operators: ['in', 'not_in'], valuePlaceholder: 'pending' },
-  { id: 'pickup_scheduled', label: 'Pickup scheduled', operators: ['in', 'not_in'], valuePlaceholder: 'false, true' },
-  { id: 'customs_status', label: 'Customs status', operators: ['in', 'not_in'], valuePlaceholder: 'hold' },
-  { id: 'destination_region', label: 'Destination region', operators: ['in', 'not_in'], valuePlaceholder: 'international' },
-  { id: 'review_status', label: 'Review status', operators: ['in', 'not_in'], valuePlaceholder: 'pending' },
-  { id: 'declared_value', label: 'Declared value', operators: ['>', '<', '>=', '<='], valuePlaceholder: '5000' },
+  { id: 'order_brand', label: 'Brand', operators: ['in', 'not_in'] },
+  { id: 'order_item_sku', label: 'SKU', operators: ['in', 'not_in'] },
+  { id: 'product_category', label: 'Product Category', operators: ['in', 'not_in'] },
+  { id: 'destination_country', label: 'Destination', operators: ['in', 'not_in'] },
+  { id: 'packing_facility', label: 'Packing Facility', operators: ['in', 'not_in'] },
+  { id: 'event_level', label: 'Event Level', operators: ['in', 'not_in'] },
+  { id: 'shipment_service_level', label: 'Shipment Service Level', operators: ['in', 'not_in'] },
+  { id: 'shipment_total_item_value', label: 'Shipment Total Item Value', operators: ['>', '<', '>=', '<='] },
 ];
 
 const FIELD_BY_ID = Object.fromEntries(ACTIVATION_FIELDS.map((f) => [f.id, f])) as Record<
@@ -106,7 +66,7 @@ type ConditionRow = {
   joiner?: RuleJoiner;
   field: ActivationFieldId;
   operator: string;
-  value: string;
+  values: string[];
 };
 
 function operatorDisplay(op: string): string {
@@ -140,12 +100,200 @@ function operatorFormLabel(op: string): string {
     case '<=':
       return 'Less Than or Equal to';
     case 'not_in':
-      return 'not in';
+      return 'Not In';
     case 'in':
-      return 'in';
+      return 'In';
     default:
       return op;
   }
+}
+
+function formatTotalItemValueFromDigits(d: string): string {
+  if (!d) return '';
+  const left = d.slice(0, 3).padStart(3, '0');
+  const right = (d.slice(3) + '00').slice(0, 2);
+  return `${left}.${right}`;
+}
+
+function TotalItemValueInput({
+  value,
+  onValuesChange,
+}: {
+  value: string;
+  onValuesChange: (next: string[]) => void;
+}) {
+  const handleRaw = (raw: string) => {
+    const d = raw.replace(/\D/g, '').slice(0, 5);
+    if (!d) {
+      onValuesChange([]);
+      return;
+    }
+    onValuesChange([formatTotalItemValueFromDigits(d)]);
+  };
+  return (
+    <Input
+      className="border-gray-300 font-mono text-sm tabular-nums"
+      inputMode="numeric"
+      placeholder="000.00"
+      value={value}
+      onChange={(e) => handleRaw(e.target.value)}
+      aria-label="Shipment total item value (XXX.00)"
+    />
+  );
+}
+
+function mergedAlertOptions(field: ActivationFieldId, current: string[]): string[] {
+  const base = optionsForAlertRuleField(field);
+  const seen = new Set(base);
+  const out = [...base];
+  for (const v of current) {
+    const t = v.trim();
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
+function AlertRuleMultiSelect({
+  field,
+  values,
+  onChange,
+}: {
+  field: ActivationFieldId;
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const options = useMemo(() => mergedAlertOptions(field, values), [field, values]);
+  const [open, setOpen] = useState(false);
+
+  const toggle = (opt: string) => {
+    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+    else onChange([...values, opt]);
+  };
+
+  const remove = (opt: string) => {
+    onChange(values.filter((v) => v !== opt));
+  };
+
+  const overflowMoreCount = values.length > 2 ? values.length - 1 : 0;
+  const visibleChipValues = overflowMoreCount > 0 ? values.slice(0, 1) : values;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex h-8 min-h-8 max-h-8 w-full items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none',
+            'hover:bg-gray-50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+          )}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-hidden">
+            {values.length === 0 ? (
+              <span className="truncate text-gray-500">Select</span>
+            ) : (
+              <>
+                {visibleChipValues.map((v) => (
+                  <span
+                    key={v}
+                    className="inline-flex max-w-[min(100%,8rem)] shrink-0 items-center gap-0.5 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-800"
+                  >
+                    <span className="min-w-0 truncate">{v}</span>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-full p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-800"
+                      aria-label={`Remove ${v}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        remove(v);
+                      }}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {overflowMoreCount > 0 ? (
+                  <span
+                    className="shrink-0 truncate text-xs font-medium tabular-nums text-gray-600"
+                    title={values.slice(1).join(', ')}
+                  >
+                    +{overflowMoreCount} more
+                  </span>
+                ) : null}
+              </>
+            )}
+          </div>
+          <ChevronDown className="size-4 shrink-0 text-gray-500" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-[min(100vw-2rem,20rem)] p-2" align="start">
+        <div className="max-h-60 space-y-0.5 overflow-y-auto pr-1" role="listbox" aria-multiselectable="true">
+          {options.map((opt, optIndex) => {
+            const checked = values.includes(opt);
+            const optId = `alert-rule-val-${field}-${optIndex}`;
+            return (
+              <Label
+                key={`${field}-${opt}`}
+                htmlFor={optId}
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100',
+                  checked && 'bg-gray-50',
+                )}
+              >
+                <Checkbox
+                  id={optId}
+                  checked={checked}
+                  onCheckedChange={() => toggle(opt)}
+                  className="shrink-0"
+                />
+                <span className="min-w-0 flex-1 truncate">{opt}</span>
+              </Label>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function AlertRuleValuesControl({
+  field,
+  values,
+  onChange,
+}: {
+  field: ActivationFieldId;
+  values: string[];
+  onChange: (next: string[]) => void;
+}) {
+  if (field === 'shipment_total_item_value') {
+    return <TotalItemValueInput value={values[0] ?? ''} onValuesChange={onChange} />;
+  }
+  if (field === 'event_level') {
+    return (
+      <Input
+        className="border-gray-300"
+        placeholder="e.g. standard, premium, vip"
+        value={values.join(', ')}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (!raw.trim()) {
+            onChange([]);
+            return;
+          }
+          if (raw.includes(',')) {
+            onChange(raw.split(',').map((s) => s.trim()).filter(Boolean));
+          } else {
+            onChange([raw]);
+          }
+        }}
+        aria-label="Event level values"
+      />
+    );
+  }
+  return <AlertRuleMultiSelect field={field} values={values} onChange={onChange} />;
 }
 
 /** Hides the native calendar glyph; full-field invisible indicator still opens the picker in Chromium. */
@@ -211,26 +359,42 @@ function AlertDateField({
   );
 }
 
+function buildPartsForClause(field: ActivationFieldId, values: string[]): string[] {
+  if (field === 'event_level') {
+    return values.flatMap((v) => v.split(',')).map((s) => s.trim()).filter(Boolean);
+  }
+  return values.map((x) => x.trim()).filter(Boolean);
+}
+
 function buildActivationLogic(rows: ConditionRow[]): string {
   return rows
     .map((r, i) => {
-      const v = r.value.trim();
-      const inner = `[${r.field} ${operatorDisplay(r.operator)} ${v}]`;
+      const parts = buildPartsForClause(r.field, r.values);
+      if (parts.length === 0) return '';
+      let inner: string;
+      if (r.field === 'shipment_total_item_value') {
+        inner = `[${r.field} ${operatorDisplay(r.operator)} ${parts[0]}]`;
+      } else if (r.operator === 'not_in') {
+        inner = `[${r.field} NOT IN ${parts.join(', ')}]`;
+      } else {
+        inner = `[${r.field} IN ${parts.join(', ')}]`;
+      }
       if (i === 0) return inner;
       const j = r.joiner ?? 'AND';
       return `${joinerDisplay(j)} ${inner}`;
     })
+    .filter(Boolean)
     .join(' ');
 }
 
 function newEmptyRow(joiner: RuleJoiner = 'AND'): ConditionRow {
   const first = ACTIVATION_FIELDS[0];
-  return { joiner, field: first.id, operator: first.operators[0], value: '' };
+  return { joiner, field: first.id, operator: first.operators[0], values: [] };
 }
 
 function newFirstRow(): ConditionRow {
-  const s = FIELD_BY_ID.shipment_status;
-  return { field: 'shipment_status', operator: s.operators[0], value: '' };
+  const first = ACTIVATION_FIELDS[0];
+  return { field: first.id, operator: first.operators[0], values: [] };
 }
 
 function splitActivationSegments(s: string): { segments: string[]; joiners: string[] } {
@@ -277,16 +441,21 @@ function parseStoredClause(seg: string): Omit<ConditionRow, 'joiner'> | null {
     const opStart = idx + 1;
     const opEnd = opStart + op.length;
     const opDisplayed = inner.slice(opStart, opEnd).trim();
-    const value = inner.slice(opEnd + 1).trim();
+    const valueStr = inner.slice(opEnd + 1).trim();
     const u = opDisplayed.toUpperCase();
     const storedOp = DISPLAY_TO_OPERATOR[u];
     if (!storedOp) return null;
-    const field = (
-      ACTIVATION_FIELDS.some((f) => f.id === fieldRaw) ? fieldRaw : 'shipment_status'
-    ) as ActivationFieldId;
+    const field = (ACTIVATION_FIELDS.some((f) => f.id === fieldRaw) ? fieldRaw : 'order_brand') as ActivationFieldId;
     const validOps = FIELD_BY_ID[field].operators;
     const operator = validOps.includes(storedOp) ? storedOp : validOps[0];
-    return { field, operator, value };
+    let values: string[];
+    if (storedOp === 'in' || storedOp === 'not_in') {
+      values = valueStr.split(',').map((x) => x.trim()).filter(Boolean);
+    } else {
+      values = valueStr ? [valueStr] : [];
+    }
+    if (values.length === 0) return null;
+    return { field, operator, values };
   }
   return null;
 }
@@ -394,7 +563,14 @@ export default function ShipmentAlertConfigurationDrawer({
     return d < today;
   }, [configStatus, addEndDate, endDay]);
 
-  const conditionsComplete = rows.every((r) => r.field && r.operator && r.value.trim().length > 0);
+  const conditionsComplete = rows.every((r) => {
+    if (!r.field || !r.operator) return false;
+    const parts = buildPartsForClause(r.field, r.values);
+    if (r.field === 'shipment_total_item_value') {
+      return parts.length === 1 && /^\d{3}\.\d{2}$/.test(parts[0]);
+    }
+    return parts.length > 0;
+  });
   const releaseComplete =
     releaseTrigger === 'manual' ||
     (releaseTrigger === 'status' && !!releaseStatus && releaseStatus.trim() !== '');
@@ -433,6 +609,7 @@ export default function ShipmentAlertConfigurationDrawer({
       if (patch.field !== undefined) {
         const def = FIELD_BY_ID[patch.field];
         cur.operator = def.operators.includes(cur.operator) ? cur.operator : def.operators[0];
+        if (patch.values === undefined) cur.values = [];
       }
       next[index] = cur;
       return next;
@@ -617,12 +794,10 @@ export default function ShipmentAlertConfigurationDrawer({
                           </Select>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <Input
-                            className="border-gray-300"
-                            placeholder={FIELD_BY_ID[row.field].valuePlaceholder}
-                            value={row.value}
-                            onChange={(e) => updateRow(index, { value: e.target.value })}
-                            aria-label="Condition value"
+                          <AlertRuleValuesControl
+                            field={row.field}
+                            values={row.values}
+                            onChange={(next) => updateRow(index, { values: next })}
                           />
                         </div>
                         <div className="flex justify-end sm:justify-self-end">
