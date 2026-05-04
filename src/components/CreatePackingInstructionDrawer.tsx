@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import UploadFile from '@mui/icons-material/UploadFile';
-import { Calendar, Plus, X } from 'lucide-react';
+import { Calendar, ChevronDown, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import {
   Select,
   SelectContent,
@@ -27,6 +28,7 @@ import {
   type PackingRuleFieldId,
   type PackingRuleLookups,
 } from './packingInstructionRuleLookups';
+import { SHIPPING_CATALOG_PRODUCT_NAMES } from './shippingCatalogMockData';
 import PlacementGuideDialog from './PlacementGuideDialog';
 
 const DATE_INPUT_CALENDAR_HIDING =
@@ -106,18 +108,12 @@ const FIELD_BY_ID = Object.fromEntries(RULE_FIELDS.map((f) => [f.id, f])) as Rec
   (typeof RULE_FIELDS)[number]
 >;
 
-type RuleJoiner = 'AND' | 'OR';
-
 type ConditionRow = {
-  joiner?: RuleJoiner;
   field: RuleFieldId;
   operator: string;
-  value: string;
+  /** One or more selected lookup values for this condition. */
+  values: string[];
 };
-
-function joinerDisplay(j: RuleJoiner): string {
-  return j;
-}
 
 function operatorDisplay(op: string): string {
   switch (op) {
@@ -168,23 +164,31 @@ function operatorFormLabel(op: string): string {
 function buildActivationLogic(rows: ConditionRow[]): string {
   return rows
     .map((r, i) => {
-      const v = r.value.trim();
-      const inner = `[${r.field} ${operatorDisplay(r.operator)} ${v}]`;
+      const vals = r.values.map((x) => x.trim()).filter(Boolean);
+      if (vals.length === 0) return '';
+      let inner: string;
+      if (vals.length === 1) {
+        inner = `[${r.field} ${operatorDisplay(r.operator)} ${vals[0]}]`;
+      } else if (r.operator === '!=' || r.operator === 'not_in') {
+        inner = `[${r.field} ${operatorDisplay('not_in')} ${vals.join(', ')}]`;
+      } else {
+        inner = `[${r.field} ${operatorDisplay('in')} ${vals.join(', ')}]`;
+      }
       if (i === 0) return inner;
-      const j = r.joiner ?? 'AND';
-      return `${joinerDisplay(j)} ${inner}`;
+      return `AND ${inner}`;
     })
+    .filter(Boolean)
     .join(' ');
 }
 
-function newEmptyRow(joiner: RuleJoiner = 'AND'): ConditionRow {
+function newEmptyRow(): ConditionRow {
   const first = RULE_FIELDS[0];
-  return { joiner, field: first.id, operator: first.operators[0], value: '' };
+  return { field: first.id, operator: first.operators[0], values: [] };
 }
 
 function newFirstRow(): ConditionRow {
   const first = RULE_FIELDS[0];
-  return { field: first.id, operator: first.operators[0], value: '' };
+  return { field: first.id, operator: first.operators[0], values: [] };
 }
 
 function normalizeRuleFieldId(raw: string): RuleFieldId {
@@ -196,25 +200,23 @@ function normalizeRuleFieldId(raw: string): RuleFieldId {
 const LANG_KEYS = ['EN', 'HE', 'AR', 'HU', 'TH'] as const;
 type LangKey = (typeof LANG_KEYS)[number];
 
-function splitActivationSegments(text: string): { segments: string[]; joiners: string[] } {
+function splitActivationSegments(text: string): string[] {
   const s = text.trim();
-  const re = /\s+(AND|OR)\s+/gi;
+  const re = /\s+(?:AND|OR)\s+/gi;
   const segments: string[] = [];
-  const joiners: string[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = re.exec(s)) !== null) {
     const chunk = s.slice(last, m.index).trim();
     if (chunk) segments.push(chunk);
-    joiners.push(m[1].toUpperCase() === 'OR' ? 'OR' : 'AND');
     last = m.index + m[0].length;
   }
   const tail = s.slice(last).trim();
   if (tail) segments.push(tail);
-  return { segments, joiners };
+  return segments;
 }
 
-function parseClause(seg: string): Omit<ConditionRow, 'joiner'> | null {
+function parseClause(seg: string): ConditionRow | null {
   let inner = seg.trim();
   if (inner.startsWith('[')) inner = inner.slice(1);
   if (inner.endsWith(']')) inner = inner.slice(0, -1);
@@ -235,7 +237,7 @@ function parseClause(seg: string): Omit<ConditionRow, 'joiner'> | null {
     const idx = hi.indexOf(needle);
     if (idx === -1) continue;
     const fieldRaw = inner.slice(0, idx).trim();
-    const value = inner.slice(idx + needle.length).trim();
+    const valueStr = inner.slice(idx + needle.length).trim();
     const opMap: Record<string, string> = {
       'NOT EQUALS': '!=',
       'NOT IN': 'not_in',
@@ -251,84 +253,183 @@ function parseClause(seg: string): Omit<ConditionRow, 'joiner'> | null {
     const field = normalizeRuleFieldId(fieldRaw);
     const validOps = FIELD_BY_ID[field].operators;
     const operator = validOps.includes(storedOp) ? storedOp : validOps[0];
-    return { field, operator, value };
+    let values: string[];
+    if (storedOp === 'in' || storedOp === 'not_in') {
+      values = valueStr
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
+    } else {
+      values = valueStr ? [valueStr] : [];
+    }
+    if (values.length === 0) return null;
+    return { field, operator, values };
   }
   return null;
 }
 
 function parseActivationToRows(logic: string): ConditionRow[] {
   if (!logic.trim()) return [newFirstRow()];
-  const { segments, joiners } = splitActivationSegments(logic);
+  const segments = splitActivationSegments(logic);
   const out: ConditionRow[] = [];
   for (let i = 0; i < segments.length; i++) {
     const base = parseClause(segments[i]);
     if (!base) continue;
-    const row: ConditionRow = { ...base };
-    if (i > 0) row.joiner = joiners[i - 1] === 'OR' ? 'OR' : 'AND';
-    out.push(row);
+    out.push(base);
   }
   return out.length ? out : [newFirstRow()];
 }
 
-function mergedValueOptions(
+function mergedValueOptionsMany(
   lookups: PackingRuleLookups | null,
   field: RuleFieldId,
-  currentValue: string,
+  currentValues: string[],
 ): string[] {
   const base = optionsForPackingRuleField(lookups, field);
-  const v = currentValue.trim();
-  if (v && !base.includes(v)) return [...base, v];
-  return base;
+  const seen = new Set(base);
+  const out = [...base];
+  for (const v of currentValues) {
+    const t = v.trim();
+    if (t && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out;
 }
 
-function RuleValueSelect({
+function RuleValuesMultiSelect({
   field,
-  value,
+  values,
   lookups,
   loading,
   onChange,
 }: {
   field: RuleFieldId;
-  value: string;
+  values: string[];
   lookups: PackingRuleLookups | null;
   loading: boolean;
-  onChange: (v: string) => void;
+  onChange: (next: string[]) => void;
 }) {
-  const options = useMemo(() => mergedValueOptions(lookups, field, value), [lookups, field, value]);
+  const options = useMemo(
+    () => mergedValueOptionsMany(lookups, field, values),
+    [lookups, field, values],
+  );
+  const [open, setOpen] = useState(false);
+
+  const toggle = (opt: string) => {
+    if (values.includes(opt)) onChange(values.filter((v) => v !== opt));
+    else onChange([...values, opt]);
+  };
+
+  const remove = (opt: string) => {
+    onChange(values.filter((v) => v !== opt));
+  };
 
   if (loading || !lookups) {
     return (
-      <Select disabled value={undefined}>
-        <SelectTrigger className="border-gray-300" size="sm">
-          <SelectValue placeholder={loading ? 'Loading values…' : 'Options unavailable'} />
-        </SelectTrigger>
-      </Select>
+      <button
+        type="button"
+        disabled
+        className="flex min-h-8 w-full items-center justify-between gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm text-gray-500"
+      >
+        {loading ? 'Loading values…' : 'Options unavailable'}
+        <ChevronDown className="size-4 shrink-0 opacity-50" aria-hidden />
+      </button>
     );
   }
 
   if (options.length === 0) {
     return (
-      <Select disabled value={undefined}>
-        <SelectTrigger className="border-gray-300" size="sm">
-          <SelectValue placeholder="No values for this field" />
-        </SelectTrigger>
-      </Select>
+      <button
+        type="button"
+        disabled
+        className="flex min-h-8 w-full items-center gap-2 rounded-md border border-gray-300 bg-white px-2 py-1.5 text-left text-sm text-gray-500"
+      >
+        No values for this field
+      </button>
     );
   }
 
+  const overflowMoreCount = values.length > 2 ? values.length - 1 : 0;
+  const visibleChipValues = overflowMoreCount > 0 ? values.slice(0, 1) : values;
+
   return (
-    <Select value={value.trim() ? value : undefined} onValueChange={onChange}>
-      <SelectTrigger className="border-gray-300" size="sm">
-        <SelectValue placeholder="Select value" />
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((opt) => (
-          <SelectItem key={`${field}-${opt}`} value={opt}>
-            {opt}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            'flex h-8 min-h-8 max-h-8 w-full items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none',
+            'hover:bg-gray-50 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+          )}
+        >
+          <div className="flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-hidden">
+            {values.length === 0 ? (
+              <span className="truncate text-gray-500">Select value</span>
+            ) : (
+              <>
+                {visibleChipValues.map((v) => (
+                  <span
+                    key={v}
+                    className="inline-flex max-w-[min(100%,8rem)] shrink-0 items-center gap-0.5 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-800"
+                  >
+                    <span className="min-w-0 truncate">{v}</span>
+                    <button
+                      type="button"
+                      className="shrink-0 rounded-full p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-800"
+                      aria-label={`Remove ${v}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        remove(v);
+                      }}
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </span>
+                ))}
+                {overflowMoreCount > 0 ? (
+                  <span
+                    className="shrink-0 truncate text-xs font-medium tabular-nums text-gray-600"
+                    title={values.slice(1).join(', ')}
+                  >
+                    +{overflowMoreCount} more
+                  </span>
+                ) : null}
+              </>
+            )}
+          </div>
+          <ChevronDown className="size-4 shrink-0 text-gray-500" aria-hidden />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] max-w-[min(100vw-2rem,20rem)] p-2" align="start">
+        <div className="max-h-60 space-y-0.5 overflow-y-auto pr-1" role="listbox" aria-multiselectable="true">
+          {options.map((opt, optIndex) => {
+            const checked = values.includes(opt);
+            const optId = `packing-rule-value-${field}-${optIndex}`;
+            return (
+              <Label
+                key={`${field}-${opt}`}
+                htmlFor={optId}
+                className={cn(
+                  'flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-gray-100',
+                  checked && 'bg-gray-50',
+                )}
+              >
+                <Checkbox
+                  id={optId}
+                  checked={checked}
+                  onCheckedChange={() => toggle(opt)}
+                  className="shrink-0"
+                />
+                <span className="min-w-0 flex-1 truncate">{opt}</span>
+              </Label>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -353,7 +454,8 @@ function packingInstructionRowsEqual(a: PackingInstructionRow, b: PackingInstruc
     a.contentAr === b.contentAr &&
     a.contentHu === b.contentHu &&
     a.contentTh === b.contentTh &&
-    (a.imageDataUrl ?? '') === (b.imageDataUrl ?? '')
+    (a.imageDataUrl ?? '') === (b.imageDataUrl ?? '') &&
+    (a.linkedShippingProductName ?? '') === (b.linkedShippingProductName ?? '')
   );
 }
 
@@ -372,6 +474,8 @@ function buildPackingInstructionRowForSave(args: {
   startDay: string;
   endDay: string;
   addEndDate: boolean;
+  addShippingProduct: boolean;
+  linkedShippingProductName: string;
 }): PackingInstructionRow {
   const id =
     args.editingRow?.id ??
@@ -397,6 +501,10 @@ function buildPackingInstructionRowForSave(args: {
     contentHu: args.contentHu.trim(),
     contentTh: args.contentTh.trim(),
     imageDataUrl: args.imagePreview,
+    linkedShippingProductName:
+      args.addShippingProduct && args.linkedShippingProductName.trim()
+        ? args.linkedShippingProductName.trim()
+        : undefined,
   };
 }
 
@@ -438,6 +546,8 @@ export default function CreatePackingInstructionDrawer({
   const [lookupsLoading, setLookupsLoading] = useState(false);
   const [lookupsError, setLookupsError] = useState<string | null>(null);
   const [placementGuideOpen, setPlacementGuideOpen] = useState(false);
+  const [addShippingProduct, setAddShippingProduct] = useState(false);
+  const [linkedShippingProductName, setLinkedShippingProductName] = useState('');
 
   useEffect(() => {
     if (!open) {
@@ -496,6 +606,9 @@ export default function CreatePackingInstructionDrawer({
       const hasEnd = !!editingRow.endDate?.trim();
       setAddEndDate(editingRow.status === 'Draft' ? hasEnd : false);
       setEndDay(editingRow.endDate || '');
+      const linked = editingRow.linkedShippingProductName?.trim() ?? '';
+      setAddShippingProduct(linked.length > 0);
+      setLinkedShippingProductName(linked);
     } else {
       setInstructionName('');
       setDisplayLevel('Item');
@@ -514,6 +627,8 @@ export default function CreatePackingInstructionDrawer({
       setStartDay('');
       setAddEndDate(false);
       setEndDay('');
+      setAddShippingProduct(false);
+      setLinkedShippingProductName('');
     }
     setSubmitError(null);
   }, [open, editingRow]);
@@ -536,7 +651,14 @@ export default function CreatePackingInstructionDrawer({
     return d < today;
   }, [configStatus, addEndDate, endDay]);
 
-  const conditionsComplete = rows.every((r) => r.field && r.operator && r.value.trim().length > 0);
+  const shippingProductSelectOptions = useMemo(() => {
+    const t = linkedShippingProductName.trim();
+    const base = [...SHIPPING_CATALOG_PRODUCT_NAMES];
+    if (t && !base.includes(t)) base.unshift(t);
+    return base;
+  }, [linkedShippingProductName]);
+
+  const conditionsComplete = rows.every((r) => r.field && r.operator && r.values.length > 0);
   const canSubmit =
     instructionName.trim().length > 0 &&
     rows.length > 0 &&
@@ -564,6 +686,8 @@ export default function CreatePackingInstructionDrawer({
       startDay,
       endDay,
       addEndDate,
+      addShippingProduct,
+      linkedShippingProductName,
     });
   }, [
     isEdit,
@@ -581,6 +705,8 @@ export default function CreatePackingInstructionDrawer({
     startDay,
     endDay,
     addEndDate,
+    addShippingProduct,
+    linkedShippingProductName,
   ]);
 
   const saveButtonEnabled = useMemo(() => {
@@ -597,14 +723,14 @@ export default function CreatePackingInstructionDrawer({
       if (patch.field !== undefined) {
         const def = FIELD_BY_ID[patch.field];
         cur.operator = def.operators.includes(cur.operator) ? cur.operator : def.operators[0];
-        if (patch.value === undefined) cur.value = '';
+        if (patch.values === undefined) cur.values = [];
       }
       next[index] = cur;
       return next;
     });
   };
 
-  const addCondition = () => setRows((prev) => [...prev, newEmptyRow('AND')]);
+  const addCondition = () => setRows((prev) => [...prev, newEmptyRow()]);
   const removeRow = (index: number) => {
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)));
   };
@@ -656,6 +782,8 @@ export default function CreatePackingInstructionDrawer({
       startDay,
       endDay,
       addEndDate,
+      addShippingProduct,
+      linkedShippingProductName,
     });
     onSave(row);
     onOpenChange(false);
@@ -764,21 +892,8 @@ export default function CreatePackingInstructionDrawer({
                   {rows.map((row, index) => (
                     <div key={index} className="flex flex-col gap-2">
                       {index > 0 ? (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem_1fr] sm:items-center">
-                          <span className="hidden sm:block" />
-                          <Select
-                            value={row.joiner ?? 'AND'}
-                            onValueChange={(v) => updateRow(index, { joiner: v as RuleJoiner })}
-                          >
-                            <SelectTrigger className="h-8 border-gray-300 text-xs" size="sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="AND">AND</SelectItem>
-                              <SelectItem value="OR">OR</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <span className="hidden sm:block" />
+                        <div className="flex justify-center py-0.5">
+                          <span className="text-xs font-semibold uppercase tracking-wide text-gray-700">AND</span>
                         </div>
                       ) : null}
                       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7rem_minmax(0,1fr)_2.25rem] sm:items-center">
@@ -809,12 +924,12 @@ export default function CreatePackingInstructionDrawer({
                             ))}
                           </SelectContent>
                         </Select>
-                        <RuleValueSelect
+                        <RuleValuesMultiSelect
                           field={row.field}
-                          value={row.value}
+                          values={row.values}
                           lookups={lookups}
                           loading={lookupsLoading}
-                          onChange={(v) => updateRow(index, { value: v })}
+                          onChange={(next) => updateRow(index, { values: next })}
                         />
                         <div className="flex justify-end">
                           {rows.length > 1 ? (
@@ -850,6 +965,71 @@ export default function CreatePackingInstructionDrawer({
             <div>
               <p className={cn(sectionTitleClass, 'mb-3')}>Content</p>
               <div className={cn(cardClass, 'flex flex-col gap-4')}>
+                <div>
+                  <Label className="text-xs text-gray-600">Text</Label>
+                  <Tabs
+                    value={contentLang}
+                    onValueChange={(v) => setContentLang(v as LangKey)}
+                    className="mt-2 flex flex-col gap-0"
+                  >
+                    <TabsList className="relative flex h-auto w-full flex-wrap items-end justify-start gap-x-6 gap-y-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0">
+                      {LANG_KEYS.map((lang) => (
+                        <TabsTrigger
+                          key={lang}
+                          value={lang}
+                          className={cn(
+                            '-mb-px inline-flex h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-2 text-sm font-normal shadow-none',
+                            'text-gray-500 hover:text-gray-600',
+                            'data-[state=active]:border-[#1976d2] data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-[#1976d2]',
+                            'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                          )}
+                        >
+                          {lang}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    <TabsContent value="EN" className="mt-3">
+                      <Textarea
+                        className="min-h-[120px] border-gray-300"
+                        placeholder="Instruction text (English, required)"
+                        value={contentEn}
+                        onChange={(e) => setContentEn(e.target.value)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="HE" className="mt-3">
+                      <Textarea
+                        className="min-h-[120px] border-gray-300"
+                        placeholder="Hebrew"
+                        value={contentHe}
+                        onChange={(e) => setContentHe(e.target.value)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="AR" className="mt-3">
+                      <Textarea
+                        className="min-h-[120px] border-gray-300"
+                        placeholder="Arabic"
+                        value={contentAr}
+                        onChange={(e) => setContentAr(e.target.value)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="HU" className="mt-3">
+                      <Textarea
+                        className="min-h-[120px] border-gray-300"
+                        placeholder="Hungarian"
+                        value={contentHu}
+                        onChange={(e) => setContentHu(e.target.value)}
+                      />
+                    </TabsContent>
+                    <TabsContent value="TH" className="mt-3">
+                      <Textarea
+                        className="min-h-[120px] border-gray-300"
+                        placeholder="Thai"
+                        value={contentTh}
+                        onChange={(e) => setContentTh(e.target.value)}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
                 <div>
                   <Label className="text-xs text-gray-600">Image</Label>
                   <input
@@ -903,77 +1083,49 @@ export default function CreatePackingInstructionDrawer({
                       className="mt-2 flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 bg-white px-4 py-8 transition-colors hover:border-gray-400 hover:bg-gray-50"
                     >
                       <UploadFile className="mb-2" sx={{ fontSize: 32, color: '#1976d2' }} aria-hidden />
-                      <span className="text-sm font-medium text-[#1976d2]">Drag and drop or click to upload</span>
+                      <span className="text-sm font-normal text-black">Drag and drop or click to upload</span>
                       <span className="mt-1 text-xs text-gray-500">SVG, PNG, JPG or GIF (max. 4000 x 4000px)</span>
                     </label>
                   )}
                 </div>
-                <div>
-                  <Label className="text-xs text-gray-600">Text</Label>
-                  <Tabs
-                    value={contentLang}
-                    onValueChange={(v) => setContentLang(v as LangKey)}
-                    className="mt-2 flex flex-col gap-0"
-                  >
-                    <TabsList className="relative flex h-auto w-full flex-wrap items-end justify-start gap-x-6 gap-y-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0">
-                      {LANG_KEYS.map((lang) => (
-                        <TabsTrigger
-                          key={lang}
-                          value={lang}
-                          className={cn(
-                            '-mb-px inline-flex h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-2 text-sm font-normal shadow-none',
-                            'text-gray-500 hover:text-gray-600',
-                            'data-[state=active]:border-[#1976d2] data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-[#1976d2]',
-                            'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
-                          )}
-                        >
-                          {lang}
-                          {lang === 'EN' ? <span>*</span> : null}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    <TabsContent value="EN" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Instruction text (English, required)"
-                        value={contentEn}
-                        onChange={(e) => setContentEn(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="HE" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Hebrew"
-                        value={contentHe}
-                        onChange={(e) => setContentHe(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="AR" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Arabic"
-                        value={contentAr}
-                        onChange={(e) => setContentAr(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="HU" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Hungarian"
-                        value={contentHu}
-                        onChange={(e) => setContentHu(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="TH" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Thai"
-                        value={contentTh}
-                        onChange={(e) => setContentTh(e.target.value)}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="pi-add-shipping-product"
+                    checked={addShippingProduct}
+                    onCheckedChange={(c) => {
+                      const on = c === true;
+                      setAddShippingProduct(on);
+                      if (!on) setLinkedShippingProductName('');
+                    }}
+                  />
+                  <Label htmlFor="pi-add-shipping-product" className="cursor-pointer text-sm font-normal text-[#101828]">
+                    Add Shipping Product
+                  </Label>
                 </div>
+                {addShippingProduct ? (
+                  <div>
+                    <Select
+                      value={linkedShippingProductName.trim() ? linkedShippingProductName : undefined}
+                      onValueChange={setLinkedShippingProductName}
+                    >
+                      <SelectTrigger
+                        id="pi-linked-product"
+                        className="border-gray-300"
+                        size="sm"
+                        aria-label="Shipping product catalog item"
+                      >
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {shippingProductSelectOptions.map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
               </div>
             </div>
 

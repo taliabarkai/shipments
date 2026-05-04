@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronsUpDown, Download, Minus, Plus, Search } from 'lucide-react';
 import CreateManualPackingItemDrawer from './CreateManualPackingItemDrawer';
 import { HsCodeControlledPicker } from './HsCodeControlledPicker';
+import { SHIPPING_CATALOG_MOCK_ROWS } from './shippingCatalogMockData';
 import ShippingCatalogRowDrawer from './ShippingCatalogRowDrawer';
 import {
   CATALOG_CATEGORIES,
@@ -107,177 +108,6 @@ function catalogColumnFilterCount(columnId: string, f: CatalogTableFilters): num
   }
 }
 
-const MOCK_ROWS: ShippingCatalogRow[] = [
-  {
-    id: '1',
-    sku: 'Prod-001',
-    siteSku: '2390-01-3626',
-    supplierItemId: 'Prod-001',
-    productName: 'Engraved Compass Necklace with Diamond - Gold Vermeil',
-    category: 'necklace',
-    hsCode: '7113195000',
-    country: 'IL',
-    material: 'jewelry_solid_gold',
-    weight: '142 g',
-    diamond: true,
-    nonProd: false,
-    status: 'Online',
-  },
-  {
-    id: '2',
-    sku: 'Prod-002',
-    siteSku: '2390-02-1102',
-    supplierItemId: 'SUP-8821',
-    productName: 'Willow Tag Initial Ring with Diamond - Silver',
-    category: 'ring',
-    hsCode: '7113115000',
-    country: 'IL',
-    material: 'jewelry_gold_plating',
-    weight: '8.2 g',
-    diamond: false,
-    nonProd: false,
-    status: 'Online',
-  },
-  {
-    id: '3',
-    sku: 'Prod-003',
-    siteSku: '2390-03-7741',
-    supplierItemId: 'Prod-003',
-    productName: 'Belle Custom Name Bracelet - Gold Plated',
-    category: 'bracelet',
-    hsCode: '7117900000',
-    country: 'IL',
-    material: 'jewelry_silver',
-    weight: '32 g',
-    diamond: true,
-    nonProd: true,
-    status: 'Archived',
-  },
-  {
-    id: '4',
-    sku: 'Prod-004',
-    siteSku: '2390-04-2200',
-    supplierItemId: 'EXT-4400',
-    productName: 'Singapore Earrings - Gold Plated',
-    category: 'earring',
-    hsCode: '7113200000',
-    country: 'IL',
-    material: 'jewelry_white_gold',
-    weight: '4.1 g',
-    diamond: true,
-    nonProd: false,
-    status: 'Online',
-  },
-  {
-    id: '5',
-    sku: 'Prod-005',
-    siteSku: '2390-05-9912',
-    supplierItemId: 'Prod-005',
-    productName: 'Personalized Gift Kit',
-    category: 'gift_box',
-    hsCode: '7117190000',
-    country: 'IL',
-    material: 'jewelry_stainless_steel',
-    weight: '12 g',
-    diamond: false,
-    nonProd: false,
-    status: 'Online',
-  },
-  {
-    id: '6',
-    sku: 'Prod-006',
-    siteSku: '2390-06-3001',
-    supplierItemId: 'NZ-PL-661',
-    productName: 'Heart Shape Gemstone Charm - Gold Vermeil',
-    category: 'charms',
-    hsCode: '4202920000',
-    country: 'IL',
-    material: 'jewelry_gold_vermeil',
-    weight: '6.5 g',
-    diamond: true,
-    nonProd: false,
-    status: 'Online',
-  },
-  {
-    id: '7',
-    sku: 'Prod-007',
-    siteSku: '2390-07-5510',
-    supplierItemId: 'Prod-007',
-    productName: 'Puffy Heart Pendant Stackable Ring - Solid Gold',
-    category: 'ring',
-    hsCode: '4819200000',
-    country: 'IL',
-    material: 'jewelry_rose_gold_plating',
-    weight: '11 g',
-    diamond: false,
-    nonProd: false,
-    status: 'Archived',
-  },
-  {
-    id: '8',
-    sku: 'Prod-008',
-    siteSku: '2390-08-1209',
-    supplierItemId: 'KG-9981',
-    productName: "Custom Mother's Day Gift Note",
-    category: 'gift_note',
-    hsCode: '4817100000',
-    country: 'IL',
-    material: 'jewelry_brass',
-    weight: '3 g',
-    diamond: false,
-    nonProd: true,
-    status: 'Online',
-  },
-  {
-    id: 'mp-proto-1',
-    sku: 'PKG-MANUAL-01',
-    siteSku: 'PKG-MANUAL-01',
-    supplierItemId: '',
-    productName: 'Branded tissue paper (A4)',
-    category: 'packing_item',
-    hsCode: '4819200000',
-    country: 'IL',
-    material: 'packing_item',
-    weight: '50 g',
-    diamond: false,
-    nonProd: true,
-    status: 'Online',
-    isManualPackingItem: true,
-  },
-  {
-    id: 'mp-proto-2',
-    sku: 'PKG-MANUAL-02',
-    siteSku: 'PKG-MANUAL-02',
-    supplierItemId: '',
-    productName: 'Kraft mailer box — small',
-    category: 'packing_item',
-    hsCode: '4202920000',
-    country: 'US',
-    material: 'jewelry_brass',
-    weight: '120 g',
-    diamond: false,
-    nonProd: true,
-    status: 'Online',
-    isManualPackingItem: true,
-  },
-  {
-    id: 'mp-proto-3',
-    sku: 'PKG-MANUAL-03',
-    siteSku: 'PKG-MANUAL-03',
-    supplierItemId: '',
-    productName: 'Ribbon roll — navy',
-    category: 'packing_item',
-    hsCode: '7117190000',
-    country: 'IL',
-    material: 'jewelry_stainless_steel',
-    weight: '15 g',
-    diamond: false,
-    nonProd: true,
-    status: 'Online',
-    isManualPackingItem: true,
-  },
-];
-
 function statusChipClass(status: CatalogItemStatus): string {
   if (status === 'Online') return 'bg-green-100 text-green-800';
   return 'bg-gray-200 text-gray-800';
@@ -317,7 +147,7 @@ function HsCodePickerCell({
 }
 
 export default function ShippingProductCatalogApp() {
-  const [rows, setRows] = useState<ShippingCatalogRow[]>(() => MOCK_ROWS);
+  const [rows, setRows] = useState<ShippingCatalogRow[]>(() => [...SHIPPING_CATALOG_MOCK_ROWS]);
   const [searchQuery, setSearchQuery] = useState('');
   const [catalogFilters, setCatalogFilters] = useState<CatalogTableFilters>(() => initialCatalogFilters());
   const [hsCodeListQuery, setHsCodeListQuery] = useState('');
@@ -454,6 +284,11 @@ export default function ShippingProductCatalogApp() {
 
   const handleCreatePackingItem = (row: ShippingCatalogRow) => {
     setRows((prev) => [...prev, row]);
+    // Manual packing rows are excluded from Online/Archived master tabs; show the new row where it belongs.
+    setCatalogStatusTab('ManualPackingItems');
+    setSearchQuery('');
+    setCatalogFilters(initialCatalogFilters());
+    setHsCodeListQuery('');
     setCurrentPage(1);
   };
 
@@ -576,7 +411,7 @@ export default function ShippingProductCatalogApp() {
               </Button>
             </div>
           </div>
-          <div className="relative">
+          <div className="relative w-full max-w-[360px] shrink-0">
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <Input
               placeholder="Search by SKU or Supplier ID..."
@@ -585,7 +420,7 @@ export default function ShippingProductCatalogApp() {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full max-w-[600px] border-gray-300 bg-white pl-10 md:w-[600px]"
+              className="w-full max-w-[360px] border-gray-300 bg-white pl-10"
             />
           </div>
         </div>
@@ -723,7 +558,7 @@ export default function ShippingProductCatalogApp() {
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <div className="mb-3 flex items-center justify-between gap-2">
-                                    <span className="text-sm font-semibold text-[#101828]">
+                                    <span className="text-sm font-normal text-[#101828]">
                                       Filter by {col.label}
                                     </span>
                                     {hasActiveFilter ? (
