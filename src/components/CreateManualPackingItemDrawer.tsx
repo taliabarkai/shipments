@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -28,12 +28,15 @@ export default function CreateManualPackingItemDrawer({
 }: CreateManualPackingItemDrawerProps) {
   const [form, setForm] = useState(() => emptyManualPackingCreateForm());
   const [draftSku, setDraftSku] = useState('');
+  const wasOpenRef = useRef(false);
 
+  // Reset only when the sheet opens, not when `existingRows` changes while it is already open (avoids wiping the form).
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
       setForm(emptyManualPackingCreateForm());
       setDraftSku(generateUniqueManualPackingSku(existingRows));
     }
+    wasOpenRef.current = isOpen;
   }, [isOpen, existingRows]);
 
   const canSubmit = isManualPackingCreateFormComplete(form);
@@ -43,8 +46,9 @@ export default function CreateManualPackingItemDrawer({
   };
 
   const handleSubmit = () => {
-    if (!canSubmit || !draftSku.trim()) return;
-    const sku = draftSku.trim();
+    if (!canSubmit) return;
+    const sku = (draftSku.trim() || generateUniqueManualPackingSku(existingRows)).trim();
+    if (!sku) return;
     const row = manualPackingSlimFormToRow(`new-${Date.now()}`, form, { sku, siteSku: sku, isManualPackingItem: true });
     onCreate(row);
     onClose();

@@ -21,4 +21,6 @@ export interface PackingInstructionRow {
   contentHu: string;
   contentTh: string;
   imageDataUrl?: string;
+  /** Linked Shipping Product Catalog product name when “Add Shipping Product” is used. */
+  linkedShippingProductName?: string;
 }
