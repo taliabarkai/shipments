@@ -18,6 +18,7 @@ import {
   manualConsolidatedDraftTrackingCounter,
   normalizeDraftManualTrackingInput,
 } from './consolidatedShipmentConstants';
+import ConsolidatedShipmentHistorySection from './ConsolidatedShipmentHistorySection';
 
 export interface ConsolidatedDocumentRow {
   id: string;
@@ -385,6 +386,8 @@ export default function ConsolidatedShipmentDetailDrawer({
                 </div>
               </div>
             </section>
+
+            <ConsolidatedShipmentHistorySection shipment={shipment} />
 
             <section
               className="rounded-[10px] border border-black/12 bg-white p-4"

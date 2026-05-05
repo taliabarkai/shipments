@@ -10,6 +10,7 @@ import {
   DrawerInfoRow,
   type DrawerTimelineItem,
 } from './shipmentDrawerSections';
+import { DefaultShipmentHistorySection } from './ShipmentHistorySection';
 
 interface ShipmentDetailsDrawerProps {
   shipment: Shipment | null;
@@ -91,6 +92,8 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
                 <DrawerInfoRow label="Destination" value={shipment.destination} />
                 <DrawerInfoRow label="Carrier" value={shipment.carrier} />
               </DrawerShippingInformationSection>
+
+              <DefaultShipmentHistorySection shipment={shipment} />
 
               {/* Cost Summary Section */}
               <div className="border rounded-lg p-4 bg-white">
