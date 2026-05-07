@@ -222,6 +222,10 @@ export default function ConsolidatedShipmentDetailDrawer({
 
   if (!shipment) return null;
 
+  /** Manual entry only when label API failed and no tracking id is stored yet (still Draft). */
+  const requiresManualTrackingEntry =
+    shipment.status === 'Draft' && !shipment.trackingId.trim();
+
   const handleSheetOpenChange = (next: boolean) => {
     if (!next && shipment.status !== 'Draft') {
       onTrackingIdCommit(shipment.id, trackingDraft.trim());
@@ -290,7 +294,7 @@ export default function ConsolidatedShipmentDetailDrawer({
                 Shipping Information
               </h3>
               <div className="flex flex-col gap-3">
-                {shipment.status === 'Draft' && (
+                {requiresManualTrackingEntry && (
                   <div
                     role="alert"
                     className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 tracking-tight text-[#92400e]"
@@ -298,66 +302,64 @@ export default function ConsolidatedShipmentDetailDrawer({
                     {CONSOLIDATED_LABEL_API_FAILED_MESSAGE}
                   </div>
                 )}
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
-                    {shipment.status === 'Draft' ? 'Manual tracking ID' : 'Tracking ID'}
-                  </span>
-                  <div className="relative min-w-0 flex-1">
-                    <Input
-                      id="consolidated-tracking-id"
-                      value={trackingDraft}
-                      onChange={(e) => {
-                        if (shipment.status === 'Draft') {
+                {requiresManualTrackingEntry ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                      Manual tracking ID
+                    </span>
+                    <div className="relative min-w-0 flex-1">
+                      <Input
+                        id="consolidated-tracking-id"
+                        value={trackingDraft}
+                        onChange={(e) => {
                           setTrackingDraft(
                             normalizeDraftManualTrackingInput(shipment.carrier, e.target.value),
                           );
                           setDraftTrackingTouched(true);
-                        } else {
-                          setTrackingDraft(e.target.value);
+                        }}
+                        placeholder="Enter Tracking ID"
+                        autoFocus={false}
+                        aria-describedby={
+                          draftTrackingCounter != null ? 'consolidated-manual-tracking-counter' : undefined
                         }
-                      }}
-                      onBlur={() => {
-                        if (shipment.status !== 'Draft') {
-                          onTrackingIdCommit(shipment.id, trackingDraft.trim());
+                        aria-invalid={
+                          draftTrackingTouched &&
+                          trackingDraft.trim().length > 0 &&
+                          !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
+                            ? true
+                            : undefined
                         }
-                      }}
-                      placeholder={
-                        shipment.status === 'Draft' ? 'Enter Tracking ID' : 'Enter tracking number'
-                      }
-                      autoFocus={false}
-                      aria-describedby={
-                        draftTrackingCounter != null ? 'consolidated-manual-tracking-counter' : undefined
-                      }
-                      aria-invalid={
-                        shipment.status === 'Draft' &&
-                        draftTrackingTouched &&
-                        trackingDraft.trim().length > 0 &&
-                        !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
-                          ? true
-                          : undefined
-                      }
-                      className={`h-auto min-h-[40px] rounded border bg-white py-2 pl-3 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2] ${
-                        draftTrackingCounter != null ? 'pr-[4.25rem]' : 'pr-3'
-                      } ${
-                        shipment.status === 'Draft' &&
-                        draftTrackingTouched &&
-                        trackingDraft.trim().length > 0 &&
-                        !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
-                          ? 'border-red-500'
-                          : 'border-[rgba(0,0,0,0.23)]'
-                      }`}
-                    />
-                    {draftTrackingCounter != null && (
-                      <span
-                        id="consolidated-manual-tracking-counter"
-                        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs tabular-nums tracking-tight text-[#6a7282]"
-                        aria-live="polite"
-                      >
-                        {draftTrackingCounterCurrent}/{draftTrackingCounter.max}
-                      </span>
-                    )}
+                        className={`h-auto min-h-[40px] rounded border bg-white py-2 pl-3 text-base leading-6 tracking-[0.15px] text-[#101828] focus-visible:border-[#1976d2] ${
+                          draftTrackingCounter != null ? 'pr-[4.25rem]' : 'pr-3'
+                        } ${
+                          draftTrackingTouched &&
+                          trackingDraft.trim().length > 0 &&
+                          !isValidManualConsolidatedTrackingId(shipment.carrier, trackingDraft)
+                            ? 'border-red-500'
+                            : 'border-[rgba(0,0,0,0.23)]'
+                        }`}
+                      />
+                      {draftTrackingCounter != null && (
+                        <span
+                          id="consolidated-manual-tracking-counter"
+                          className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 select-none text-xs tabular-nums tracking-tight text-[#6a7282]"
+                          aria-live="polite"
+                        >
+                          {draftTrackingCounterCurrent}/{draftTrackingCounter.max}
+                        </span>
+                      )}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                    <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                      {shipment.trackingEnteredManually ? 'Manual tracking ID' : 'Tracking ID'}
+                    </span>
+                    <span className="text-sm leading-5 tracking-tight text-[#101828]">
+                      {shipment.trackingId.trim() || '—'}
+                    </span>
+                  </div>
+                )}
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
                     Type

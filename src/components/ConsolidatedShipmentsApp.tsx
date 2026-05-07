@@ -38,6 +38,8 @@ export interface ConsolidatedShipment {
   /** Required when carrierType is Merukazim */
   shippingRoute?: string;
   trackingId: string;
+  /** True when the user entered tracking after a label API failure (Draft → Pack); keeps "Manual tracking ID" label. */
+  trackingEnteredManually?: boolean;
   totalValue: string;
   status: ShipmentStatus;
   orders: string[];
@@ -397,9 +399,16 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
   const handleDraftPack = (id: string, trackingId: string) => {
     const trimmed = trackingId.trim();
     setShipments((prev) =>
-      prev.map((s) =>
-        s.id === id && s.status === 'Draft' ? { ...s, status: 'Packed' as const, trackingId: trimmed } : s
-      )
+      prev.map((s) => {
+        if (s.id !== id || s.status !== 'Draft') return s;
+        const packedAfterManualApiRecovery = !s.trackingId.trim();
+        return {
+          ...s,
+          status: 'Packed' as const,
+          trackingId: trimmed,
+          ...(packedAfterManualApiRecovery ? { trackingEnteredManually: true as const } : {}),
+        };
+      })
     );
     setNotificationMessage(`Consolidated shipment ${id} was packed with tracking ID ${trimmed}.`);
     setShowNotification(true);
