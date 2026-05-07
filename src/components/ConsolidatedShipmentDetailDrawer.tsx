@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ClipboardList, FileText, Receipt } from 'lucide-react';
+import { AlertCircle, ClipboardList, FileText, Receipt } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
@@ -297,9 +297,13 @@ export default function ConsolidatedShipmentDetailDrawer({
                 {requiresManualTrackingEntry && (
                   <div
                     role="alert"
-                    className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-5 tracking-tight text-[#92400e]"
+                    className="flex gap-2 rounded-lg border border-red-800 bg-red-50 px-3 py-2 text-sm leading-5 tracking-tight text-red-950"
                   >
-                    {CONSOLIDATED_LABEL_API_FAILED_MESSAGE}
+                    <AlertCircle
+                      className="mt-0.5 size-[18px] shrink-0 text-red-800"
+                      aria-hidden
+                    />
+                    <span>{CONSOLIDATED_LABEL_API_FAILED_MESSAGE}</span>
                   </div>
                 )}
                 {requiresManualTrackingEntry ? (
