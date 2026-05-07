@@ -178,8 +178,8 @@ export default function ConsolidatedShipmentCreateDrawer({
           onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="size-5 shrink-0 text-black dark:text-foreground" aria-hidden />
+            <DialogTitle className="flex items-center gap-2 text-red-600 dark:text-red-500">
+              <AlertCircle className="size-5 shrink-0 text-red-600 dark:text-red-500" aria-hidden />
               Create label manually
             </DialogTitle>
             <DialogDescription>
@@ -191,7 +191,8 @@ export default function ConsolidatedShipmentCreateDrawer({
           <DialogFooter className="flex flex-row justify-end gap-2">
             <Button
               type="button"
-              className="w-fit bg-[#1976d2] px-[22px] py-2 text-[15px] font-medium text-white shadow-md hover:bg-[#1565c0]"
+              variant="destructive"
+              className="w-fit px-[22px] py-2 text-[15px] font-medium shadow-md"
               onClick={handleGoToShipmentFromLabelError}
             >
               Continue to Shipment
