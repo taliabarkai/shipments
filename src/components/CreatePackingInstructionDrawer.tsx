@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import UploadFile from '@mui/icons-material/UploadFile';
 import { Calendar, ChevronDown, Plus, X } from 'lucide-react';
 import { Button } from './ui/button';
@@ -532,6 +532,9 @@ export default function CreatePackingInstructionDrawer({
   const [contentAr, setContentAr] = useState('');
   const [contentHu, setContentHu] = useState('');
   const [contentTh, setContentTh] = useState('');
+  const [translationUpToDate, setTranslationUpToDate] = useState<Record<Exclude<LangKey, 'EN'>, boolean>>({
+    HE: false, AR: false, HU: false, TH: false,
+  });
   const [imagePreview, setImagePreview] = useState<string | undefined>(undefined);
   const [imageAttachmentName, setImageAttachmentName] = useState('');
   const [imageAttachmentSize, setImageAttachmentSize] = useState('');
@@ -598,6 +601,12 @@ export default function CreatePackingInstructionDrawer({
       setContentAr(editingRow.contentAr);
       setContentHu(editingRow.contentHu);
       setContentTh(editingRow.contentTh);
+      setTranslationUpToDate({
+        HE: !!editingRow.contentHe.trim(),
+        AR: !!editingRow.contentAr.trim(),
+        HU: !!editingRow.contentHu.trim(),
+        TH: !!editingRow.contentTh.trim(),
+      });
       setImagePreview(editingRow.imageDataUrl);
       setImageAttachmentName(editingRow.imageDataUrl ? 'Attached image' : '');
       setImageAttachmentSize('');
@@ -619,6 +628,7 @@ export default function CreatePackingInstructionDrawer({
       setContentAr('');
       setContentHu('');
       setContentTh('');
+      setTranslationUpToDate({ HE: false, AR: false, HU: false, TH: false });
       setImagePreview(undefined);
       setImageAttachmentName('');
       setImageAttachmentSize('');
@@ -659,11 +669,16 @@ export default function CreatePackingInstructionDrawer({
   }, [linkedShippingProductName]);
 
   const conditionsComplete = rows.every((r) => r.field && r.operator && r.values.length > 0);
+  const allTranslationsConfirmed = (
+    [['HE', contentHe], ['AR', contentAr], ['HU', contentHu], ['TH', contentTh]] as const
+  ).every(([lang, val]) => !val.trim() || translationUpToDate[lang]);
+
   const canSubmit =
     instructionName.trim().length > 0 &&
     rows.length > 0 &&
     conditionsComplete &&
     contentEn.trim().length > 0 &&
+    allTranslationsConfirmed &&
     !endDateInvalid &&
     !lookupsLoading &&
     lookups !== null &&
@@ -967,68 +982,153 @@ export default function CreatePackingInstructionDrawer({
               <div className={cn(cardClass, 'flex flex-col gap-4')}>
                 <div>
                   <Label className="text-xs text-gray-600">Text</Label>
-                  <Tabs
-                    value={contentLang}
-                    onValueChange={(v) => setContentLang(v as LangKey)}
-                    className="mt-2 flex flex-col gap-0"
-                  >
-                    <TabsList className="relative flex h-auto w-full flex-wrap items-end justify-start gap-x-6 gap-y-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0">
-                      {LANG_KEYS.map((lang) => (
-                        <TabsTrigger
-                          key={lang}
-                          value={lang}
-                          className={cn(
-                            '-mb-px inline-flex h-auto flex-none rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-2 text-sm font-normal shadow-none',
-                            'text-gray-500 hover:text-gray-600',
-                            'data-[state=active]:border-[#1976d2] data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-[#1976d2]',
-                            'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                  <div className="mt-2 grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-0">
+                      <div className="flex h-auto items-end border-b border-gray-200">
+                        <span className="-mb-px inline-flex h-auto flex-none border-b-2 border-[#1976d2] px-0 py-2 text-sm font-medium text-[#1976d2]">
+                          EN
+                        </span>
+                      </div>
+                      <div className="mt-3">
+                        <Textarea
+                          className="min-h-[120px] border-gray-300"
+                          placeholder="Instruction text (English, required)"
+                          value={contentEn}
+                          onChange={(e) => {
+                            setContentEn(e.target.value);
+                            setTranslationUpToDate({ HE: false, AR: false, HU: false, TH: false });
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Tabs
+                        value={contentLang === 'EN' ? 'HE' : contentLang}
+                        onValueChange={(v) => setContentLang(v as LangKey)}
+                        className="flex flex-col gap-0"
+                      >
+                        <TabsList className="relative flex h-auto w-full flex-wrap items-end justify-start gap-x-6 gap-y-0 rounded-none border-0 border-b border-gray-200 bg-transparent p-0">
+                          {LANG_KEYS.filter((l) => l !== 'EN').map((lang) => {
+                            const langContent = { HE: contentHe, AR: contentAr, HU: contentHu, TH: contentTh }[lang];
+                            const needsConfirmation = !!langContent.trim() && !translationUpToDate[lang];
+                            return (
+                              <TabsTrigger
+                                key={lang}
+                                value={lang}
+                                className={cn(
+                                  '-mb-px inline-flex h-auto flex-none items-center gap-1 rounded-none border-0 border-b-2 border-transparent bg-transparent px-0 py-2 text-sm font-normal shadow-none',
+                                  'text-gray-500 hover:text-gray-600',
+                                  'data-[state=active]:border-[#1976d2] data-[state=active]:bg-transparent data-[state=active]:font-medium data-[state=active]:text-[#1976d2]',
+                                  'focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0',
+                                )}
+                              >
+                                {lang}
+                                {needsConfirmation && (
+                                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-400" />
+                                )}
+                              </TabsTrigger>
+                            );
+                          })}
+                        </TabsList>
+                        <TabsContent value="HE" className="mt-3 flex flex-col gap-2">
+                          <Textarea
+                            className="min-h-[120px] border-gray-300"
+                            placeholder="Hebrew"
+                            value={contentHe}
+                            onChange={(e) => {
+                              setContentHe(e.target.value);
+                              setTranslationUpToDate((prev) => ({ ...prev, HE: false }));
+                            }}
+                          />
+                          {contentHe.trim() && (
+                            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={translationUpToDate.HE}
+                                onChange={(e) =>
+                                  setTranslationUpToDate((prev) => ({ ...prev, HE: e.target.checked }))
+                                }
+                                className="h-3.5 w-3.5 accent-[#1976d2]"
+                              />
+                              Translation is up to date
+                            </label>
                           )}
-                        >
-                          {lang}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
-                    <TabsContent value="EN" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Instruction text (English, required)"
-                        value={contentEn}
-                        onChange={(e) => setContentEn(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="HE" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Hebrew"
-                        value={contentHe}
-                        onChange={(e) => setContentHe(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="AR" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Arabic"
-                        value={contentAr}
-                        onChange={(e) => setContentAr(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="HU" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Hungarian"
-                        value={contentHu}
-                        onChange={(e) => setContentHu(e.target.value)}
-                      />
-                    </TabsContent>
-                    <TabsContent value="TH" className="mt-3">
-                      <Textarea
-                        className="min-h-[120px] border-gray-300"
-                        placeholder="Thai"
-                        value={contentTh}
-                        onChange={(e) => setContentTh(e.target.value)}
-                      />
-                    </TabsContent>
-                  </Tabs>
+                        </TabsContent>
+                        <TabsContent value="AR" className="mt-3 flex flex-col gap-2">
+                          <Textarea
+                            className="min-h-[120px] border-gray-300"
+                            placeholder="Arabic"
+                            value={contentAr}
+                            onChange={(e) => {
+                              setContentAr(e.target.value);
+                              setTranslationUpToDate((prev) => ({ ...prev, AR: false }));
+                            }}
+                          />
+                          {contentAr.trim() && (
+                            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={translationUpToDate.AR}
+                                onChange={(e) =>
+                                  setTranslationUpToDate((prev) => ({ ...prev, AR: e.target.checked }))
+                                }
+                                className="h-3.5 w-3.5 accent-[#1976d2]"
+                              />
+                              Translation is up to date
+                            </label>
+                          )}
+                        </TabsContent>
+                        <TabsContent value="HU" className="mt-3 flex flex-col gap-2">
+                          <Textarea
+                            className="min-h-[120px] border-gray-300"
+                            placeholder="Hungarian"
+                            value={contentHu}
+                            onChange={(e) => {
+                              setContentHu(e.target.value);
+                              setTranslationUpToDate((prev) => ({ ...prev, HU: false }));
+                            }}
+                          />
+                          {contentHu.trim() && (
+                            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={translationUpToDate.HU}
+                                onChange={(e) =>
+                                  setTranslationUpToDate((prev) => ({ ...prev, HU: e.target.checked }))
+                                }
+                                className="h-3.5 w-3.5 accent-[#1976d2]"
+                              />
+                              Translation is up to date
+                            </label>
+                          )}
+                        </TabsContent>
+                        <TabsContent value="TH" className="mt-3 flex flex-col gap-2">
+                          <Textarea
+                            className="min-h-[120px] border-gray-300"
+                            placeholder="Thai"
+                            value={contentTh}
+                            onChange={(e) => {
+                              setContentTh(e.target.value);
+                              setTranslationUpToDate((prev) => ({ ...prev, TH: false }));
+                            }}
+                          />
+                          {contentTh.trim() && (
+                            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+                              <input
+                                type="checkbox"
+                                checked={translationUpToDate.TH}
+                                onChange={(e) =>
+                                  setTranslationUpToDate((prev) => ({ ...prev, TH: e.target.checked }))
+                                }
+                                className="h-3.5 w-3.5 accent-[#1976d2]"
+                              />
+                              Translation is up to date
+                            </label>
+                          )}
+                        </TabsContent>
+                      </Tabs>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <Label className="text-xs text-gray-600">Image</Label>
