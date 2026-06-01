@@ -14,6 +14,7 @@ import GlobalCarrierConfiguration from './components/GlobalCarrierConfiguration'
 import ShipmentAlertsApp from './components/ShipmentAlertsApp';
 import ShippingProductCatalogApp from './components/ShippingProductCatalogApp';
 import PackingInstructionsApp from './components/PackingInstructionsApp';
+import UpgradeDowngradeRulesApp from './components/UpgradeDowngradeRulesApp';
 
 type ActiveView =
   | 'shipments'
@@ -23,6 +24,7 @@ type ActiveView =
   | 'shipmentAlerts'
   | 'shippingProductCatalog'
   | 'packingInstructions'
+  | 'upgradeDowngradeRules'
   | 'globalCarrier';
 
 export default function App() {
@@ -1163,6 +1165,7 @@ export default function App() {
             {resolvedView === 'shipmentAlerts' && <ShipmentAlertsApp />}
             {resolvedView === 'shippingProductCatalog' && <ShippingProductCatalogApp />}
             {resolvedView === 'packingInstructions' && <PackingInstructionsApp />}
+            {resolvedView === 'upgradeDowngradeRules' && <UpgradeDowngradeRulesApp />}
             {resolvedView === 'globalCarrier' && (
               <GlobalCarrierConfiguration />
             )}

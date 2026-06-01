@@ -5,7 +5,7 @@ import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import routeIconPaths from '../imports/svg-yb48l66bfs';
-import { ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
+import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from './ui/utils';
 
@@ -17,6 +17,7 @@ export type ExpandableNavSection =
   | 'shipmentAlerts'
   | 'shippingProductCatalog'
   | 'packingInstructions'
+  | 'upgradeDowngradeRules'
   | 'globalCarrier';
 
 interface ExpandableSidebarProps {
@@ -385,6 +386,50 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 {!isExpanded && (
                   <TooltipContent side="bottom">
                     <p>Packing Instructions</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+
+            {/* Upgrade & Downgrade Rules */}
+            <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
+              <Tooltip key={`upgradeDowngradeRules-${isExpanded}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full cursor-pointer rounded-[4px] hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSectionChange?.('upgradeDowngradeRules');
+                    }}
+                  >
+                    <div className="relative shrink-0 w-full">
+                      <div className="flex size-full flex-row items-center overflow-clip rounded-[inherit]">
+                        <div className="relative box-border flex w-full items-center px-[16px] py-[8px] pl-[10px] pr-[16px] pt-[8px] pb-[8px]">
+                          <div className="relative box-border flex w-[40px] shrink-0 flex-col items-center justify-center overflow-clip rounded-[100px] p-[8px]">
+                            <div className="relative flex shrink-0 items-center justify-center">
+                              <ArrowUpDown
+                                className={`w-6 h-6 ${activeSection === 'upgradeDowngradeRules' ? 'text-[#1976D2]' : 'text-[rgba(0,0,0,0.56)]'}`}
+                              />
+                            </div>
+                            {activeSection === 'upgradeDowngradeRules' && (
+                              <div className="absolute left-1/2 top-1/2 size-[36px] translate-x-[-50%] translate-y-[-50%] rounded-[100px] bg-[rgba(25,118,210,0.3)]" />
+                            )}
+                          </div>
+                          <div
+                            className={`relative box-border flex flex-col items-start overflow-hidden px-0 py-[4px] transition-all duration-300 ${isExpanded ? 'ml-[8px] w-auto opacity-100' : 'w-0 opacity-0'}`}
+                          >
+                            <p className="relative shrink-0 whitespace-nowrap font-['Roboto',sans-serif] text-[14px] leading-[1.5] tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
+                              Upgrade &amp; Downgrade Rules
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                {!isExpanded && (
+                  <TooltipContent side="bottom">
+                    <p>Upgrade &amp; Downgrade Rules</p>
                   </TooltipContent>
                 )}
               </Tooltip>
