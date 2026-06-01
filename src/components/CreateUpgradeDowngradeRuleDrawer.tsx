@@ -1049,22 +1049,22 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                     ) : null}
                   </div>
                 </div>
-                <div className="flex items-center justify-between gap-4 rounded-md border border-gray-200 bg-white px-4 py-3">
-                  <div className="min-w-0">
+                <div className="rounded-md border border-gray-200 bg-white px-4 py-3">
+                  <div className="flex items-center justify-between gap-4">
                     <p className="text-sm font-semibold text-[#101828]">Status</p>
-                    <p className="text-xs leading-normal text-gray-500">
-                      New rules default to Active. If start date is in the future, the rule will be Scheduled.
-                    </p>
+                    <span
+                      className={cn(
+                        'inline-flex shrink-0 rounded-[8px] px-2.5 py-0.5 text-xs font-medium',
+                        statusBadgeClass(previewStatus),
+                      )}
+                    >
+                      {STATUS_LABEL[previewStatus]}
+                    </span>
                   </div>
-                  <span
-                    className={cn(
-                      'inline-flex shrink-0 rounded-[8px] px-2.5 py-0.5 text-xs font-medium',
-                      statusBadgeClass(previewStatus),
-                    )}
-                  >
-                    {STATUS_LABEL[previewStatus]}
-                  </span>
                 </div>
+                <p className="-mt-2 text-xs leading-normal text-gray-500">
+                  New rules default to Active. If start date is in the future, the rule will be Scheduled.
+                </p>
               </div>
             </div>
 

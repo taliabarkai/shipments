@@ -54,14 +54,14 @@ const CSV_COLUMNS = [
 function ActionChip({ action }: { action: UpgradeDowngradeRule['action'] }) {
   if (action === 'upgrade') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-[8px] bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">
+      <span className="inline-flex items-center gap-1 rounded-[8px] bg-teal-50 px-2.5 py-0.5 text-xs font-medium text-teal-700">
         <ArrowUp className="size-3" />
         Upgrade
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-[8px] bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+    <span className="inline-flex items-center gap-1 rounded-[8px] bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-800">
       <ArrowDown className="size-3" />
       Downgrade
     </span>
@@ -94,17 +94,16 @@ function SpendSavingsCell({ rule }: { rule: UpgradeDowngradeRule }) {
   if (rule.costControl?.mode === 'per_rule') {
     const cap = rule.costControl.budgetCap;
     const pct = cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
-    const full = pct >= 100;
     return (
       <div className="flex flex-col gap-1">
-        <span className="text-xs tabular-nums text-gray-600">
-          {formatMoney(spent)} / {formatMoney(cap)}
-        </span>
+        <div className="flex items-center justify-between gap-2 text-xs tabular-nums text-gray-600">
+          <span>
+            {formatMoney(spent)} / {formatMoney(cap)}
+          </span>
+          <span>{pct}%</span>
+        </div>
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-          <div
-            className={cn('h-full rounded-full transition-all', full ? 'bg-purple-500' : 'bg-[#1976d2]')}
-            style={{ width: `${pct}%` }}
-          />
+          <div className="h-full rounded-full bg-[#1976d2] transition-all" style={{ width: `${pct}%` }} />
         </div>
       </div>
     );
