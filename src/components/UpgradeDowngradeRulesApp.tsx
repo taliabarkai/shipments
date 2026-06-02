@@ -324,14 +324,6 @@ export default function UpgradeDowngradeRulesApp() {
     pulse(id);
   };
 
-  const handleReset = () => {
-    setRules(MOCK_RULES.map((r) => ({ ...r })));
-    setSearchQuery('');
-    setScopeTab('All');
-    setColumnFilters({ action: [], budget: [], status: [] });
-    setCurrentPage(1);
-  };
-
   const handleExportCSV = () => {
     const headers = CSV_COLUMNS.map((c) => c.label).join(',');
     const escape = (s: string) => `"${s.replace(/"/g, '""')}"`;
@@ -578,18 +570,9 @@ export default function UpgradeDowngradeRulesApp() {
             </div>
 
             <div className="flex shrink-0 items-center justify-between gap-6 border-t bg-white px-4 py-2">
-              <div className="flex items-center gap-3 text-xs text-gray-500">
-                <span className="flex items-center gap-2">
-                  <RefreshCw className="h-4 w-4" />
-                  Last Updated at {lastUpdated}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="font-medium text-[#1976d2] hover:text-[#1565c0] hover:underline"
-                >
-                  Reset to defaults
-                </button>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <RefreshCw className="h-4 w-4" />
+                Last Updated at {lastUpdated}
               </div>
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-2 text-sm text-gray-600">

@@ -328,6 +328,13 @@ interface RuleFormState {
   endDate: string;
 }
 
+function todayIso(): string {
+  const d = new Date();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
 function emptyFormState(): RuleFormState {
   return {
     action: 'upgrade',
@@ -340,7 +347,7 @@ function emptyFormState(): RuleFormState {
     maxPerShipment: '3',
     perShipmentFormula: 'vs_original',
     budgetCap: '',
-    startDate: '',
+    startDate: todayIso(),
     endDate: '',
   };
 }
@@ -686,7 +693,9 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-4">
                     <Label htmlFor="udr-name" className={fieldLabelClass}>
-                      Rule Name<span className="text-gray-900">*</span>
+                      <span>
+                        Rule Name<span className="text-gray-900">*</span>
+                      </span>
                     </Label>
                     <span className="text-xs tabular-nums text-gray-400">{form.name.length} / 50</span>
                   </div>
@@ -744,7 +753,9 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                 {/* Delivery days conditions */}
                 <div className="flex flex-col gap-3">
                   <Label className={fieldLabelClass}>
-                    Delivery days conditions<span className="text-gray-900">*</span>
+                    <span>
+                      Delivery days conditions<span className="text-gray-900">*</span>
+                    </span>
                   </Label>
                   <Tabs
                     value={form.deliveryMode}
@@ -916,7 +927,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
             {/* Cost Control — upgrade only */}
             {form.action === 'upgrade' ? (
               <div>
-                <p className={cn(sectionTitleClass, 'mb-2')}>Cost Control</p>
+                <p className={cn(sectionTitleClass, 'mb-2')}>Budget</p>
                 <div className={cardClass}>
                   <Tabs
                     value={form.costMode}
@@ -951,54 +962,15 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                           />
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="h-px flex-1 bg-gray-200" />
-                        <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">VS</span>
-                        <span className="h-px flex-1 bg-gray-200" />
-                      </div>
-                      <RadioGroup
-                        value={form.perShipmentFormula}
-                        onValueChange={(v) => patch({ perShipmentFormula: v as PerShipmentFormula })}
-                        className="flex flex-col gap-2"
-                        disabled={fieldsDisabled}
-                      >
-                        {(
-                          [
-                            { id: 'vs_original', label: 'Original Method Cost' },
-                            { id: 'vs_revenue', label: 'Shipping Revenue paid by customer' },
-                          ] as const
-                        ).map(({ id, label }) => {
-                          const checked = form.perShipmentFormula === id;
-                          return (
-                            <Label
-                              key={id}
-                              htmlFor={`udr-formula-${id}`}
-                              className={cn(
-                                'flex cursor-pointer items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm font-normal transition-colors',
-                                checked ? 'border-[#1976d2] bg-blue-50/60 text-[#101828]' : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50',
-                                fieldsDisabled && 'cursor-not-allowed opacity-70',
-                              )}
-                            >
-                              <RadioGroupItem
-                                id={`udr-formula-${id}`}
-                                value={id}
-                                className="shrink-0 border-gray-400 text-[#1976d2] data-[state=checked]:border-[#1976d2] [&_svg]:fill-[#1976d2]"
-                              />
-                              {label}
-                            </Label>
-                          );
-                        })}
-                      </RadioGroup>
-                      <p className="text-xs leading-normal text-gray-600">
-                        {form.perShipmentFormula === 'vs_original'
-                          ? 'Per-shipment cap: upgraded cost - original cost ≤ max. Evaluated independently for each shipment.'
-                          : 'Per-shipment cap: upgraded cost - shipping revenue paid by customer ≤ max. Evaluated independently for each shipment.'}
+                      <p className="text-xs leading-normal text-gray-500">
+                        Per-shipment cap: upgraded cost - original cost ≤ max. Evaluated independently for each
+                        shipment.
                       </p>
                     </TabsContent>
                     <TabsContent value="per_rule" className="mt-3 flex flex-col gap-3">
                       <div className="space-y-1.5">
                         <Label htmlFor="udr-budget-cap" className="text-xs text-gray-600">
-                          Total budget cap<span className="text-gray-900">*</span>
+                          Total budget cap
                         </Label>
                         <div className="relative">
                           <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
@@ -1033,7 +1005,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                   <div className="space-y-1.5">
                     <RuleDateField
                       id="udr-start"
-                      label="Start Date *"
+                      label="Start Date*"
                       value={form.startDate}
                       onChange={(v) => patch({ startDate: v })}
                       disabled={fieldsDisabled}
@@ -1042,7 +1014,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                   <div className="space-y-1.5">
                     <RuleDateField
                       id="udr-end"
-                      label="End Date *"
+                      label="End Date*"
                       value={form.endDate}
                       onChange={(v) => patch({ endDate: v })}
                       invalid={!suppressErrors && endDateInvalid && showEndDateError}
