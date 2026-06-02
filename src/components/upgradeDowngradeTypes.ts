@@ -55,11 +55,11 @@ export interface UpgradeDowngradeRule {
 }
 
 /**
- * The demo's "current date". Status is derived relative to this fixed clock so the
- * seeded rules render with the documented statuses deterministically (and don't drift
- * as real wall-clock time passes). All status/date validation in the mock uses it.
+ * The "current date" used for status derivation and date validation. Uses the real
+ * current date so a start date of today reads as Active and only future start dates
+ * read as Scheduled.
  */
-export const REFERENCE_NOW = new Date('2026-05-01T12:00:00');
+export const REFERENCE_NOW = new Date();
 
 function startOfDay(d: Date): Date {
   const c = new Date(d);
@@ -77,6 +77,18 @@ function parseIsoDay(iso: string): Date | null {
 export function deriveRuleStatus(rule: UpgradeDowngradeRule, now: Date = REFERENCE_NOW): RuleStatus {
   if (rule.manuallyCancelled) return 'cancelled';
 
+  const today = startOfDay(now);
+  const start = parseIsoDay(rule.startDate);
+  const end = parseIsoDay(rule.endDate);
+
+  // Future start date → hasn't begun yet.
+  if (start && startOfDay(start) > today) return 'scheduled';
+
+  // End date in the past → Expired. Takes precedence over Done: once the window
+  // closes the rule is expired regardless of whether the budget cap was reached.
+  if (end && startOfDay(end) < today) return 'expired';
+
+  // Budget cap reached while still within the active window (end date in the future) → Done.
   if (
     rule.action === 'upgrade' &&
     rule.costControl?.mode === 'per_rule' &&
@@ -85,12 +97,6 @@ export function deriveRuleStatus(rule: UpgradeDowngradeRule, now: Date = REFEREN
     return 'done';
   }
 
-  const today = startOfDay(now);
-  const start = parseIsoDay(rule.startDate);
-  const end = parseIsoDay(rule.endDate);
-
-  if (start && startOfDay(start) > today) return 'scheduled';
-  if (end && startOfDay(end) < today) return 'expired';
   return 'active';
 }
 
@@ -215,5 +221,37 @@ export const MOCK_RULES: UpgradeDowngradeRule[] = [
       { field: 'event_level', operator: 'in', values: ['1', '2'] },
       { field: 'total_order_value', operator: 'gt', values: ['300'] },
     ],
+  },
+  {
+    id: 'rule_8',
+    name: 'Summer rings — EU upgrade',
+    action: 'upgrade',
+    costControl: { mode: 'per_rule', budgetCap: 6000 },
+    spent: 6000,
+    timesApplied: 521,
+    startDate: '2026-01-10',
+    endDate: '2026-07-15',
+    deliveryCondition: { mode: 'eta', etaDays: 5 },
+    conditions: [
+      { field: 'destination_country', operator: 'in', values: ['DE', 'FR'] },
+      { field: 'brand', operator: 'in', values: ['MYKA', 'TGR'] },
+    ],
+    // status: done (budget cap reached, end date still in the future)
+  },
+  {
+    id: 'rule_9',
+    name: 'Charms upgrade — US priority',
+    action: 'upgrade',
+    costControl: { mode: 'per_rule', budgetCap: 12000 },
+    spent: 12000,
+    timesApplied: 889,
+    startDate: '2026-02-15',
+    endDate: '2026-07-31',
+    deliveryCondition: { mode: 'eta', etaDays: 3 },
+    conditions: [
+      { field: 'destination_country', operator: 'in', values: ['US', 'CA'] },
+      { field: 'total_order_value', operator: 'gt', values: ['250'] },
+    ],
+    // status: done (budget cap reached, end date still in the future)
   },
 ];

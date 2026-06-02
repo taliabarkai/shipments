@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Download, Plus, RefreshCw, Search } from 'lucide-react';
+import { ArrowDown, ArrowUp, Download, Plus, RefreshCw, Search, X } from 'lucide-react';
 import { Button } from './ui/button';
+import { Checkbox } from './ui/checkbox';
 import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from './ui/utils';
+import svgPaths from '../imports/svg-8i0hxkhc97';
 import CreateUpgradeDowngradeRuleDrawer from './CreateUpgradeDowngradeRuleDrawer';
 import {
   deriveRuleStatus,
@@ -44,7 +48,8 @@ const CSV_COLUMNS = [
   { id: 'name', label: 'Rule Name' },
   { id: 'action', label: 'Action' },
   { id: 'budget', label: 'Budget' },
-  { id: 'spendSavings', label: 'Spend / Savings' },
+  { id: 'spend', label: 'Spend' },
+  { id: 'savings', label: 'Savings' },
   { id: 'timesApplied', label: 'Times Applied' },
   { id: 'startDate', label: 'Start Date' },
   { id: 'endDate', label: 'End Date' },
@@ -86,11 +91,11 @@ function BudgetCell({ rule }: { rule: UpgradeDowngradeRule }) {
   );
 }
 
-function SpendSavingsCell({ rule }: { rule: UpgradeDowngradeRule }) {
-  if (rule.action === 'downgrade') {
-    return <span className="text-sm font-medium text-green-600">{formatMoney(rule.savings ?? 0)}</span>;
-  }
+function SpendCell({ rule }: { rule: UpgradeDowngradeRule }) {
+  // Savings-only rows show nothing in the Spend column.
+  if (rule.action === 'downgrade') return emptyCell();
   const spent = rule.spent ?? 0;
+  // Active budget (per-rule): fraction + percentage with a blue progress bar.
   if (rule.costControl?.mode === 'per_rule') {
     const cap = rule.costControl.budgetCap;
     const pct = cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
@@ -108,9 +113,109 @@ function SpendSavingsCell({ rule }: { rule: UpgradeDowngradeRule }) {
       </div>
     );
   }
-  // per-shipment: just the accumulated spend
-  return <span className="text-sm text-gray-700">{formatMoney(spent)}</span>;
+  // Flat/fixed spend (per-shipment) — no overall budget limit, so just the amount.
+  return <span className="text-sm tabular-nums text-gray-700">{formatMoney(spent)}</span>;
 }
+
+function SavingsCell({ rule }: { rule: UpgradeDowngradeRule }) {
+  // Spend-only rows show nothing in the Savings column.
+  if (rule.action !== 'downgrade') return emptyCell();
+  return (
+    <span className="text-sm tabular-nums text-[#1e7e34]">{formatMoney(rule.savings ?? 0)}</span>
+  );
+}
+
+type ColumnFilterKey = 'action' | 'budget' | 'status';
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+/** Header column filter — mirrors the Shipping Routes table filter component. */
+function ColumnFilter({
+  label,
+  options,
+  selected,
+  onToggle,
+  onClear,
+}: {
+  label: string;
+  options: FilterOption[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  onClear: () => void;
+}) {
+  const hasFilter = selected.length > 0;
+  return (
+    <div className="flex items-center gap-2">
+      <span className="flex items-center gap-1">
+        {label}
+        {hasFilter && (
+          <>
+            <span className="ml-1 text-[#1976d2]">({selected.length})</span>
+            <X
+              className="h-3 w-3 cursor-pointer text-gray-400 hover:text-gray-600"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClear();
+              }}
+            />
+          </>
+        )}
+      </span>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button className="rounded p-1 text-gray-500 transition-colors hover:bg-gray-100">
+            <svg className="h-4 w-4 opacity-70" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
+              <path d={svgPaths.p1ef8e700} fill="currentColor" />
+            </svg>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56" align="start">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-normal">Filter by {label}</h4>
+              {hasFilter && (
+                <button onClick={onClear} className="text-xs text-blue-600 hover:text-blue-800">
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="max-h-64 space-y-2 overflow-y-auto">
+              {options.map((opt) => (
+                <div key={opt.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`udr-filter-${label}-${opt.value}`}
+                    checked={selected.includes(opt.value)}
+                    onCheckedChange={() => onToggle(opt.value)}
+                  />
+                  <Label htmlFor={`udr-filter-${label}-${opt.value}`} className="flex-1 cursor-pointer text-sm">
+                    {opt.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+const ACTION_FILTER_OPTIONS: FilterOption[] = [
+  { value: 'upgrade', label: 'Upgrade' },
+  { value: 'downgrade', label: 'Downgrade' },
+];
+
+const BUDGET_FILTER_OPTIONS: FilterOption[] = [
+  { value: 'per_rule', label: 'Per rule' },
+  { value: 'per_shipment', label: 'Per shipment' },
+];
+
+const STATUS_FILTER_OPTIONS: FilterOption[] = (
+  ['active', 'scheduled', 'expired', 'done', 'cancelled'] as RuleStatus[]
+).map((s) => ({ value: s, label: STATUS_LABEL[s] }));
 
 export default function UpgradeDowngradeRulesApp() {
   const [rules, setRules] = useState<UpgradeDowngradeRule[]>(() =>
@@ -124,6 +229,11 @@ export default function UpgradeDowngradeRulesApp() {
   const [currentPage, setCurrentPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [columnFilters, setColumnFilters] = useState<Record<ColumnFilterKey, string[]>>({
+    action: [],
+    budget: [],
+    status: [],
+  });
   const [lastUpdated] = useState(() =>
     new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
   );
@@ -133,6 +243,22 @@ export default function UpgradeDowngradeRulesApp() {
     rules.forEach((r) => map.set(r.id, deriveRuleStatus(r)));
     return map;
   }, [rules]);
+
+  const budgetModeFor = (rule: UpgradeDowngradeRule): string | null =>
+    rule.action === 'upgrade' && rule.costControl ? rule.costControl.mode : null;
+
+  const toggleColumnFilter = (key: ColumnFilterKey, value: string) => {
+    setColumnFilters((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(value) ? prev[key].filter((v) => v !== value) : [...prev[key], value],
+    }));
+    setCurrentPage(1);
+  };
+
+  const clearColumnFilter = (key: ColumnFilterKey) => {
+    setColumnFilters((prev) => ({ ...prev, [key]: [] }));
+    setCurrentPage(1);
+  };
 
   const countForScope = (scope: UpgradeDowngradeScopeTab): number => {
     if (scope === 'All') return rules.length;
@@ -144,10 +270,18 @@ export default function UpgradeDowngradeRulesApp() {
       if (searchQuery.trim()) {
         if (!rule.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       }
-      if (scopeTab === 'All') return true;
-      return statusById.get(rule.id) === scopeTab;
+      if (scopeTab !== 'All' && statusById.get(rule.id) !== scopeTab) return false;
+      if (columnFilters.action.length > 0 && !columnFilters.action.includes(rule.action)) return false;
+      if (columnFilters.status.length > 0 && !columnFilters.status.includes(statusById.get(rule.id) ?? '')) {
+        return false;
+      }
+      if (columnFilters.budget.length > 0) {
+        const mode = budgetModeFor(rule);
+        if (!mode || !columnFilters.budget.includes(mode)) return false;
+      }
+      return true;
     });
-  }, [rules, searchQuery, scopeTab, statusById]);
+  }, [rules, searchQuery, scopeTab, statusById, columnFilters]);
 
   const totalPages = Math.max(1, Math.ceil(filteredRules.length / rowsPerPage));
   const paginatedRules = filteredRules.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
@@ -194,6 +328,7 @@ export default function UpgradeDowngradeRulesApp() {
     setRules(MOCK_RULES.map((r) => ({ ...r })));
     setSearchQuery('');
     setScopeTab('All');
+    setColumnFilters({ action: [], budget: [], status: [] });
     setCurrentPage(1);
   };
 
@@ -211,9 +346,14 @@ export default function UpgradeDowngradeRulesApp() {
           return rule.costControl.mode === 'per_rule'
             ? `Per rule: ${formatMoney(rule.costControl.budgetCap)}`
             : `Per shipment: ${formatMoney(rule.costControl.maxPerShipment, 2)}`;
-        case 'spendSavings':
-          if (rule.action === 'downgrade') return formatMoney(rule.savings ?? 0);
+        case 'spend':
+          if (rule.action === 'downgrade') return '';
+          if (rule.costControl?.mode === 'per_rule') {
+            return `${formatMoney(rule.spent ?? 0)} / ${formatMoney(rule.costControl.budgetCap)}`;
+          }
           return formatMoney(rule.spent ?? 0);
+        case 'savings':
+          return rule.action === 'downgrade' ? formatMoney(rule.savings ?? 0) : '';
         case 'timesApplied':
           return String(rule.timesApplied);
         case 'startDate':
@@ -313,31 +453,57 @@ export default function UpgradeDowngradeRulesApp() {
             <div className="min-h-0 flex-1 overflow-auto">
               <table className="relative w-full table-fixed">
                 <colgroup>
-                  <col className="w-[22%]" />
-                  <col className="w-[11%]" />
-                  <col className="w-[12%]" />
-                  <col className="w-[16%]" />
+                  <col className="w-[20%]" />
                   <col className="w-[10%]" />
                   <col className="w-[11%]" />
-                  <col className="w-[11%]" />
+                  <col className="w-[15%]" />
                   <col className="w-[9%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[8%]" />
                 </colgroup>
                 <thead className="sticky top-0 z-10 border-b bg-white">
                   <tr>
                     <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Rule Name</th>
-                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Action</th>
-                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Budget</th>
-                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Spend / Savings</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">
+                      <ColumnFilter
+                        label="Action"
+                        options={ACTION_FILTER_OPTIONS}
+                        selected={columnFilters.action}
+                        onToggle={(v) => toggleColumnFilter('action', v)}
+                        onClear={() => clearColumnFilter('action')}
+                      />
+                    </th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">
+                      <ColumnFilter
+                        label="Budget"
+                        options={BUDGET_FILTER_OPTIONS}
+                        selected={columnFilters.budget}
+                        onToggle={(v) => toggleColumnFilter('budget', v)}
+                        onClear={() => clearColumnFilter('budget')}
+                      />
+                    </th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Spend</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Savings</th>
                     <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Times Applied</th>
                     <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Start Date</th>
                     <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">End Date</th>
-                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">Status</th>
+                    <th className="min-w-0 px-4 py-4 text-left text-sm font-medium text-gray-700">
+                      <ColumnFilter
+                        label="Status"
+                        options={STATUS_FILTER_OPTIONS}
+                        selected={columnFilters.status}
+                        onToggle={(v) => toggleColumnFilter('status', v)}
+                        onClear={() => clearColumnFilter('status')}
+                      />
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {paginatedRules.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-gray-500">
+                      <td colSpan={9} className="p-8 text-center text-gray-500">
                         No rules match your filters.
                       </td>
                     </tr>
@@ -374,7 +540,10 @@ export default function UpgradeDowngradeRulesApp() {
                             <BudgetCell rule={rule} />
                           </td>
                           <td className="min-w-0 px-4 py-3">
-                            <SpendSavingsCell rule={rule} />
+                            <SpendCell rule={rule} />
+                          </td>
+                          <td className="min-w-0 px-4 py-3">
+                            <SavingsCell rule={rule} />
                           </td>
                           <td className="min-w-0 px-4 py-3 text-sm tabular-nums text-gray-700">
                             {rule.timesApplied.toLocaleString('en-US')}

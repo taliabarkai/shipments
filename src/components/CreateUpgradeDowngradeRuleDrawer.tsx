@@ -1008,7 +1008,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                           />
                         </div>
                       </div>
-                      <p className="text-xs leading-normal text-gray-600">
+                      <p className="text-xs leading-normal text-gray-500">
                         Rule is suspended (moves to “Done”) when the total upgrade cost reaches this cap.
                       </p>
                     </TabsContent>
