@@ -386,11 +386,9 @@ export default function UpgradeDowngradeRulesApp() {
           <div className="mb-4 flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h1 className="mb-2 text-3xl font-medium tracking-tight text-[#101828]">
-                Upgrade and Downgrade Rules
+                Route Upgrade &amp; Downgrade Rules
               </h1>
-              <p className="text-gray-500">
-                Configure upgrade and downgrade rules applied during route assignment
-              </p>
+              <p className="text-gray-500">Configure rules applied during route assignment</p>
             </div>
             <div className="flex shrink-0 gap-3">
               <Button

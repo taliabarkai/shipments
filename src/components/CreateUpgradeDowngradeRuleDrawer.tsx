@@ -390,6 +390,8 @@ export default function CreateUpgradeDowngradeRuleDrawer({
   const isEdit = !!editingRule;
   const editingStatus: RuleStatus | null = editingRule ? deriveRuleStatus(editingRule) : null;
   const readOnly = editingStatus === 'done' || editingStatus === 'cancelled';
+  // Don't surface validation noise on rules that are no longer actionable.
+  const suppressErrors = readOnly || editingStatus === 'expired';
   const canCancelRule = editingStatus === 'active' || editingStatus === 'scheduled';
 
   const [form, setForm] = useState<RuleFormState>(() => emptyFormState());
@@ -503,6 +505,12 @@ export default function CreateUpgradeDowngradeRuleDrawer({
     !lookupsLoading &&
     lookups !== null &&
     !lookupsError;
+
+  // In edit mode, keep Update disabled until the user actually changes something.
+  const isDirty = useMemo(() => {
+    if (!isEdit || !editingRule) return true;
+    return JSON.stringify(form) !== JSON.stringify(formFromRule(editingRule));
+  }, [isEdit, editingRule, form]);
 
   // ----- preview status (auto-derived display in the drawer) -----
   const previewStatus: RuleStatus = useMemo(() => {
@@ -765,7 +773,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                         disabled={fieldsDisabled}
                         onChange={(e) => patch({ etaDays: e.target.value })}
                       />
-                      {form.etaDays.trim() && !etaValid ? (
+                      {!suppressErrors && form.etaDays.trim() && !etaValid ? (
                         <p className="text-xs text-red-600">Enter a whole number between 1 and 30.</p>
                       ) : null}
                     </TabsContent>
@@ -777,10 +785,10 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                         id="udr-specific-day"
                         value={form.specificDay}
                         onChange={(v) => patch({ specificDay: v })}
-                        invalid={!!form.specificDay.trim() && !specificDayValid}
+                        invalid={!suppressErrors && !!form.specificDay.trim() && !specificDayValid}
                         disabled={fieldsDisabled}
                       />
-                      {!!form.specificDay.trim() && !specificDayValid ? (
+                      {!suppressErrors && !!form.specificDay.trim() && !specificDayValid ? (
                         <p className="text-xs text-red-600">Pick a future date.</p>
                       ) : null}
                     </TabsContent>
@@ -1037,10 +1045,10 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                       label="End Date *"
                       value={form.endDate}
                       onChange={(v) => patch({ endDate: v })}
-                      invalid={endDateInvalid && showEndDateError}
+                      invalid={!suppressErrors && endDateInvalid && showEndDateError}
                       disabled={fieldsDisabled}
                     />
-                    {endDateInvalid && showEndDateError ? (
+                    {!suppressErrors && endDateInvalid && showEndDateError ? (
                       <p className="text-xs text-red-600">
                         {form.endDate.trim()
                           ? 'Expiration date must be after the start date.'
@@ -1108,7 +1116,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
               <Button
                 type="button"
                 onClick={handleSubmit}
-                disabled={!canSubmit}
+                disabled={!canSubmit || !isDirty}
                 className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:opacity-50"
               >
                 {isEdit ? 'Update Rule' : 'Create Rule'}
