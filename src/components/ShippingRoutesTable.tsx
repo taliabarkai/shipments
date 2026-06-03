@@ -168,10 +168,10 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
     // In real app, this would add the route to the routes array
   };
 
-  // If creating a new route, show the full-screen form
-  if (showCreateDialog) {
-    return (
+  return (
+    <div className="flex-1 flex flex-col overflow-hidden bg-[rgb(249,250,251)]">
       <CreateShippingRouteDialog
+        open={showCreateDialog}
         onClose={() => {
           setShowCreateDialog(false);
           setSelectedRoute(null);
@@ -179,11 +179,6 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
         onSubmit={handleCreateRouteSubmit}
         route={selectedRoute}
       />
-    );
-  }
-
-  return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-[rgb(249,250,251)]">
       <div className="flex-1 flex flex-col p-6 gap-4 overflow-hidden">
             {/* Page Header */}
             <div className="bg-white rounded-xl p-6 shrink-0">
