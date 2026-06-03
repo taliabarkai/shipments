@@ -1,9 +1,11 @@
+import * as React from 'react';
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { ChevronDown, ChevronRight, Pencil } from 'lucide-react';
+import { ChevronDown, ChevronRight, Pencil, X } from 'lucide-react';
+import { cn } from './ui/utils';
 import {
   Table,
   TableBody,
@@ -120,8 +122,8 @@ export default function CreateCarrierDrawer({
         formData.surchargeType !== originalData.surchargeType;
       setHasChanges(formChanged);
     } else {
-      // For new carriers, always enable save button
-      setHasChanges(true);
+      // For new carriers, require carrier name and original carrier service type
+      setHasChanges(Boolean(formData.carrierName.trim() && formData.originalCarrierServiceType.trim()));
     }
   }, [formData, isEditMode, originalData]);
 
@@ -202,35 +204,59 @@ export default function CreateCarrierDrawer({
 
   const historicalData = getHistoricalData();
 
+  const sectionTitleClass = 'text-sm font-semibold text-[#101828]';
+  const cardClass = 'rounded-md bg-[#FAFAFA] p-4';
+  const fieldLabelClass = 'text-xs text-gray-600';
+
   return (
     <>
       <Sheet open={isOpen} onOpenChange={onClose}>
-        <SheetContent 
-          side="right" 
-          className="w-full sm:max-w-[560px] p-0 flex flex-col" 
+        <SheetContent
+          hideClose
+          side="right"
+          className="flex h-full min-h-0 w-full flex-col gap-0 overflow-hidden border-l border-gray-200 bg-white p-0 sm:max-w-[600px]"
           aria-describedby={undefined}
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <SheetHeader className="px-6 pt-4 pb-3 border-b shrink-0">
-            <div className="flex items-center justify-between">
-              <SheetTitle>{title}</SheetTitle>
-              {carrier?.activeRoutes && (
-                <div className={`${carrier.activeRoutes === '0' ? 'bg-gray-100 text-gray-800' : 'bg-green-100 text-green-800'} px-3 py-1.5 rounded text-xs font-medium mt-[0px] mr-[24px] mb-[0px] ml-[0px]`}>
-                  {carrier.activeRoutes === '0' ? 'No Active Routes' : `${carrier.activeRoutes} Active Routes`}
-                </div>
-              )}
+          <SheetHeader className="shrink-0 space-y-0 border-b border-gray-200 px-6 py-4 text-left">
+            <div className="flex items-center justify-between gap-4">
+              <SheetTitle className="text-base font-semibold leading-normal text-[#101828]">{title}</SheetTitle>
+              <div className="flex items-center gap-2">
+                {carrier?.activeRoutes && (
+                  <div
+                    className={cn(
+                      'px-3 py-1.5 rounded text-xs font-medium',
+                      carrier.activeRoutes === '0'
+                        ? 'bg-gray-100 text-gray-800'
+                        : 'bg-green-100 text-green-800',
+                    )}
+                  >
+                    {carrier.activeRoutes === '0' ? 'No Active Routes' : `${carrier.activeRoutes} Active Routes`}
+                  </div>
+                )}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 rounded-full text-gray-600 hover:bg-gray-100"
+                  onClick={onClose}
+                  aria-label="Close"
+                >
+                  <X className="size-5" />
+                </Button>
+              </div>
             </div>
           </SheetHeader>
 
           {/* Content Area - Scrollable */}
-          <div className="flex-1 overflow-y-auto pt-[12px] pr-[24px] pb-[24px] pl-[24px] px-[24px] py-[12px]">
-            <div className="space-y-8">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="flex flex-col gap-6">
               {/* General Section */}
               <div>
-                <h3 className="text-xl mb-4">General</h3>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="carrierName" className="text-sm text-gray-700 mb-2 block">
+                <p className={cn(sectionTitleClass, 'mb-3')}>General</p>
+                <div className={cn(cardClass, 'flex flex-col gap-4')}>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="carrierName" className={fieldLabelClass}>
                       Carrier Name
                     </Label>
                     <Input
@@ -238,12 +264,12 @@ export default function CreateCarrierDrawer({
                       placeholder="e.g., UPS"
                       value={formData.carrierName}
                       onChange={(e) => handleInputChange('carrierName', e.target.value)}
-                      className="w-full"
+                      className="border-gray-300 bg-white"
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="originalCarrierServiceType" className="text-sm text-gray-700 mb-2 block">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="originalCarrierServiceType" className={fieldLabelClass}>
                       Original Carrier Service Type
                     </Label>
                     <Input
@@ -251,7 +277,7 @@ export default function CreateCarrierDrawer({
                       placeholder="e.g., UPS"
                       value={formData.originalCarrierServiceType}
                       onChange={(e) => handleInputChange('originalCarrierServiceType', e.target.value)}
-                      className="w-full"
+                      className="border-gray-300 bg-white"
                     />
                   </div>
                 </div>
@@ -259,11 +285,11 @@ export default function CreateCarrierDrawer({
 
               {/* Current Pricing Section */}
               <div>
-                <h3 className="text-xl mb-4">Current Pricing</h3>
-                <div className="space-y-4">
+                <p className={cn(sectionTitleClass, 'mb-3')}>Current Pricing</p>
+                <div className={cn(cardClass, 'flex flex-col gap-4')}>
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="fuelTax" className="text-sm text-gray-700 mb-2 block">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fuelTax" className={fieldLabelClass}>
                         Fuel Tax
                       </Label>
                       <div className="relative">
@@ -272,17 +298,17 @@ export default function CreateCarrierDrawer({
                           placeholder="4"
                           value={formData.fuelTax}
                           onChange={(e) => handleInputChange('fuelTax', e.target.value)}
-                          className="w-full pr-8"
+                          className="border-gray-300 bg-white pr-8"
                           disabled={isEditMode}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                           %
                         </span>
                       </div>
                     </div>
 
-                    <div>
-                      <Label htmlFor="vat" className="text-sm text-gray-700 mb-2 block">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vat" className={fieldLabelClass}>
                         VAT
                       </Label>
                       <div className="relative">
@@ -291,10 +317,10 @@ export default function CreateCarrierDrawer({
                           placeholder="4"
                           value={formData.vat}
                           onChange={(e) => handleInputChange('vat', e.target.value)}
-                          className="w-full pr-8"
+                          className="border-gray-300 bg-white pr-8"
                           disabled={isEditMode}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                           %
                         </span>
                       </div>
@@ -302,8 +328,8 @@ export default function CreateCarrierDrawer({
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="discount" className="text-sm text-gray-700 mb-2 block">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="discount" className={fieldLabelClass}>
                         Discount
                       </Label>
                       <div className="relative">
@@ -312,30 +338,32 @@ export default function CreateCarrierDrawer({
                           placeholder="4"
                           value={formData.discount}
                           onChange={(e) => handleInputChange('discount', e.target.value)}
-                          className="w-full pr-8"
+                          className="border-gray-300 bg-white pr-8"
                           disabled={isEditMode}
                         />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm pointer-events-none">
+                        <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">
                           %
                         </span>
                       </div>
                     </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="agentCommission" className="text-sm text-gray-700">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="agentCommission" className={fieldLabelClass}>
                           Agent Commission
                         </Label>
-                        <div className="flex border border-gray-300 rounded overflow-hidden">
+                        <div className="flex overflow-hidden rounded border border-gray-300">
                           <button
                             type="button"
                             onClick={() => handleInputChange('agentCommissionType', 'flat')}
                             disabled={isEditMode}
-                            className={`px-3 py-1 text-xs font-medium transition-colors ${
+                            className={cn(
+                              'px-3 py-1 text-xs font-medium transition-colors',
                               formData.agentCommissionType === 'flat'
                                 ? 'bg-gray-200 text-gray-900'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            } ${isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                : 'bg-white text-gray-600 hover:bg-gray-50',
+                              isEditMode && 'cursor-not-allowed opacity-50',
+                            )}
                           >
                             $
                           </button>
@@ -343,50 +371,58 @@ export default function CreateCarrierDrawer({
                             type="button"
                             onClick={() => handleInputChange('agentCommissionType', 'percentage')}
                             disabled={isEditMode}
-                            className={`px-3 py-1 text-xs font-medium transition-colors border-l border-gray-300 ${
+                            className={cn(
+                              'border-l border-gray-300 px-3 py-1 text-xs font-medium transition-colors',
                               formData.agentCommissionType === 'percentage'
                                 ? 'bg-gray-200 text-gray-900'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            } ${isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                : 'bg-white text-gray-600 hover:bg-gray-50',
+                              isEditMode && 'cursor-not-allowed opacity-50',
+                            )}
                           >
                             %
                           </button>
                         </div>
                       </div>
                       <div className="relative">
+                        {formData.agentCommissionType === 'flat' ? (
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">$</span>
+                        ) : null}
                         <Input
                           id="agentCommission"
                           placeholder="4"
                           value={formData.agentCommission}
                           onChange={(e) => handleInputChange('agentCommission', e.target.value)}
-                          className={`w-full ${formData.agentCommissionType === 'flat' ? 'pl-8' : 'pr-8'}`}
+                          className={cn(
+                            'border-gray-300 bg-white',
+                            formData.agentCommissionType === 'flat' ? 'pl-7' : 'pr-8',
+                          )}
                           disabled={isEditMode}
                         />
-                        <span className={`absolute top-1/2 -translate-y-1/2 text-gray-400 text-sm ${
-                          formData.agentCommissionType === 'flat' ? 'left-3' : 'right-3'
-                        }`}>
-                          {formData.agentCommissionType === 'flat' ? '$' : '%'}
-                        </span>
+                        {formData.agentCommissionType === 'percentage' ? (
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">%</span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label htmlFor="surchargeFee" className="text-sm text-gray-700">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="surchargeFee" className={fieldLabelClass}>
                           Surcharge
                         </Label>
-                        <div className="flex border border-gray-300 rounded overflow-hidden">
+                        <div className="flex overflow-hidden rounded border border-gray-300">
                           <button
                             type="button"
                             onClick={() => handleInputChange('surchargeType', 'flat')}
                             disabled={isEditMode}
-                            className={`px-3 py-1 text-xs font-medium transition-colors ${
+                            className={cn(
+                              'px-3 py-1 text-xs font-medium transition-colors',
                               formData.surchargeType === 'flat'
                                 ? 'bg-gray-200 text-gray-900'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            } ${isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                : 'bg-white text-gray-600 hover:bg-gray-50',
+                              isEditMode && 'cursor-not-allowed opacity-50',
+                            )}
                           >
                             $
                           </button>
@@ -394,30 +430,36 @@ export default function CreateCarrierDrawer({
                             type="button"
                             onClick={() => handleInputChange('surchargeType', 'percentage')}
                             disabled={isEditMode}
-                            className={`px-3 py-1 text-xs font-medium transition-colors border-l border-gray-300 ${
+                            className={cn(
+                              'border-l border-gray-300 px-3 py-1 text-xs font-medium transition-colors',
                               formData.surchargeType === 'percentage'
                                 ? 'bg-gray-200 text-gray-900'
-                                : 'bg-white text-gray-600 hover:bg-gray-50'
-                            } ${isEditMode ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                : 'bg-white text-gray-600 hover:bg-gray-50',
+                              isEditMode && 'cursor-not-allowed opacity-50',
+                            )}
                           >
                             %
                           </button>
                         </div>
                       </div>
                       <div className="relative">
+                        {formData.surchargeType === 'flat' ? (
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">$</span>
+                        ) : null}
                         <Input
                           id="surchargeFee"
                           placeholder="0.50"
                           value={formData.surchargeFee}
                           onChange={(e) => handleInputChange('surchargeFee', e.target.value)}
-                          className={`w-full ${formData.surchargeType === 'percentage' ? 'pr-8' : 'pl-8'}`}
+                          className={cn(
+                            'border-gray-300 bg-white',
+                            formData.surchargeType === 'flat' ? 'pl-7' : 'pr-8',
+                          )}
                           disabled={isEditMode}
                         />
-                        <span className={`absolute top-1/2 -translate-y-1/2 text-gray-400 text-sm ${
-                          formData.surchargeType === 'percentage' ? 'right-3' : 'left-3'
-                        }`}>
-                          {formData.surchargeType === 'flat' ? '$' : '%'}
-                        </span>
+                        {formData.surchargeType === 'percentage' ? (
+                          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">%</span>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -427,7 +469,8 @@ export default function CreateCarrierDrawer({
               {/* Future Pricing Section */}
               {isEditMode && (
                 <div>
-                  <h3 className="text-xl mb-4">Future Pricing</h3>
+                  <p className={cn(sectionTitleClass, 'mb-3')}>Future Pricing</p>
+                  <div className={cn(cardClass, 'flex flex-col gap-4')}>
                   {futurePricingEntries.length > 0 && (
                     <div className="mb-4 space-y-4">
                       {futurePricingEntries.map((entry, index) => (
@@ -512,22 +555,23 @@ export default function CreateCarrierDrawer({
                     <span className="text-xl mr-2">+</span>
                     Schedule future pricing
                   </Button>
+                  </div>
                 </div>
               )}
 
               {/* Historical Pricing Section */}
               {isEditMode && historicalData.length > 0 && (
-                <div className="pt-0 p-[0px]">
+                <div>
                   <button
                     onClick={() => setIsHistoricalPricingOpen(!isHistoricalPricingOpen)}
-                    className="w-full flex items-center text-xl mb-4 hover:text-gray-700 transition-colors gap-2"
+                    className={cn(sectionTitleClass, 'mb-3 flex items-center gap-1 hover:text-black transition-colors')}
                   >
                     {isHistoricalPricingOpen ? (
-                      <ChevronDown className="w-5 h-5" />
+                      <ChevronDown className="h-4 w-4" />
                     ) : (
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="h-4 w-4" />
                     )}
-                    <h3>Historical Pricing</h3>
+                    Historical Pricing
                   </button>
                   {isHistoricalPricingOpen && (
                     <div className="space-y-4">
@@ -581,20 +625,22 @@ export default function CreateCarrierDrawer({
           </div>
 
           {/* Footer Actions - Sticky at bottom */}
-          <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-white shrink-0">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-200 bg-white px-6 py-4">
             <Button
+              type="button"
               variant="ghost"
               onClick={onClose}
-              className="text-gray-600 hover:text-gray-900"
+              className="text-[15px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
             >
               Cancel
             </Button>
             <Button
+              type="button"
               onClick={handleSubmit}
               disabled={!hasChanges}
-              className="bg-[#1976d2] hover:bg-[#1565c0] text-white"
+              className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
             >
-              Save
+              {isEditMode ? 'Save changes' : 'Create Carrier'}
             </Button>
           </div>
         </SheetContent>

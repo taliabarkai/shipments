@@ -318,7 +318,13 @@ export default function CreateShippingRouteDialog({
         JSON.stringify(formData.shippingWorkingDays) !== JSON.stringify(originalData.shippingWorkingDays);
       setHasChanges(formChanged);
     } else {
-      setHasChanges(true);
+      // For new routes, require minimum data to enable Save.
+      setHasChanges(
+        Boolean(formData.packingFacility) &&
+          formData.destinationCountries.length > 0 &&
+          Boolean(formData.carrierName) &&
+          Boolean(formData.method),
+      );
     }
   }, [formData, status, isEditMode, originalData]);
 
@@ -849,8 +855,8 @@ export default function CreateShippingRouteDialog({
           <Button
             type="button"
             variant="ghost"
-            className="px-0 text-[15px] font-medium text-[#1976d2] hover:bg-transparent hover:text-[#1565c0]"
             onClick={onClose}
+            className="text-[15px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           >
             Cancel
           </Button>
@@ -858,9 +864,9 @@ export default function CreateShippingRouteDialog({
             type="button"
             onClick={handleSubmit}
             disabled={!hasChanges}
-            className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:opacity-50"
+            className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
           >
-            Save
+            {isEditMode ? 'Save changes' : 'Create Route'}
           </Button>
         </div>
       </SheetContent>

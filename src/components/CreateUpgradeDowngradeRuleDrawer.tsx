@@ -1080,8 +1080,8 @@ export default function CreateUpgradeDowngradeRuleDrawer({
               <Button
                 type="button"
                 variant="ghost"
-                className="px-0 text-[15px] font-medium text-[#1976d2] hover:bg-transparent hover:text-[#1565c0]"
                 onClick={() => onOpenChange(false)}
+                className="text-[15px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
               >
                 Cancel
               </Button>
@@ -1089,7 +1089,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                 type="button"
                 onClick={handleSubmit}
                 disabled={!canSubmit || !isDirty}
-                className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:opacity-50"
+                className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
               >
                 {isEdit ? 'Update Rule' : 'Create Rule'}
               </Button>

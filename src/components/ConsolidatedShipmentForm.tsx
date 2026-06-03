@@ -999,12 +999,12 @@ export default function ConsolidatedShipmentForm({
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{packsSection}</div>
         </div>
 
-        <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-200 bg-white px-6 py-4">
           <Button
             type="button"
             variant="ghost"
-            className="text-[15px] font-medium text-[rgba(0,0,0,0.6)]"
             onClick={onCloseRequest}
+            className="text-[15px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           >
             Cancel
           </Button>
@@ -1016,11 +1016,7 @@ export default function ConsolidatedShipmentForm({
                     type="button"
                     onClick={handlePackRequest}
                     disabled={!canPackShipment || activeBoxLocked}
-                    className={`min-w-[88px] text-[15px] font-medium ${
-                      canPack
-                        ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]'
-                        : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
-                    }`}
+                    className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
                   >
                     Pack
                   </Button>
@@ -1033,9 +1029,7 @@ export default function ConsolidatedShipmentForm({
               type="button"
               onClick={handlePackRequest}
               disabled={!canPack}
-              className={`min-w-[88px] text-[15px] font-medium ${
-                canPack ? 'bg-[#1976d2] text-white hover:bg-[#1565c0]' : 'bg-[rgba(0,0,0,0.12)] text-[rgba(0,0,0,0.38)]'
-              }`}
+              className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
             >
               Pack
             </Button>

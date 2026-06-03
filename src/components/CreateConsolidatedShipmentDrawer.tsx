@@ -316,27 +316,30 @@ export default function CreateConsolidatedShipmentDrawer({ isOpen, onClose, onCr
         </div>
 
         {/* Footer Actions */}
-        <div className="border-t px-6 py-4 bg-white flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-gray-200 bg-white px-6 py-4">
           <Button
+            type="button"
             variant="ghost"
             onClick={onClose}
-            className="text-gray-600"
+            className="text-[15px] font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           >
             Cancel
           </Button>
           <div className="flex gap-3">
             <Button
+              type="button"
               variant="outline"
               onClick={handleSaveAndClose}
               disabled={!canSave}
-              className="text-[#1976d2] border-[#1976d2] hover:bg-[#1976d2]/5 hover:text-[#1976d2]"
+              className="text-[15px] font-medium text-[#1976d2] border-[#1976d2] hover:bg-[#1976d2]/5 hover:text-[#1976d2] disabled:opacity-50"
             >
               Save & Close
             </Button>
             <Button
+              type="button"
               onClick={handlePack}
               disabled={!canPack}
-              className={canPack ? 'bg-[#1976d2] hover:bg-[#1565c0]' : ''}
+              className="min-w-[140px] bg-[#1976d2] text-[15px] font-medium text-white hover:bg-[#1565c0] disabled:bg-[#1976d2] disabled:text-white disabled:opacity-50"
             >
               Pack
             </Button>
