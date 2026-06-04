@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import CampaignOutlined from '@mui/icons-material/CampaignOutlined';
+import ConnectingAirports from '@mui/icons-material/ConnectingAirports';
 import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
-import MergeType from '@mui/icons-material/MergeType';
+import RouteOutlined from '@mui/icons-material/RouteOutlined';
 import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS, SHOW_SHIPPING_PRODUCT_CATALOG } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
-import routeIconPaths from '../imports/svg-yb48l66bfs';
 import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from './ui/utils';
@@ -210,13 +210,13 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                           {/* Fixed-width icon container */}
                           <div className="box-border content-stretch flex flex-col items-center justify-center overflow-clip p-[8px] relative rounded-[100px] shrink-0 w-[40px]">
                             <div className="content-stretch flex items-center justify-center relative shrink-0">
-                              <div className="relative shrink-0 size-[24px]">
-                                <svg className="block size-full" fill="none" preserveAspectRatio="none" viewBox="0 0 24 24">
-                                  <g>
-                                    <path d={routeIconPaths.pbb04100} fill={activeSection === 'routes' ? '#1976D2' : 'rgba(0,0,0,0.56)'} />
-                                  </g>
-                                </svg>
-                              </div>
+                              <RouteOutlined
+                                sx={{
+                                  fontSize: 24,
+                                  color: activeSection === 'routes' ? '#1976D2' : 'rgba(0,0,0,0.56)',
+                                }}
+                                aria-hidden
+                              />
                             </div>
                             {activeSection === 'routes' && (
                               <div className="absolute bg-[rgba(25,118,210,0.3)] left-1/2 rounded-[100px] size-[36px] top-1/2 translate-x-[-50%] translate-y-[-50%]" />
@@ -257,7 +257,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                         <div className="relative box-border flex w-full items-center px-[16px] py-[8px] pl-[10px] pr-[16px] pt-[8px] pb-[8px]">
                           <div className="relative box-border flex w-[40px] shrink-0 flex-col items-center justify-center overflow-clip rounded-[100px] p-[8px]">
                             <div className="relative flex shrink-0 items-center justify-center">
-                              <MergeType
+                              <ConnectingAirports
                                 sx={{
                                   fontSize: 24,
                                   color:
