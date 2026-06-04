@@ -15,6 +15,8 @@ import ShipmentAlertsApp from './components/ShipmentAlertsApp';
 import ShippingProductCatalogApp from './components/ShippingProductCatalogApp';
 import PackingInstructionsApp from './components/PackingInstructionsApp';
 import UpgradeDowngradeRulesApp from './components/UpgradeDowngradeRulesApp';
+import CarrierServiceTypesApp from './components/CarrierServiceTypesApp';
+import type { CarrierServiceType } from './components/carrierServiceTypes';
 
 type ActiveView =
   | 'shipments'
@@ -25,6 +27,7 @@ type ActiveView =
   | 'shippingProductCatalog'
   | 'packingInstructions'
   | 'upgradeDowngradeRules'
+  | 'carrierServiceTypes'
   | 'globalCarrier';
 
 export default function App() {
@@ -385,6 +388,80 @@ export default function App() {
       },
     ],
   );
+
+  // Carrier Service Types data
+  const [carrierServiceTypes, setCarrierServiceTypes] = useState<CarrierServiceType[]>([
+    {
+      carrier_service_type_id: 1,
+      carrier_company_number: 1,
+      car_company_name: 'USPS',
+      blocked_downgrade: false,
+      service_level_method: 'basic',
+      shipping_label_method: 'api',
+      slug: 'usps-prio',
+      shipped_report_method: 'api',
+    },
+    {
+      carrier_service_type_id: 2,
+      carrier_company_number: 3,
+      car_company_name: 'FedEx',
+      blocked_downgrade: true,
+      service_level_method: 'express',
+      shipping_label_method: 'label_template',
+      slug: 'fedex-exp',
+      shipped_report_method: 'api',
+    },
+    {
+      carrier_service_type_id: 3,
+      carrier_company_number: 4,
+      car_company_name: 'DHL',
+      blocked_downgrade: false,
+      service_level_method: 'expedited',
+      shipping_label_method: 'pool',
+      slug: 'dhl-eu',
+      shipped_report_method: 'pick_up_schedule',
+    },
+    {
+      carrier_service_type_id: 4,
+      carrier_company_number: 2,
+      car_company_name: 'UPS',
+      blocked_downgrade: true,
+      service_level_method: 'express',
+      shipping_label_method: 'api',
+      slug: 'ups-next',
+      shipped_report_method: 'api_merukazim',
+    },
+    {
+      carrier_service_type_id: 5,
+      carrier_company_number: 12,
+      car_company_name: 'Landmark',
+      blocked_downgrade: false,
+      service_level_method: 'basic',
+      shipping_label_method: 'order_id',
+      slug: 'landmark',
+      shipped_report_method: null,
+    },
+    {
+      carrier_service_type_id: 6,
+      carrier_company_number: 6,
+      car_company_name: 'Canada Post',
+      blocked_downgrade: false,
+      service_level_method: null,
+      shipping_label_method: null,
+      slug: 'cp-std',
+      shipped_report_method: null,
+    },
+  ]);
+
+  const handleSaveCarrierServiceType = (next: CarrierServiceType) => {
+    setCarrierServiceTypes((prev) => {
+      if (next.carrier_service_type_id && prev.some((r) => r.carrier_service_type_id === next.carrier_service_type_id)) {
+        return prev.map((r) => (r.carrier_service_type_id === next.carrier_service_type_id ? next : r));
+      }
+      const nextId = prev.reduce((max, r) => Math.max(max, r.carrier_service_type_id), 0) + 1;
+      return [...prev, { ...next, carrier_service_type_id: nextId }];
+    });
+  };
 
   // Shipments data
   const [shipments, setShipments] = useState<Shipment[]>([
@@ -942,6 +1019,12 @@ export default function App() {
             {resolvedView === 'shippingProductCatalog' && <ShippingProductCatalogApp />}
             {resolvedView === 'packingInstructions' && <PackingInstructionsApp />}
             {resolvedView === 'upgradeDowngradeRules' && <UpgradeDowngradeRulesApp />}
+            {resolvedView === 'carrierServiceTypes' && (
+              <CarrierServiceTypesApp
+                records={carrierServiceTypes}
+                onSave={handleSaveCarrierServiceType}
+              />
+            )}
             {resolvedView === 'globalCarrier' && (
               <GlobalCarrierConfiguration />
             )}

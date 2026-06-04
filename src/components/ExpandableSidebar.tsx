@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import CampaignOutlined from '@mui/icons-material/CampaignOutlined';
 import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
+import MergeType from '@mui/icons-material/MergeType';
 import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS, SHOW_SHIPPING_PRODUCT_CATALOG } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
@@ -18,6 +19,7 @@ export type ExpandableNavSection =
   | 'shippingProductCatalog'
   | 'packingInstructions'
   | 'upgradeDowngradeRules'
+  | 'carrierServiceTypes'
   | 'globalCarrier';
 
 interface ExpandableSidebarProps {
@@ -234,6 +236,57 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 {!isExpanded && (
                   <TooltipContent side="bottom">
                     <p>Shipping Routes</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+
+            {/* Carrier Service Types */}
+            <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
+              <Tooltip key={`carrierServiceTypes-${isExpanded}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="content-stretch flex flex-col items-start overflow-clip relative shrink-0 w-full cursor-pointer rounded-[4px] hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSectionChange?.('carrierServiceTypes');
+                    }}
+                  >
+                    <div className="relative shrink-0 w-full">
+                      <div className="flex size-full flex-row items-center overflow-clip rounded-[inherit]">
+                        <div className="relative box-border flex w-full items-center px-[16px] py-[8px] pl-[10px] pr-[16px] pt-[8px] pb-[8px]">
+                          <div className="relative box-border flex w-[40px] shrink-0 flex-col items-center justify-center overflow-clip rounded-[100px] p-[8px]">
+                            <div className="relative flex shrink-0 items-center justify-center">
+                              <MergeType
+                                sx={{
+                                  fontSize: 24,
+                                  color:
+                                    activeSection === 'carrierServiceTypes'
+                                      ? '#1976D2'
+                                      : 'rgba(0,0,0,0.56)',
+                                }}
+                                aria-hidden
+                              />
+                            </div>
+                            {activeSection === 'carrierServiceTypes' && (
+                              <div className="absolute left-1/2 top-1/2 size-[36px] translate-x-[-50%] translate-y-[-50%] rounded-[100px] bg-[rgba(25,118,210,0.3)]" />
+                            )}
+                          </div>
+                          <div
+                            className={`relative box-border flex flex-col items-start overflow-hidden px-0 py-[4px] transition-all duration-300 ${isExpanded ? 'ml-[8px] w-auto opacity-100' : 'w-0 opacity-0'}`}
+                          >
+                            <p className="relative shrink-0 whitespace-nowrap font-['Roboto',sans-serif] text-[14px] leading-[1.5] tracking-[0.15px] text-[rgba(0,0,0,0.87)]">
+                              Carrier Service Types
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                {!isExpanded && (
+                  <TooltipContent side="bottom">
+                    <p>Carrier Service Types</p>
                   </TooltipContent>
                 )}
               </Tooltip>
