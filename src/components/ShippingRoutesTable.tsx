@@ -31,6 +31,7 @@ const DEFAULT_SHIPPING_ROUTE_COLUMNS = [
   { id: 'shippingCost', label: 'Shipping Cost', visible: true },
   { id: 'packingFacility', label: 'Packing Facility', visible: true },
   { id: 'shippingWorkingDays', label: 'Shipping Working Days', visible: false },
+  { id: 'externalId', label: 'External ID', visible: false },
   { id: 'status', label: 'Status', visible: true },
 ] as const;
 
@@ -39,6 +40,8 @@ export type ServiceLevel = 'Basic' | 'Expedited' | 'Express';
 export interface ShippingRoute {
   /** Auto-assigned shipping route ID. */
   id: string;
+  /** Auto-assigned external ID. */
+  externalId: string;
   /** Mandatory. Defaults to Inactive when adding a new route. */
   status: 'Active' | 'Inactive';
   /** Restricted to the names in CARRIER_SERVICE_TYPE_TABLE. */
@@ -80,17 +83,36 @@ export const CARRIER_SERVICE_TYPE_TABLE: { name: string; serviceLevel: ServiceLe
 ];
 
 export const SHIPPING_ROUTE_PACKING_FACILITIES = [
-  'Berlin',
-  'Cairo',
-  'Hungary',
   'Kiryat Gat',
-  'Moscow',
-  'Mumbai',
-  'Nazareth',
-  'São Paulo',
-  'Seoul',
+  'Nazereth',
+  'TLV VPN',
+  'Hungary',
+  'Salamander',
   'Thailand',
-  'Tokyo',
+  'Virtual',
+  'Jondo US',
+  'Jondo EU',
+  'Jondo CA',
+  'Jondo UK',
+  'Jondo AU',
+  'Jondo IE',
+  'Prodigi US',
+  'Prodigi EU UK',
+  'Prodigi AU',
+  'Prodigi CA',
+  'RPI',
+  'Bay Photo',
+  'Pop Up Lighting',
+  'Mineola Luggage',
+  'Gooten',
+  'Intagly',
+  'Pic The Gift',
+  'Luggage UK',
+  'HDF',
+  'ShineOn',
+  'I Home Industrial',
+  'Jondo SG',
+  'Scan Cafe',
 ];
 
 export const SHIPPING_ROUTE_COUNTRY_CODES = [
@@ -115,6 +137,8 @@ export const SHIPPING_ROUTE_COUNTRY_CODES = [
   'TH',
   'US',
 ];
+
+export const SHIPPING_ROUTE_FROM_COUNTRY_CODES = ['US', 'IL', 'HU', 'TH', 'UK'];
 
 export const SHIPPING_ROUTE_WORKING_DAY_LABELS: Record<number, string> = {
   1: 'Mon',
@@ -492,6 +516,9 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                               switch(column.id) {
                                 case 'id':
                                   cellContent = route.id;
+                                  break;
+                                case 'externalId':
+                                  cellContent = route.externalId;
                                   break;
                                 case 'packingFacility':
                                   cellContent = route.packingFacility;

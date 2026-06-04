@@ -18,6 +18,7 @@ import { cn } from './ui/utils';
 import {
   CARRIER_SERVICE_TYPE_TABLE,
   SHIPPING_ROUTE_COUNTRY_CODES,
+  SHIPPING_ROUTE_FROM_COUNTRY_CODES,
   SHIPPING_ROUTE_PACKING_FACILITIES,
   SHIPPING_ROUTE_WORKING_DAY_LABELS,
   ServiceLevel,
@@ -81,31 +82,50 @@ function isDecimalUpTo(value: string, decimals: number): boolean {
   return re.test(value.trim());
 }
 
-function validateMaxShippingValue(v: string): string | null {
-  if (!v.trim()) return 'Required.';
-  if (!isDecimalUpTo(v, 2)) return 'Up to 2 decimals.';
+type FieldError = { required?: string; format?: string };
+
+function validateMaxShippingValue(v: string): FieldError {
+  if (!v.trim()) return { required: 'Required.' };
+  if (!isDecimalUpTo(v, 2)) return { format: 'Up to 2 decimals.' };
   const n = Number(v);
   if (Number.isNaN(n) || n < MAX_SHIPPING_VALUE_MIN || n > MAX_SHIPPING_VALUE_MAX)
-    return `Must be between ${MAX_SHIPPING_VALUE_MIN} and ${MAX_SHIPPING_VALUE_MAX}.`;
-  return null;
+    return { format: `Must be between ${MAX_SHIPPING_VALUE_MIN} and ${MAX_SHIPPING_VALUE_MAX}.` };
+  return {};
 }
 
-function validateShippingCost(v: string): string | null {
-  if (!v.trim()) return 'Required.';
-  if (!isDecimalUpTo(v, 2)) return 'Up to 2 decimals.';
+function validateShippingCost(v: string): FieldError {
+  if (!v.trim()) return { required: 'Required.' };
+  if (!isDecimalUpTo(v, 2)) return { format: 'Up to 2 decimals.' };
   const n = Number(v);
   if (Number.isNaN(n) || n < SHIPPING_COST_MIN || n > SHIPPING_COST_MAX)
-    return `Must be between ${SHIPPING_COST_MIN} and ${SHIPPING_COST_MAX}.`;
+    return { format: `Must be between ${SHIPPING_COST_MIN} and ${SHIPPING_COST_MAX}.` };
+  return {};
+}
+
+function validateTimeFrame(v: string): FieldError {
+  if (!v.trim()) return { required: 'Required.' };
+  if (!isInteger(v)) return { format: 'Whole number only.' };
+  const n = Number(v);
+  if (n < TIME_FRAME_MIN || n > TIME_FRAME_MAX)
+    return { format: `Must be between ${TIME_FRAME_MIN} and ${TIME_FRAME_MAX}.` };
+  return {};
+}
+
+function hasError(e: FieldError | null | undefined): boolean {
+  return !!e && (!!e.required || !!e.format);
+}
+
+function liveError(e: FieldError | null | undefined, showRequired: boolean): string | null {
+  if (!e) return null;
+  if (e.format) return e.format;
+  if (showRequired && e.required) return e.required;
   return null;
 }
 
-function validateTimeFrame(v: string, label: string): string | null {
-  if (!v.trim()) return 'Required.';
-  if (!isInteger(v)) return 'Whole number only.';
+function formatCurrency(v: string): string {
   const n = Number(v);
-  if (n < TIME_FRAME_MIN || n > TIME_FRAME_MAX)
-    return `${label} must be between ${TIME_FRAME_MIN} and ${TIME_FRAME_MAX}.`;
-  return null;
+  if (!v.trim() || Number.isNaN(n)) return v;
+  return n.toFixed(2);
 }
 
 function MultiSelectField({
@@ -126,9 +146,9 @@ function MultiSelectField({
     if (value.includes(opt)) onChange(value.filter((v) => v !== opt));
     else onChange([...value, opt]);
   };
+  const remove = (opt: number) => onChange(value.filter((v) => v !== opt));
 
   const sorted = [...value].sort((a, b) => a - b);
-  const display = sorted.map((d) => renderOption(d)).join(', ');
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -136,13 +156,50 @@ function MultiSelectField({
         <button
           type="button"
           className={cn(
-            'flex h-9 w-full items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none',
+            'flex min-h-9 w-full items-center gap-1.5 rounded-md border border-gray-300 bg-white px-2 py-1 text-left text-sm shadow-xs transition-[color,box-shadow] outline-none',
             'hover:border-black focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
           )}
         >
-          <span className={cn('min-w-0 flex-1 truncate', value.length === 0 && 'text-gray-500')}>
-            {value.length === 0 ? placeholder || 'Select' : display}
-          </span>
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+            {value.length === 0 ? (
+              <span className="px-1 text-gray-500">{placeholder || 'Select'}</span>
+            ) : (
+              sorted.map((v) => (
+                <span
+                  key={v}
+                  className="inline-flex max-w-full items-center gap-1 rounded-full border border-gray-200 bg-gray-100 px-2 py-0.5 text-xs text-gray-800"
+                >
+                  <span className="min-w-0 truncate">{renderOption(v)}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 rounded-full p-0.5 text-gray-500 hover:bg-gray-200 hover:text-gray-800"
+                    aria-label={`Remove ${renderOption(v)}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      remove(v);
+                    }}
+                  >
+                    <X className="size-3" />
+                  </button>
+                </span>
+              ))
+            )}
+          </div>
+          {value.length > 0 ? (
+            <button
+              type="button"
+              className="mr-1 shrink-0 rounded-full p-0.5 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+              aria-label="Clear all"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChange([]);
+              }}
+            >
+              <X className="size-4" />
+            </button>
+          ) : null}
           <ChevronDown className="size-4 shrink-0 text-gray-500" aria-hidden />
         </button>
       </PopoverTrigger>
@@ -202,9 +259,9 @@ export default function CreateShippingRouteDialog({
   const [formData, setFormData] = useState<RouteFormData>(() => buildInitialForm(route));
   const [originalData, setOriginalData] = useState<RouteFormData>(() => buildInitialForm(route));
   const [showErrors, setShowErrors] = useState(false);
-  // Draft shipping route ID surfaced to the user when creating a new route.
-  // Server typically owns final assignment; this is just a placeholder.
-  const [draftId, setDraftId] = useState('');
+  // Draft auto-assigned IDs surfaced to the user when creating a new route.
+  // Server typically owns final assignment; these are just placeholders.
+  const [draftIds, setDraftIds] = useState<{ id: string; externalId: string }>({ id: '', externalId: '' });
 
   useEffect(() => {
     if (!open) return;
@@ -213,11 +270,13 @@ export default function CreateShippingRouteDialog({
     setOriginalData(next);
     setShowErrors(false);
     if (!route) {
-      setDraftId(`SR-${Date.now().toString().slice(-6)}`);
+      const suffix = Date.now().toString().slice(-6);
+      setDraftIds({ id: `SR-${suffix}`, externalId: `EXT-${suffix}` });
     }
   }, [open, route]);
 
-  const displayId = isEditMode ? (route?.id ?? '') : draftId;
+  const displayId = isEditMode ? (route?.id ?? '') : draftIds.id;
+  const displayExternalId = isEditMode ? (route?.externalId ?? '') : draftIds.externalId;
 
   const title = isEditMode ? `Update ${route?.id ?? 'Route'}` : 'Create Shipping Route';
 
@@ -232,20 +291,20 @@ export default function CreateShippingRouteDialog({
 
   const errors = useMemo(() => {
     return {
-      carrierServiceType: formData.carrierServiceType ? null : 'Required.',
-      fromCountryCode: formData.fromCountryCode ? null : 'Required.',
-      toCountryCode: formData.toCountryCode ? null : 'Required.',
-      packingFacility: formData.packingFacility ? null : 'Required.',
+      carrierServiceType: formData.carrierServiceType ? {} : { required: 'Required.' },
+      fromCountryCode: formData.fromCountryCode ? {} : { required: 'Required.' },
+      toCountryCode: formData.toCountryCode ? {} : { required: 'Required.' },
+      packingFacility: formData.packingFacility ? {} : { required: 'Required.' },
       maxShippingValue: validateMaxShippingValue(formData.maxShippingValue),
       shippingCost: validateShippingCost(formData.shippingCost),
-      packingTimeFrame: validateTimeFrame(formData.packingTimeFrame, 'Packing time frame'),
-      shippingTimeFrame: validateTimeFrame(formData.shippingTimeFrame, 'Shipping time frame'),
+      packingTimeFrame: validateTimeFrame(formData.packingTimeFrame),
+      shippingTimeFrame: validateTimeFrame(formData.shippingTimeFrame),
       shippingWorkingDays:
-        formData.shippingWorkingDays.length > 0 ? null : 'Select at least one day.',
-    };
+        formData.shippingWorkingDays.length > 0 ? {} : { required: 'Select at least one day.' },
+    } as Record<string, FieldError>;
   }, [formData]);
 
-  const isValid = Object.values(errors).every((e) => !e);
+  const isValid = !Object.values(errors).some(hasError);
 
   const isDirty = useMemo(() => {
     return JSON.stringify(formData) !== JSON.stringify(originalData);
@@ -313,46 +372,48 @@ export default function CreateShippingRouteDialog({
                   </Select>
                 </Field>
 
-                <Field
-                  label="Carrier Service Type Name"
-                  required
-                  error={showErrors ? errors.carrierServiceType : null}
-                >
-                  <Select
-                    value={formData.carrierServiceType || undefined}
-                    onValueChange={(v) => setFormData({ ...formData, carrierServiceType: v })}
+                <div className="grid grid-cols-2 gap-4">
+                  <Field
+                    label="Carrier Service Type Name"
+                    required
+                    error={liveError(errors.carrierServiceType, showErrors)}
                   >
-                    <SelectTrigger className="border-gray-300 bg-white">
-                      <SelectValue placeholder="Select carrier service type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CARRIER_SERVICE_TYPE_TABLE.map((opt) => (
-                        <SelectItem key={opt.name} value={opt.name}>
-                          {opt.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                    <Select
+                      value={formData.carrierServiceType || undefined}
+                      onValueChange={(v) => setFormData({ ...formData, carrierServiceType: v })}
+                    >
+                      <SelectTrigger className="border-gray-300 bg-white">
+                        <SelectValue placeholder="Select carrier service type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CARRIER_SERVICE_TYPE_TABLE.map((opt) => (
+                          <SelectItem key={opt.name} value={opt.name}>
+                            {opt.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
 
-                <Field label="Service Level">
-                  <Select
-                    value={formData.serviceLevel || undefined}
-                    onValueChange={(v) => setFormData({ ...formData, serviceLevel: v as ServiceLevel })}
-                    disabled
-                  >
-                    <SelectTrigger className="border-gray-300 bg-gray-100 text-gray-700">
-                      <SelectValue placeholder="Assigned from carrier service type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SERVICE_LEVELS.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                  <Field label="Service Level">
+                    <Select
+                      value={formData.serviceLevel || undefined}
+                      onValueChange={(v) => setFormData({ ...formData, serviceLevel: v as ServiceLevel })}
+                      disabled
+                    >
+                      <SelectTrigger className="border-gray-300 bg-gray-100 text-gray-700">
+                        <SelectValue placeholder="Auto" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SERVICE_LEVELS.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                </div>
 
                 <div className="flex items-center justify-between">
                   <Label className="text-xs text-gray-600">
@@ -368,7 +429,7 @@ export default function CreateShippingRouteDialog({
                   <Field
                     label="From Country Code"
                     required
-                    error={showErrors ? errors.fromCountryCode : null}
+                    error={liveError(errors.fromCountryCode, showErrors)}
                   >
                     <Select
                       value={formData.fromCountryCode || undefined}
@@ -377,8 +438,8 @@ export default function CreateShippingRouteDialog({
                       <SelectTrigger className="border-gray-300 bg-white">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {SHIPPING_ROUTE_COUNTRY_CODES.map((opt) => (
+                      <SelectContent className="max-h-[200px]">
+                        {SHIPPING_ROUTE_FROM_COUNTRY_CODES.map((opt) => (
                           <SelectItem key={opt} value={opt}>
                             {opt}
                           </SelectItem>
@@ -389,7 +450,7 @@ export default function CreateShippingRouteDialog({
                   <Field
                     label="To Country Code"
                     required
-                    error={showErrors ? errors.toCountryCode : null}
+                    error={liveError(errors.toCountryCode, showErrors)}
                   >
                     <Select
                       value={formData.toCountryCode || undefined}
@@ -398,7 +459,7 @@ export default function CreateShippingRouteDialog({
                       <SelectTrigger className="border-gray-300 bg-white">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-[200px]">
                         {SHIPPING_ROUTE_COUNTRY_CODES.map((opt) => (
                           <SelectItem key={opt} value={opt}>
                             {opt}
@@ -412,7 +473,7 @@ export default function CreateShippingRouteDialog({
                 <Field
                   label="Packing Facility"
                   required
-                  error={showErrors ? errors.packingFacility : null}
+                  error={liveError(errors.packingFacility, showErrors)}
                 >
                   <Select
                     value={formData.packingFacility || undefined}
@@ -441,7 +502,7 @@ export default function CreateShippingRouteDialog({
                   <Field
                     label="Packing Time Frame (days)"
                     required
-                    error={showErrors ? errors.packingTimeFrame : null}
+                    error={liveError(errors.packingTimeFrame, showErrors)}
                   >
                     <Input
                       className="border-gray-300 bg-white"
@@ -457,7 +518,7 @@ export default function CreateShippingRouteDialog({
                   <Field
                     label="Shipping Time Frame (days)"
                     required
-                    error={showErrors ? errors.shippingTimeFrame : null}
+                    error={liveError(errors.shippingTimeFrame, showErrors)}
                   >
                     <Input
                       className="border-gray-300 bg-white"
@@ -476,7 +537,7 @@ export default function CreateShippingRouteDialog({
                   <Field
                     label="Max Shipping Value"
                     required
-                    error={showErrors ? errors.maxShippingValue : null}
+                    error={liveError(errors.maxShippingValue, showErrors)}
                   >
                     <Input
                       className="border-gray-300 bg-white"
@@ -487,6 +548,7 @@ export default function CreateShippingRouteDialog({
                       placeholder="0.00"
                       value={formData.maxShippingValue}
                       onChange={(e) => setFormData({ ...formData, maxShippingValue: e.target.value })}
+                      onBlur={() => setFormData((prev) => ({ ...prev, maxShippingValue: formatCurrency(prev.maxShippingValue) }))}
                     />
                   </Field>
                   <Field label="Currency Code">
@@ -497,7 +559,7 @@ export default function CreateShippingRouteDialog({
                 <Field
                   label="Shipping Cost"
                   required
-                  error={showErrors ? errors.shippingCost : null}
+                  error={liveError(errors.shippingCost, showErrors)}
                 >
                   <div className="relative">
                     <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500">$</span>
@@ -510,6 +572,7 @@ export default function CreateShippingRouteDialog({
                       placeholder="0.00"
                       value={formData.shippingCost}
                       onChange={(e) => setFormData({ ...formData, shippingCost: e.target.value })}
+                      onBlur={() => setFormData((prev) => ({ ...prev, shippingCost: formatCurrency(prev.shippingCost) }))}
                     />
                   </div>
                 </Field>
@@ -517,15 +580,19 @@ export default function CreateShippingRouteDialog({
                 <Field
                   label="Shipping Working Days"
                   required
-                  error={showErrors ? errors.shippingWorkingDays : null}
+                  error={liveError(errors.shippingWorkingDays, showErrors)}
                 >
                   <MultiSelectField
                     value={formData.shippingWorkingDays}
                     onChange={(v) => setFormData({ ...formData, shippingWorkingDays: v })}
                     options={[1, 2, 3, 4, 5, 6, 7]}
                     placeholder="Select days"
-                    renderOption={(d) => `${d} (${SHIPPING_ROUTE_WORKING_DAY_LABELS[d]})`}
+                    renderOption={(d) => (d === 1 ? '1 day' : `${d} days`)}
                   />
+                </Field>
+
+                <Field label="External ID">
+                  <Input value={displayExternalId} readOnly className="border-gray-300 bg-gray-100 text-gray-700" />
                 </Field>
               </div>
             </div>

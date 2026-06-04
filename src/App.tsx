@@ -45,6 +45,7 @@ export default function App() {
     [
       {
         id: 'SR-0001',
+        externalId: 'EXT-1001',
         status: 'Active',
         carrierServiceType: 'DHL',
         serviceLevel: 'Express',
@@ -61,6 +62,7 @@ export default function App() {
       },
       {
         id: 'SR-0002',
+        externalId: 'EXT-1002',
         status: 'Active',
         carrierServiceType: 'FedEx',
         serviceLevel: 'Express',
@@ -77,6 +79,7 @@ export default function App() {
       },
       {
         id: 'SR-0003',
+        externalId: 'EXT-1003',
         status: 'Active',
         carrierServiceType: 'Korea Post',
         serviceLevel: 'Basic',
@@ -93,6 +96,7 @@ export default function App() {
       },
       {
         id: 'SR-0004',
+        externalId: 'EXT-1004',
         status: 'Active',
         carrierServiceType: 'DHL',
         serviceLevel: 'Express',
@@ -104,11 +108,12 @@ export default function App() {
         packingTimeFrame: '3',
         shippingTimeFrame: '6',
         shippingCost: '17.60',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 2, 3, 4, 5],
       },
       {
         id: 'SR-0005',
+        externalId: 'EXT-1005',
         status: 'Active',
         carrierServiceType: 'Global Post TH',
         serviceLevel: 'Expedited',
@@ -125,6 +130,7 @@ export default function App() {
       },
       {
         id: 'SR-0006',
+        externalId: 'EXT-1006',
         status: 'Active',
         carrierServiceType: 'GlobalPost',
         serviceLevel: 'Basic',
@@ -141,6 +147,7 @@ export default function App() {
       },
       {
         id: 'SR-0007',
+        externalId: 'EXT-1007',
         status: 'Active',
         carrierServiceType: 'DHL',
         serviceLevel: 'Express',
@@ -152,11 +159,12 @@ export default function App() {
         packingTimeFrame: '3',
         shippingTimeFrame: '10',
         shippingCost: '15.00',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 3, 5],
       },
       {
         id: 'SR-0008',
+        externalId: 'EXT-1008',
         status: 'Active',
         carrierServiceType: 'UPS',
         serviceLevel: 'Express',
@@ -173,6 +181,7 @@ export default function App() {
       },
       {
         id: 'SR-0009',
+        externalId: 'EXT-1009',
         status: 'Active',
         carrierServiceType: 'FedEx',
         serviceLevel: 'Express',
@@ -189,6 +198,7 @@ export default function App() {
       },
       {
         id: 'SR-0010',
+        externalId: 'EXT-1010',
         status: 'Inactive',
         carrierServiceType: 'USPS',
         serviceLevel: 'Basic',
@@ -200,11 +210,12 @@ export default function App() {
         packingTimeFrame: '3',
         shippingTimeFrame: '6',
         shippingCost: '22.00',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 2, 3],
       },
       {
         id: 'SR-0011',
+        externalId: 'EXT-1011',
         status: 'Active',
         carrierServiceType: 'DHL',
         serviceLevel: 'Express',
@@ -221,6 +232,7 @@ export default function App() {
       },
       {
         id: 'SR-0012',
+        externalId: 'EXT-1012',
         status: 'Active',
         carrierServiceType: 'FedEx',
         serviceLevel: 'Express',
@@ -237,6 +249,7 @@ export default function App() {
       },
       {
         id: 'SR-0013',
+        externalId: 'EXT-1013',
         status: 'Active',
         carrierServiceType: 'DHL TH',
         serviceLevel: 'Express',
@@ -253,6 +266,7 @@ export default function App() {
       },
       {
         id: 'SR-0014',
+        externalId: 'EXT-1014',
         status: 'Active',
         carrierServiceType: 'GlobalPost',
         serviceLevel: 'Basic',
@@ -264,11 +278,12 @@ export default function App() {
         packingTimeFrame: '4',
         shippingTimeFrame: '10',
         shippingCost: '13.50',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 2, 3, 4, 5],
       },
       {
         id: 'SR-0015',
+        externalId: 'EXT-1015',
         status: 'Inactive',
         carrierServiceType: 'Korea Post',
         serviceLevel: 'Basic',
@@ -285,6 +300,7 @@ export default function App() {
       },
       {
         id: 'SR-0016',
+        externalId: 'EXT-1016',
         status: 'Active',
         carrierServiceType: 'UPS',
         serviceLevel: 'Express',
@@ -296,11 +312,12 @@ export default function App() {
         packingTimeFrame: '3',
         shippingTimeFrame: '3',
         shippingCost: '19.00',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 2, 3, 4, 5],
       },
       {
         id: 'SR-0017',
+        externalId: 'EXT-1017',
         status: 'Active',
         carrierServiceType: 'FedEx',
         serviceLevel: 'Express',
@@ -317,6 +334,7 @@ export default function App() {
       },
       {
         id: 'SR-0018',
+        externalId: 'EXT-1018',
         status: 'Active',
         carrierServiceType: 'DHL',
         serviceLevel: 'Express',
@@ -333,6 +351,7 @@ export default function App() {
       },
       {
         id: 'SR-0019',
+        externalId: 'EXT-1019',
         status: 'Active',
         carrierServiceType: 'USPS',
         serviceLevel: 'Basic',
@@ -349,6 +368,7 @@ export default function App() {
       },
       {
         id: 'SR-0020',
+        externalId: 'EXT-1020',
         status: 'Active',
         carrierServiceType: 'GlobalPost',
         serviceLevel: 'Basic',
@@ -360,7 +380,7 @@ export default function App() {
         packingTimeFrame: '1',
         shippingTimeFrame: '10',
         shippingCost: '20.00',
-        packingFacility: 'Nazareth',
+        packingFacility: 'Nazereth',
         shippingWorkingDays: [1, 2, 3, 4, 5],
       },
     ],
