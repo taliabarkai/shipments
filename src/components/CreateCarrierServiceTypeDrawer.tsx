@@ -258,7 +258,7 @@ export default function CreateCarrierServiceTypeDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <div className="flex flex-col gap-6">
             <div>
-              <p className={cn(sectionTitleClass, 'mb-3')}>Service Type Properties</p>
+              <p className={cn(sectionTitleClass, 'mb-3')}>Properties</p>
               <div className={cn(cardClass, 'flex flex-col gap-4')}>
                 <Field label="Carrier Service Type ID">
                   <Input

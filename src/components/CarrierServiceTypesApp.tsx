@@ -37,7 +37,7 @@ import {
   ShippedReportMethod,
   ShippingLabelMethod,
 } from './carrierServiceTypes';
-import { CARRIER_COMPANIES } from './carriers';
+import { CARRIER_COMPANIES, findCarrierByNumber, formatCarrierOption } from './carriers';
 
 interface CarrierServiceTypesAppProps {
   records: CarrierServiceType[];
@@ -51,9 +51,8 @@ interface ColumnDef {
 }
 
 const DEFAULT_COLUMNS: ColumnDef[] = [
-  { id: 'carrier_service_type_id', label: 'Carrier Service Type ID', visible: true },
-  { id: 'carrier_company_number', label: 'Carrier Company #', visible: true },
-  { id: 'car_company_name', label: 'Carrier Company Name', visible: true },
+  { id: 'carrier_service_type_id', label: 'ID', visible: true },
+  { id: 'carrier_company', label: 'Carrier Company', visible: true },
   { id: 'blocked_downgrade', label: 'Blocked Downgrade', visible: true },
   { id: 'service_level_method', label: 'Service Level Method', visible: true },
   { id: 'shipping_label_method', label: 'Shipping Label Method', visible: true },
@@ -64,8 +63,7 @@ const DEFAULT_COLUMNS: ColumnDef[] = [
 type SortDir = 'asc' | 'desc';
 
 interface Filters {
-  carrier_company_number: number[];
-  car_company_name: string[];
+  carrier_company: number[];
   blocked_downgrade: ('yes' | 'no')[];
   service_level_method: ServiceLevelMethod[];
   shipping_label_method: ShippingLabelMethod[];
@@ -102,8 +100,7 @@ function compareValues(a: unknown, b: unknown): number {
 }
 
 const FILTERABLE_COLUMNS = new Set([
-  'carrier_company_number',
-  'car_company_name',
+  'carrier_company',
   'blocked_downgrade',
   'service_level_method',
   'shipping_label_method',
@@ -121,8 +118,7 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
   const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
   const columnMenuOpen = Boolean(columnMenuAnchor);
   const [filters, setFilters] = useState<Filters>({
-    carrier_company_number: [],
-    car_company_name: [],
+    carrier_company: [],
     blocked_downgrade: [],
     service_level_method: [],
     shipping_label_method: [],
@@ -178,8 +174,7 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
 
   const clearAllFilters = () => {
     setFilters({
-      carrier_company_number: [],
-      car_company_name: [],
+      carrier_company: [],
       blocked_downgrade: [],
       service_level_method: [],
       shipping_label_method: [],
@@ -203,10 +198,7 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
           .toLowerCase();
         if (!hay.includes(debouncedQuery)) return false;
       }
-      if (filters.carrier_company_number.length > 0 && !filters.carrier_company_number.includes(r.carrier_company_number)) {
-        return false;
-      }
-      if (filters.car_company_name.length > 0 && !filters.car_company_name.includes(r.car_company_name)) {
+      if (filters.carrier_company.length > 0 && !filters.carrier_company.includes(r.carrier_company_number)) {
         return false;
       }
       if (filters.blocked_downgrade.length > 0) {
@@ -313,36 +305,20 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
     let onClear: () => void = () => {};
 
     switch (columnId) {
-      case 'carrier_company_number': {
-        options = CARRIER_COMPANIES.map((c) => ({ value: c.number, label: `${c.number} – ${c.name}` }));
-        selected = filters.carrier_company_number;
+      case 'carrier_company': {
+        options = CARRIER_COMPANIES.map((c) => ({ value: c.number, label: formatCarrierOption(c) }));
+        selected = filters.carrier_company;
         onToggle = (v) => {
           const num = v as number;
           setFilters((prev) => ({
             ...prev,
-            carrier_company_number: prev.carrier_company_number.includes(num)
-              ? prev.carrier_company_number.filter((x) => x !== num)
-              : [...prev.carrier_company_number, num],
+            carrier_company: prev.carrier_company.includes(num)
+              ? prev.carrier_company.filter((x) => x !== num)
+              : [...prev.carrier_company, num],
           }));
           setCurrentPage(1);
         };
-        onClear = () => setFilters((prev) => ({ ...prev, carrier_company_number: [] }));
-        break;
-      }
-      case 'car_company_name': {
-        options = CARRIER_COMPANIES.map((c) => ({ value: c.name, label: c.name }));
-        selected = filters.car_company_name;
-        onToggle = (v) => {
-          const name = v as string;
-          setFilters((prev) => ({
-            ...prev,
-            car_company_name: prev.car_company_name.includes(name)
-              ? prev.car_company_name.filter((x) => x !== name)
-              : [...prev.car_company_name, name],
-          }));
-          setCurrentPage(1);
-        };
-        onClear = () => setFilters((prev) => ({ ...prev, car_company_name: [] }));
+        onClear = () => setFilters((prev) => ({ ...prev, carrier_company: [] }));
         break;
       }
       case 'blocked_downgrade': {
@@ -459,10 +435,10 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
     switch (columnId) {
       case 'carrier_service_type_id':
         return r.carrier_service_type_id;
-      case 'carrier_company_number':
-        return r.carrier_company_number;
-      case 'car_company_name':
-        return r.car_company_name;
+      case 'carrier_company': {
+        const carrier = findCarrierByNumber(r.carrier_company_number);
+        return carrier ? formatCarrierOption(carrier) : `${r.carrier_company_number} – ${r.car_company_name}`;
+      }
       case 'blocked_downgrade':
         return (
           <Badge
@@ -512,7 +488,7 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
                 className="bg-[#1976d2] hover:bg-[#1565c0] text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                New Carrier Service Type
+                New Type
               </Button>
             </div>
           </div>
@@ -539,6 +515,7 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
                   <tr className="relative">
                     {visibleColumns.map((column) => {
                       const isFilterable = FILTERABLE_COLUMNS.has(column.id);
+                      const isSortable = !isFilterable;
                       const isSorted = sortBy === column.id;
                       return (
                         <th
@@ -546,23 +523,27 @@ export default function CarrierServiceTypesApp({ records, onSave }: CarrierServi
                           className="px-4 py-4 text-left text-sm font-medium text-gray-700"
                         >
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSort(column.id)}
-                              className="flex items-center gap-1 hover:text-gray-900"
-                              aria-label={`Sort by ${column.label}`}
-                            >
-                              {column.label}
-                              {isSorted ? (
-                                sortDir === 'asc' ? (
-                                  <ArrowUp className="w-5 h-5 text-[#1976d2]" />
+                            {isSortable ? (
+                              <button
+                                type="button"
+                                onClick={() => handleSort(column.id)}
+                                className="flex items-center gap-1 hover:text-gray-900"
+                                aria-label={`Sort by ${column.label}`}
+                              >
+                                {column.label}
+                                {isSorted ? (
+                                  sortDir === 'asc' ? (
+                                    <ArrowUp className="w-4 h-4 shrink-0 text-[#1976d2]" />
+                                  ) : (
+                                    <ArrowDown className="w-4 h-4 shrink-0 text-[#1976d2]" />
+                                  )
                                 ) : (
-                                  <ArrowDown className="w-5 h-5 text-[#1976d2]" />
-                                )
-                              ) : (
-                                <ArrowUpDown className="w-5 h-5 text-gray-400" />
-                              )}
-                            </button>
+                                  <ArrowUpDown className="w-4 h-4 shrink-0 text-gray-400" />
+                                )}
+                              </button>
+                            ) : (
+                              <span>{column.label}</span>
+                            )}
                             {isFilterable ? renderColumnFilter(column.id, column.label) : null}
                           </div>
                         </th>

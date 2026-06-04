@@ -407,12 +407,12 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                                   {column.label}
                                   {isSorted ? (
                                     sortDir === 'asc' ? (
-                                      <ArrowUp className="w-5 h-5 text-[#1976d2]" />
+                                      <ArrowUp className="w-4 h-4 shrink-0 text-[#1976d2]" />
                                     ) : (
-                                      <ArrowDown className="w-5 h-5 text-[#1976d2]" />
+                                      <ArrowDown className="w-4 h-4 shrink-0 text-[#1976d2]" />
                                     )
                                   ) : (
-                                    <ArrowUpDown className="w-5 h-5 text-gray-400" />
+                                    <ArrowUpDown className="w-4 h-4 shrink-0 text-gray-400" />
                                   )}
                                 </button>
                               ) : (
