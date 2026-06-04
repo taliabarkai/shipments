@@ -18,45 +18,118 @@ import CreateShippingRouteDialog from './CreateShippingRouteDialog';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 
 const DEFAULT_SHIPPING_ROUTE_COLUMNS = [
-  { id: 'id', label: 'ID', visible: true },
-  { id: 'packingFacility', label: 'Packing Facility', visible: true },
+  { id: 'id', label: 'Shipping Route ID', visible: true },
+  { id: 'carrierServiceType', label: 'Carrier Service Type Name', visible: true },
+  { id: 'serviceLevel', label: 'Service Level', visible: true },
+  { id: 'priority', label: 'Priority', visible: false },
   { id: 'fromCountryCode', label: 'From Country Code', visible: true },
-  { id: 'toCountryCodes', label: 'Destination country', visible: true },
-  { id: 'carrierServiceType', label: 'Carrier Service Type', visible: true },
+  { id: 'toCountryCode', label: 'To Country Code', visible: true },
+  { id: 'maxShippingValue', label: 'Max Shipping Value', visible: false },
+  { id: 'currencyCode', label: 'Currency Code', visible: false },
   { id: 'packingTimeFrame', label: 'Packing Time Frame', visible: false },
   { id: 'shippingTimeFrame', label: 'Shipping Time Frame', visible: true },
   { id: 'shippingCost', label: 'Shipping Cost', visible: true },
-  { id: 'maxShippingValue', label: 'Max Shipping Value', visible: false },
-  { id: 'currencyCode', label: 'Currency Code', visible: false },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'method', label: 'Method', visible: true },
+  { id: 'packingFacility', label: 'Packing Facility', visible: true },
   { id: 'shippingWorkingDays', label: 'Shipping Working Days', visible: false },
+  { id: 'status', label: 'Status', visible: true },
 ] as const;
 
+export type ServiceLevel = 'Basic' | 'Expedited' | 'Express';
+
 export interface ShippingRoute {
+  /** Auto-assigned shipping route ID. */
   id: string;
-  packingFacility: string;
-  fromCountryCode: string;
-  toCountryCodes: string;
-  carrierServiceType: string;
-  packingTimeFrame: string;
-  shippingTimeFrame: string;
-  shippingCost: string;
-  maxShippingValue: string;
-  currencyCode: string;
+  /** Mandatory. Defaults to Inactive when adding a new route. */
   status: 'Active' | 'Inactive';
-  method: string;
-  shippingWorkingDays: string;
-  // Additional fields for form
-  destinationCountries?: string[];
-  slug?: string;
-  // Pricing fields
-  fuelTax?: string;
-  vat?: string;
-  discount?: string;
-  agentCommissionType?: string;
-  carrierName?: string;
-  originalCarrierServiceType?: string;
+  /** Restricted to the names in CARRIER_SERVICE_TYPE_TABLE. */
+  carrierServiceType: string;
+  /** Auto-assigned from the selected carrier service type. */
+  serviceLevel: ServiceLevel;
+  /** Mandatory. Defaults to false. */
+  priority: boolean;
+  /** 2-char ISO country code. */
+  fromCountryCode: string;
+  /** 2-char ISO country code. */
+  toCountryCode: string;
+  /** Number 0–10000, up to 2 decimals. Stored as string for form-friendly editing. */
+  maxShippingValue: string;
+  /** Always 'USD' — cannot be edited. */
+  currencyCode: 'USD';
+  /** Whole number 0–30. */
+  packingTimeFrame: string;
+  /** Whole number 0–30. */
+  shippingTimeFrame: string;
+  /** Number 0–1000, up to 2 decimals. */
+  shippingCost: string;
+  /** Restricted to PACKING_FACILITIES. */
+  packingFacility: string;
+  /** Multi-select of days 1 (Mon) through 7 (Sun). At least one required. */
+  shippingWorkingDays: number[];
+}
+
+/** Carrier service type table: name → service level. */
+export const CARRIER_SERVICE_TYPE_TABLE: { name: string; serviceLevel: ServiceLevel }[] = [
+  { name: 'DHL', serviceLevel: 'Express' },
+  { name: 'DHL TH', serviceLevel: 'Express' },
+  { name: 'FedEx', serviceLevel: 'Express' },
+  { name: 'UPS', serviceLevel: 'Express' },
+  { name: 'USPS', serviceLevel: 'Basic' },
+  { name: 'Korea Post', serviceLevel: 'Basic' },
+  { name: 'GlobalPost', serviceLevel: 'Basic' },
+  { name: 'Global Post TH', serviceLevel: 'Expedited' },
+];
+
+export const SHIPPING_ROUTE_PACKING_FACILITIES = [
+  'Berlin',
+  'Cairo',
+  'Hungary',
+  'Kiryat Gat',
+  'Moscow',
+  'Mumbai',
+  'Nazareth',
+  'São Paulo',
+  'Seoul',
+  'Thailand',
+  'Tokyo',
+];
+
+export const SHIPPING_ROUTE_COUNTRY_CODES = [
+  'AU',
+  'BR',
+  'CA',
+  'CN',
+  'DE',
+  'EG',
+  'FR',
+  'GB',
+  'HK',
+  'IL',
+  'IN',
+  'IT',
+  'JP',
+  'KR',
+  'MX',
+  'NZ',
+  'RU',
+  'SG',
+  'TH',
+  'US',
+];
+
+export const SHIPPING_ROUTE_WORKING_DAY_LABELS: Record<number, string> = {
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat',
+  7: 'Sun',
+};
+
+export function formatShippingWorkingDays(days: number[]): string {
+  if (!days || days.length === 0) return '';
+  const sorted = [...days].sort((a, b) => a - b);
+  return sorted.map((d) => SHIPPING_ROUTE_WORKING_DAY_LABELS[d] ?? String(d)).join(', ');
 }
 
 interface ShippingRoutesTableProps {
@@ -77,10 +150,11 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
 
   const [filters, setFilters] = useState({
     packingFacility: [] as string[],
-    toCountryCodes: [] as string[],
+    toCountryCode: [] as string[],
+    fromCountryCode: [] as string[],
     carrierServiceType: [] as string[],
+    serviceLevel: [] as string[],
     status: [] as string[],
-    method: [] as string[],
   });
 
   const [columns, setColumns] = useState(() => DEFAULT_SHIPPING_ROUTE_COLUMNS.map((c) => ({ ...c })));
@@ -98,10 +172,11 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
   // Extract unique filter options from routes
   const filterOptions = {
     packingFacility: Array.from(new Set(routes.map(r => r.packingFacility))).sort(),
-    toCountryCodes: Array.from(new Set(routes.map(r => r.toCountryCodes))).sort(),
+    toCountryCode: Array.from(new Set(routes.map(r => r.toCountryCode))).sort(),
+    fromCountryCode: Array.from(new Set(routes.map(r => r.fromCountryCode))).sort(),
     carrierServiceType: Array.from(new Set(routes.map(r => r.carrierServiceType))).sort(),
+    serviceLevel: Array.from(new Set(routes.map(r => r.serviceLevel))).sort(),
     status: Array.from(new Set(routes.map(r => r.status))).sort(),
-    method: Array.from(new Set(routes.map(r => r.method))).sort(),
   };
 
   const toggleFilter = (filterType: keyof typeof filters, value: string) => {
@@ -130,16 +205,19 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
     if (filters.packingFacility.length > 0 && !filters.packingFacility.includes(route.packingFacility)) {
       return false;
     }
-    if (filters.toCountryCodes.length > 0 && !filters.toCountryCodes.includes(route.toCountryCodes)) {
+    if (filters.toCountryCode.length > 0 && !filters.toCountryCode.includes(route.toCountryCode)) {
+      return false;
+    }
+    if (filters.fromCountryCode.length > 0 && !filters.fromCountryCode.includes(route.fromCountryCode)) {
       return false;
     }
     if (filters.carrierServiceType.length > 0 && !filters.carrierServiceType.includes(route.carrierServiceType)) {
       return false;
     }
-    if (filters.status.length > 0 && !filters.status.includes(route.status)) {
+    if (filters.serviceLevel.length > 0 && !filters.serviceLevel.includes(route.serviceLevel)) {
       return false;
     }
-    if (filters.method.length > 0 && !filters.method.includes(route.method)) {
+    if (filters.status.length > 0 && !filters.status.includes(route.status)) {
       return false;
     }
     return true;
@@ -232,7 +310,7 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                     <thead className="bg-white sticky top-0 border-b z-10">
                     <tr className="relative">
                       {visibleColumns.map((column) => {
-                        const filterableColumns = ['packingFacility', 'toCountryCodes', 'carrierServiceType', 'status', 'method'];
+                        const filterableColumns = ['packingFacility', 'toCountryCode', 'fromCountryCode', 'carrierServiceType', 'serviceLevel', 'status'];
                         const isFilterable = filterableColumns.includes(column.id);
                         const filterKey = column.id as keyof typeof filters;
                         const hasFilter = isFilterable && filters[filterKey]?.length > 0;
@@ -421,17 +499,23 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                                 case 'fromCountryCode':
                                   cellContent = route.fromCountryCode;
                                   break;
-                                case 'toCountryCodes':
-                                  cellContent = route.toCountryCodes;
+                                case 'toCountryCode':
+                                  cellContent = route.toCountryCode;
                                   break;
                                 case 'carrierServiceType':
                                   cellContent = route.carrierServiceType;
                                   break;
+                                case 'serviceLevel':
+                                  cellContent = route.serviceLevel;
+                                  break;
+                                case 'priority':
+                                  cellContent = route.priority ? 'Yes' : 'No';
+                                  break;
                                 case 'packingTimeFrame':
-                                  cellContent = route.packingTimeFrame;
+                                  cellContent = route.packingTimeFrame ? `${route.packingTimeFrame} days` : '';
                                   break;
                                 case 'shippingTimeFrame':
-                                  cellContent = route.shippingTimeFrame;
+                                  cellContent = route.shippingTimeFrame ? `${route.shippingTimeFrame} days` : '';
                                   break;
                                 case 'shippingCost':
                                   cellContent = route.shippingCost;
@@ -456,11 +540,8 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                                       </Badge>
                                     </td>
                                   );
-                                case 'method':
-                                  cellContent = route.method;
-                                  break;
                                 case 'shippingWorkingDays':
-                                  cellContent = route.shippingWorkingDays;
+                                  cellContent = formatShippingWorkingDays(route.shippingWorkingDays);
                                   break;
                                 default:
                                   cellContent = '';

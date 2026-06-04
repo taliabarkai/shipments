@@ -2,7 +2,7 @@ import { useState } from 'react';
 import CampaignOutlined from '@mui/icons-material/CampaignOutlined';
 import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
 import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
-import { SHOW_SHIPMENT_COLLECTIONS } from '../featureFlags';
+import { SHOW_SHIPMENT_COLLECTIONS, SHOW_SHIPPING_PRODUCT_CATALOG } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import routeIconPaths from '../imports/svg-yb48l66bfs';
 import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
@@ -240,6 +240,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
             </div>
 
             {/* Shipping Product Catalog */}
+            {SHOW_SHIPPING_PRODUCT_CATALOG && (
             <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
               <Tooltip key={`shippingProductCatalog-${isExpanded}`}>
                 <TooltipTrigger asChild>
@@ -289,6 +290,7 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 )}
               </Tooltip>
             </div>
+            )}
 
             {/* Shipment Alerts (Campaign) */}
             <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
