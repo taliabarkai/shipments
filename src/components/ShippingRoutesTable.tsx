@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, Search, RefreshCw, X, MoreVertical } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Search, RefreshCw, X, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -18,19 +18,19 @@ import CreateShippingRouteDialog from './CreateShippingRouteDialog';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 
 const DEFAULT_SHIPPING_ROUTE_COLUMNS = [
-  { id: 'id', label: 'Shipping Route ID', visible: true },
-  { id: 'carrierServiceType', label: 'Carrier Service Type Name', visible: true },
+  { id: 'id', label: 'Route ID', visible: true },
+  { id: 'carrierServiceType', label: 'Carrier Service Type', visible: true },
   { id: 'serviceLevel', label: 'Service Level', visible: true },
   { id: 'priority', label: 'Priority', visible: false },
-  { id: 'fromCountryCode', label: 'From Country Code', visible: true },
-  { id: 'toCountryCode', label: 'To Country Code', visible: true },
-  { id: 'maxShippingValue', label: 'Max Shipping Value', visible: false },
+  { id: 'fromCountryCode', label: 'From', visible: true },
+  { id: 'toCountryCode', label: 'To', visible: true },
+  { id: 'maxShippingValue', label: 'Max Ship. Value', visible: false },
   { id: 'currencyCode', label: 'Currency Code', visible: false },
-  { id: 'packingTimeFrame', label: 'Packing Time Frame', visible: false },
-  { id: 'shippingTimeFrame', label: 'Shipping Time Frame', visible: true },
-  { id: 'shippingCost', label: 'Shipping Cost', visible: true },
+  { id: 'packingTimeFrame', label: 'Pack. Time Frame', visible: false },
+  { id: 'shippingTimeFrame', label: 'Ship. Time Frame', visible: true },
+  { id: 'shippingCost', label: 'Cost', visible: true },
   { id: 'packingFacility', label: 'Packing Facility', visible: true },
-  { id: 'shippingWorkingDays', label: 'Shipping Working Days', visible: false },
+  { id: 'shippingWorkingDays', label: 'Ship. Working Days', visible: false },
   { id: 'externalId', label: 'External ID', visible: false },
   { id: 'status', label: 'Status', visible: true },
 ] as const;
@@ -153,7 +153,36 @@ export const SHIPPING_ROUTE_WORKING_DAY_LABELS: Record<number, string> = {
 export function formatShippingWorkingDays(days: number[]): string {
   if (!days || days.length === 0) return '';
   const sorted = [...days].sort((a, b) => a - b);
-  return sorted.map((d) => SHIPPING_ROUTE_WORKING_DAY_LABELS[d] ?? String(d)).join(', ');
+  return sorted.map((d) => (d === 1 ? '1 day' : `${d} days`)).join(', ');
+}
+
+const NUMERIC_SORT_COLUMNS = new Set([
+  'maxShippingValue',
+  'packingTimeFrame',
+  'shippingTimeFrame',
+  'shippingCost',
+]);
+
+function compareRoutes(a: ShippingRoute, b: ShippingRoute, columnId: string): number {
+  if (columnId === 'priority') {
+    return Number(a.priority) - Number(b.priority);
+  }
+  if (columnId === 'shippingWorkingDays') {
+    const da = (a.shippingWorkingDays ?? []).slice().sort((x, y) => x - y);
+    const db = (b.shippingWorkingDays ?? []).slice().sort((x, y) => x - y);
+    if (da.length !== db.length) return da.length - db.length;
+    for (let i = 0; i < da.length; i++) {
+      if (da[i] !== db[i]) return da[i] - db[i];
+    }
+    return 0;
+  }
+  const aVal = (a as Record<string, unknown>)[columnId];
+  const bVal = (b as Record<string, unknown>)[columnId];
+  if (NUMERIC_SORT_COLUMNS.has(columnId)) {
+    return (Number(aVal) || 0) - (Number(bVal) || 0);
+  }
+  // For SR-#### / EXT-#### style IDs, numeric-aware compare keeps SR-0009 < SR-0010.
+  return String(aVal ?? '').localeCompare(String(bVal ?? ''), undefined, { numeric: true, sensitivity: 'base' });
 }
 
 interface ShippingRoutesTableProps {
@@ -180,6 +209,21 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
     serviceLevel: [] as string[],
     status: [] as string[],
   });
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+
+  const handleSort = (columnId: string) => {
+    if (sortBy !== columnId) {
+      setSortBy(columnId);
+      setSortDir('asc');
+    } else if (sortDir === 'asc') {
+      setSortDir('desc');
+    } else {
+      // Third click clears sort.
+      setSortBy(null);
+      setSortDir('asc');
+    }
+  };
 
   const [columns, setColumns] = useState(() => DEFAULT_SHIPPING_ROUTE_COLUMNS.map((c) => ({ ...c })));
 
@@ -247,8 +291,14 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
     return true;
   });
 
-  const totalPages = Math.ceil(filteredRoutes.length / rowsPerPage);
-  const paginatedRoutes = filteredRoutes.slice(
+  const sortedRoutes = useMemo(() => {
+    if (!sortBy) return filteredRoutes;
+    const dir = sortDir === 'asc' ? 1 : -1;
+    return [...filteredRoutes].sort((a, b) => dir * compareRoutes(a, b, sortBy));
+  }, [filteredRoutes, sortBy, sortDir]);
+
+  const totalPages = Math.ceil(sortedRoutes.length / rowsPerPage);
+  const paginatedRoutes = sortedRoutes.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
@@ -338,30 +388,52 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                         const isFilterable = filterableColumns.includes(column.id);
                         const filterKey = column.id as keyof typeof filters;
                         const hasFilter = isFilterable && filters[filterKey]?.length > 0;
-                        
+                        const isSortable = !isFilterable;
+                        const isSorted = sortBy === column.id;
+
                         return (
                           <th
                             key={column.id}
                             className="px-4 py-4 text-left text-sm font-medium text-gray-700"
                           >
                             <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1">
-                                {column.label}
-                                {hasFilter && (
-                                  <>
-                                    <span className="text-[#1976d2] ml-1">
-                                      ({filters[filterKey].length})
-                                    </span>
-                                    <X
-                                      className="w-3 h-3 text-gray-400 cursor-pointer hover:text-gray-600"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        clearColumnFilter(filterKey);
-                                      }}
-                                    />
-                                  </>
-                                )}
-                              </span>
+                              {isSortable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleSort(column.id)}
+                                  className="flex items-center gap-1 hover:text-gray-900"
+                                  aria-label={`Sort by ${column.label}`}
+                                >
+                                  {column.label}
+                                  {isSorted ? (
+                                    sortDir === 'asc' ? (
+                                      <ArrowUp className="w-5 h-5 text-[#1976d2]" />
+                                    ) : (
+                                      <ArrowDown className="w-5 h-5 text-[#1976d2]" />
+                                    )
+                                  ) : (
+                                    <ArrowUpDown className="w-5 h-5 text-gray-400" />
+                                  )}
+                                </button>
+                              ) : (
+                                <span className="flex items-center gap-1">
+                                  {column.label}
+                                  {hasFilter && (
+                                    <>
+                                      <span className="text-[#1976d2] ml-1">
+                                        ({filters[filterKey].length})
+                                      </span>
+                                      <X
+                                        className="w-4 h-4 text-gray-400 cursor-pointer hover:text-gray-600"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          clearColumnFilter(filterKey);
+                                        }}
+                                      />
+                                    </>
+                                  )}
+                                </span>
+                              )}
                               {isFilterable && (
                                 <Popover>
                                   <PopoverTrigger asChild>

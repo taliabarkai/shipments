@@ -58,7 +58,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '17.60',
         packingFacility: 'Hungary',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0002',
@@ -75,7 +75,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '17.60',
         packingFacility: 'Thailand',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0003',
@@ -92,7 +92,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '17.60',
         packingFacility: 'Kiryat Gat',
-        shippingWorkingDays: [1, 3, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0004',
@@ -109,7 +109,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '17.60',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0005',
@@ -126,7 +126,7 @@ export default function App() {
         shippingTimeFrame: '3',
         shippingCost: '20.50',
         packingFacility: 'Thailand',
-        shippingWorkingDays: [1, 2, 4],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0006',
@@ -143,7 +143,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '15.00',
         packingFacility: 'Hungary',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0007',
@@ -160,7 +160,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '15.00',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 3, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0008',
@@ -177,7 +177,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '18.00',
         packingFacility: 'Hungary',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0009',
@@ -194,7 +194,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '12.50',
         packingFacility: 'Kiryat Gat',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0010',
@@ -211,7 +211,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '22.00',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 2, 3],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0011',
@@ -228,7 +228,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '16.00',
         packingFacility: 'Hungary',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0012',
@@ -245,7 +245,7 @@ export default function App() {
         shippingTimeFrame: '3',
         shippingCost: '19.50',
         packingFacility: 'Thailand',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0013',
@@ -262,7 +262,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '14.50',
         packingFacility: 'Thailand',
-        shippingWorkingDays: [1, 4, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0014',
@@ -279,7 +279,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '13.50',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0015',
@@ -296,7 +296,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '11.00',
         packingFacility: 'Kiryat Gat',
-        shippingWorkingDays: [1, 3, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0016',
@@ -313,7 +313,7 @@ export default function App() {
         shippingTimeFrame: '3',
         shippingCost: '19.00',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0017',
@@ -330,7 +330,7 @@ export default function App() {
         shippingTimeFrame: '6',
         shippingCost: '21.00',
         packingFacility: 'Hungary',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
       {
         id: 'SR-0018',
@@ -347,7 +347,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '18.50',
         packingFacility: 'Thailand',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [2, 3],
       },
       {
         id: 'SR-0019',
@@ -364,7 +364,7 @@ export default function App() {
         shippingTimeFrame: '8',
         shippingCost: '16.50',
         packingFacility: 'Kiryat Gat',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [1, 2],
       },
       {
         id: 'SR-0020',
@@ -381,7 +381,7 @@ export default function App() {
         shippingTimeFrame: '10',
         shippingCost: '20.00',
         packingFacility: 'Nazereth',
-        shippingWorkingDays: [1, 2, 3, 4, 5],
+        shippingWorkingDays: [3, 4],
       },
     ],
   );
