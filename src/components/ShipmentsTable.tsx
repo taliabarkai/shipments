@@ -35,9 +35,9 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'siteId', label: 'Site ID', visible: true },
   { id: 'documents', label: 'Documents', visible: true },
   { id: 'orderCost', label: 'Order Cost', visible: true },
-  { id: 'status', label: 'Status', visible: true },
-  { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'alerts', label: 'Alerts', visible: false },
+  { id: 'statusReason', label: 'Status Reason', visible: false },
+  { id: 'status', label: 'Status', visible: true },
 ] as const;
 
 export type ShipmentStatus =
