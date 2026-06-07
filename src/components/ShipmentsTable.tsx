@@ -36,6 +36,7 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'documents', label: 'Documents', visible: true },
   { id: 'orderCost', label: 'Order Cost', visible: true },
   { id: 'status', label: 'Status', visible: true },
+  { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'alerts', label: 'Alerts', visible: false },
 ] as const;
 
@@ -470,6 +471,16 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                               <Badge className={getStatusVariant(shipment.status)}>
                                 {shipment.status}
                               </Badge>
+                            ) : column.id === 'statusReason' ? (
+                              <span className="text-gray-700">
+                                {shipment.status === 'Pending'
+                                  ? shipment.pendingReason ?? '—'
+                                  : shipment.status === 'On Hold'
+                                    ? shipment.holdReason ?? '—'
+                                    : shipment.status === 'Cancelled'
+                                      ? shipment.cancellationReason ?? '—'
+                                      : '—'}
+                              </span>
                             ) : column.id === 'alerts' ? (
                               <div
                                 className="flex max-w-[280px] flex-wrap gap-1"
