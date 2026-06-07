@@ -26,22 +26,39 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
   const orderCreatedDate = '08/06/2025 at 22:06';
   const packedDate = '11/06/2025 at 12:58';
   const collectedDate = '12/06/2025 at 16:00';
-  const deliveredDate = '25/06/2025 at 05:21';
-  const shippingCost = '$12 USD';
-  const additionalShippingCost = '$24 USD';
-  const shippingFinancialInfo = 'DDP';
   const shipmentCollectionId = '273133181';
+
+  /** Format a monetary amount up to 2 decimals max, in $. */
+  const formatMoney = (n: number | undefined | null): string => {
+    if (n == null || Number.isNaN(n)) return '—';
+    return `$${n.toFixed(2)}`;
+  };
+
+  /** Parse a money string like '$245.50' into a Number (or undefined if blank). */
+  const parseMoney = (raw: string | undefined): number | undefined => {
+    if (!raw) return undefined;
+    const cleaned = raw.replace(/[^0-9.\-]/g, '');
+    if (!cleaned) return undefined;
+    const n = Number(cleaned);
+    return Number.isNaN(n) ? undefined : n;
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'Delivered':
-        return 'bg-green-100 text-green-800';
-      case 'Out for Delivery':
-        return 'bg-purple-100 text-purple-800';
-      case 'On the Way':
-        return 'bg-blue-100 text-blue-800';
-      case 'Label Created':
-        return 'bg-gray-100 text-gray-800';
+      case 'Draft':
+        return 'bg-[#f5f5f5] text-[#1f2937]';
+      case 'Pending':
+        return 'bg-[#fff8e1] text-[#ef6c00]';
+      case 'On Hold':
+        return 'bg-[#f3e5f5] text-[#4A148C]';
+      case 'Ready to Pack':
+        return 'bg-[#e8f5e9] text-[#166534]';
+      case 'Packed':
+        return 'bg-[#b9f6ca] text-[#1b5e20]';
+      case 'Shipped':
+        return 'bg-[#e3f2fd] text-[#0d47a1]';
+      case 'Cancelled':
+        return 'bg-[#ffebee] text-[#e53935]';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -49,12 +66,64 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
 
   if (!shipment) return null;
 
-  const timelineItems: DrawerTimelineItem[] = [
-    { label: 'Delivered', date: deliveredDate, user: 'Avery Kim', state: 'completed' },
-    { label: 'Collected for Shipment', date: collectedDate, user: 'Jordan Lee', state: 'completed' },
-    { label: 'Packed', date: packedDate, user: 'Morgan Blake', state: 'completed' },
-    { label: 'Order Created', date: orderCreatedDate, user: 'Jamie Chen', state: 'completed' },
-  ];
+  // Mock event dates. Real impl reads these off the shipment record.
+  const readyToPackDate = '10/06/2025 at 08:15';
+  const eventDate = '14/06/2025 at 09:42';
+  const shippedDate = '20/06/2025 at 14:30';
+  const heldReason = shipment.holdReason ?? 'Waiting for pending item';
+  const pendingReason = shipment.pendingReason ?? 'API error';
+  const cancellationReason = shipment.cancellationReason ?? 'Customer request';
+
+  // Steps are listed newest-first to match the existing visual order.
+  const orderCreatedStep: DrawerTimelineItem = {
+    label: 'Order Created',
+    date: orderCreatedDate,
+    user: 'Jamie Chen',
+    state: 'completed',
+  };
+
+  const timelineItems: DrawerTimelineItem[] = (() => {
+    switch (shipment.status) {
+      case 'Draft':
+        return [orderCreatedStep];
+      case 'Pending':
+        return [
+          { label: 'Pending', date: eventDate, user: 'Avery Kim', state: 'completed', reason: pendingReason },
+          orderCreatedStep,
+        ];
+      case 'On Hold':
+        return [
+          { label: 'On Hold', date: eventDate, user: 'Avery Kim', state: 'completed', reason: heldReason },
+          orderCreatedStep,
+        ];
+      case 'Ready to Pack':
+        return [
+          { label: 'Ready to Pack', date: readyToPackDate, user: 'Morgan Blake', state: 'completed' },
+          orderCreatedStep,
+        ];
+      case 'Packed':
+        return [
+          { label: 'Packed', date: packedDate, user: 'Morgan Blake', state: 'completed' },
+          { label: 'Ready to Pack', date: readyToPackDate, user: 'Morgan Blake', state: 'completed' },
+          orderCreatedStep,
+        ];
+      case 'Shipped':
+        return [
+          { label: 'Shipped', date: shippedDate, user: 'Avery Kim', state: 'completed' },
+          { label: 'Collected for Shipment', date: collectedDate, user: 'Jordan Lee', state: 'completed' },
+          { label: 'Packed', date: packedDate, user: 'Morgan Blake', state: 'completed' },
+          { label: 'Ready to Pack', date: readyToPackDate, user: 'Morgan Blake', state: 'completed' },
+          orderCreatedStep,
+        ];
+      case 'Cancelled':
+        return [
+          { label: 'Cancelled', date: eventDate, user: 'Avery Kim', state: 'completed', reason: cancellationReason },
+          orderCreatedStep,
+        ];
+      default:
+        return [orderCreatedStep];
+    }
+  })();
 
   return (
     <>
@@ -98,26 +167,31 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
               {/* Cost Summary Section */}
               <div className="border rounded-lg p-4 bg-white">
                 <h3 className="font-semibold mb-4">Cost Summary</h3>
-                
+
                 <div className="space-y-3">
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Order Cost:</span>
-                    <span className="text-sm text-gray-900">{shipment.orderCost}</span>
+                    <span className="text-sm text-gray-600 min-w-[200px]">Order value:</span>
+                    <span className="text-sm text-gray-900">{formatMoney(parseMoney(shipment.orderCost))}</span>
                   </div>
-                  
+
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Shipping Cost:</span>
-                    <span className="text-sm text-gray-900">{shippingCost}</span>
+                    <span className="text-sm text-gray-600 min-w-[200px]">Shipment price:</span>
+                    <span className="text-sm text-gray-900">{formatMoney(shipment.shipmentPrice)}</span>
                   </div>
-                  
+
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Additional Shipping Cost:</span>
-                    <span className="text-sm text-gray-900">{additionalShippingCost}</span>
+                    <span className="text-sm text-gray-600 min-w-[200px]">Shipping cost:</span>
+                    <span className="text-sm text-gray-900">{formatMoney(shipment.shippingCostAmount)}</span>
                   </div>
-                  
+
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Shipping Financial Info:</span>
-                    <span className="text-sm text-gray-900">{shippingFinancialInfo}</span>
+                    <span className="text-sm text-gray-600 min-w-[200px]">Declared value:</span>
+                    <span className="text-sm text-gray-900">{formatMoney(shipment.declaredValue)}</span>
+                  </div>
+
+                  <div className="flex items-center">
+                    <span className="text-sm text-gray-600 min-w-[200px]">Financial Incoterm:</span>
+                    <span className="text-sm text-gray-900">{shipment.financialIncoterm ?? '—'}</span>
                   </div>
                 </div>
               </div>

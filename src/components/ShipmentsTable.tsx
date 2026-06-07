@@ -39,7 +39,14 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'alerts', label: 'Alerts', visible: false },
 ] as const;
 
-export type ShipmentStatus = 'Label Created' | 'Delivered' | 'Out for Delivery' | 'On the Way';
+export type ShipmentStatus =
+  | 'Draft'
+  | 'Pending'
+  | 'On Hold'
+  | 'Ready to Pack'
+  | 'Packed'
+  | 'Shipped'
+  | 'Cancelled';
 
 export interface Shipment {
   orderId: string;
@@ -56,6 +63,20 @@ export interface Shipment {
   consolidatedPack?: number;
   /** When set, drives alert chips and filter membership for this row. */
   shipmentAlerts?: AlertFilterId[];
+  /** Reason text shown in the timeline when status is 'On Hold'. */
+  holdReason?: string;
+  /** Reason text shown in the timeline when status is 'Pending'. */
+  pendingReason?: string;
+  /** Reason text shown in the timeline when status is 'Cancelled'. */
+  cancellationReason?: string;
+  /** order_shipment_price_amount: the price the customer paid for the shipment. */
+  shipmentPrice?: number;
+  /** actual_shipment_cost: cost of the assigned route once a route is set. */
+  shippingCostAmount?: number;
+  /** Declared value after DAP/DDP process completion. */
+  declaredValue?: number;
+  /** Outcome of DAP/DDP process. */
+  financialIncoterm?: 'DAP' | 'DDP' | 'Merukaz';
 }
 
 interface ShipmentsTableProps {
@@ -165,14 +186,20 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
 
   const getStatusVariant = (status: ShipmentStatus) => {
     switch (status) {
-      case 'Delivered':
-        return 'bg-green-100 text-green-800 hover:bg-green-100';
-      case 'Out for Delivery':
-        return 'bg-purple-100 text-purple-800 hover:bg-purple-100';
-      case 'On the Way':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-100';
-      case 'Label Created':
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
+      case 'Draft':
+        return 'bg-[#f5f5f5] text-[#1f2937] hover:bg-[#f5f5f5]';
+      case 'Pending':
+        return 'bg-[#fff8e1] text-[#ef6c00] hover:bg-[#fff8e1]';
+      case 'On Hold':
+        return 'bg-[#f3e5f5] text-[#4A148C] hover:bg-[#f3e5f5]';
+      case 'Ready to Pack':
+        return 'bg-[#e8f5e9] text-[#166534] hover:bg-[#e8f5e9]';
+      case 'Packed':
+        return 'bg-[#b9f6ca] text-[#1b5e20] hover:bg-[#b9f6ca]';
+      case 'Shipped':
+        return 'bg-[#e3f2fd] text-[#0d47a1] hover:bg-[#e3f2fd]';
+      case 'Cancelled':
+        return 'bg-[#ffebee] text-[#e53935] hover:bg-[#ffebee]';
       default:
         return 'bg-gray-100 text-gray-800 hover:bg-gray-100';
     }

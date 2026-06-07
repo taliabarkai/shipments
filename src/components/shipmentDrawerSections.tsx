@@ -8,6 +8,8 @@ export interface DrawerTimelineItem {
   /** Display name of user who performed the step (omit for pending / N/A steps) */
   user?: string;
   state: TimelineItemState;
+  /** Optional sub-line (e.g. "Reason: Waiting for pending item") shown below the label. */
+  reason?: string;
 }
 
 /**
@@ -43,6 +45,9 @@ export function DrawerTimelineSection({ items }: { items: DrawerTimelineItem[] }
               </div>
               <div className="flex-1 pb-4 min-w-0">
                 <p className="font-medium text-sm">{item.label}</p>
+                {item.reason ? (
+                  <p className="text-xs text-gray-500 mt-0.5">Reason: {item.reason}</p>
+                ) : null}
                 <p className="text-sm text-gray-500">{item.date}</p>
                 {item.user && item.user !== '—' && (
                   <p className="text-xs text-gray-500 mt-1">By {item.user}</p>

@@ -137,33 +137,33 @@ export function buildDefaultShipmentHistory(shipment: ShipmentHistoryShipmentLik
     },
   ];
 
-  if (shipment.status === 'Delivered') {
+  if (shipment.status === 'Shipped') {
     entries.unshift({
-      id: 'h-delivered',
-      source: carrier,
-      occurredAtLabel: '1/10/2026 4:15 PM',
-      message: 'Proof of delivery captured',
-    });
-  } else if (shipment.status === 'Out for Delivery') {
-    entries.unshift({
-      id: 'h-ofd',
-      source: carrier,
-      occurredAtLabel: '1/9/2026 9:20 AM',
-      message: 'Out for delivery',
-    });
-  } else if (shipment.status === 'On the Way') {
-    entries.unshift({
-      id: 'h-otw',
+      id: 'h-shipped',
       source: carrier,
       occurredAtLabel: '1/7/2026 2:00 PM',
       message: 'In transit to destination hub',
     });
-  } else if (shipment.status === 'Label Created') {
+  } else if (shipment.status === 'Packed') {
     entries.unshift({
-      id: 'h-label',
+      id: 'h-packed',
       source: 'SHIPMENT SYSTEM',
-      occurredAtLabel: '12/22/2025 11:00 AM',
-      message: 'Shipping label created',
+      occurredAtLabel: '1/2/2026 10:14 AM',
+      message: 'Shipment packed',
+    });
+  } else if (shipment.status === 'Ready to Pack') {
+    entries.unshift({
+      id: 'h-ready',
+      source: 'SHIPMENT SYSTEM',
+      occurredAtLabel: '12/30/2025 9:08 AM',
+      message: 'Shipment ready to pack',
+    });
+  } else if (shipment.status === 'Cancelled') {
+    entries.unshift({
+      id: 'h-cancelled',
+      source: 'SHIPMENT SYSTEM',
+      occurredAtLabel: '12/29/2025 5:45 PM',
+      message: 'Shipment cancelled',
     });
   }
 
