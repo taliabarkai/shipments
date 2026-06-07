@@ -35,37 +35,26 @@ export function carrierTypeLabelClass(type: ConsolidatedCarrierType | string): s
   return 'bg-gray-100 text-gray-800';
 }
 
-/** Badge classes for status chips — keep in sync with ShipmentsList table cells. */
+/**
+ * Badge classes for status chips — kept in sync with the Shipments table palette.
+ * Brand-approved hex values shared with ShipmentsTable.getStatusVariant.
+ */
 export function consolidatedStatusBadgeClass(status: ShipmentStatus): string {
   switch (status) {
-    case 'Shipped':
-      return 'bg-green-100 text-green-700';
-    case 'Packed':
-      return 'bg-[#ede7f6] text-[#311b92]';
     case 'Draft':
-      return 'bg-amber-100 text-amber-900';
+      return 'bg-[#f5f5f5] text-[#1f2937]';
+    case 'Packed':
+      return 'bg-[#b9f6ca] text-[#1b5e20]';
+    case 'Shipped':
+      return 'bg-[#e3f2fd] text-[#0d47a1]';
     case 'Cancelled':
-      return 'bg-gray-200 text-gray-700';
+      return 'bg-[#ffebee] text-[#e53935]';
     default:
       return 'bg-gray-100 text-gray-800';
   }
 }
 
-/**
- * Status pill in consolidated detail drawer (Figma Packing / Shipment screens).
- * Shipped uses green surface per design node 545:46113.
- */
+/** Same palette in the consolidated detail drawer pill — uses the same hex values. */
 export function consolidatedDrawerStatusBadgeClass(status: ShipmentStatus): string {
-  switch (status) {
-    case 'Shipped':
-      return 'bg-[#dcfce7] text-[#016630]';
-    case 'Packed':
-      return 'bg-[#ede7f6] text-[#311b92]';
-    case 'Draft':
-      return 'bg-[#fef3c7] text-[#92400e]';
-    case 'Cancelled':
-      return 'bg-[#e5e7eb] text-[#374151]';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
+  return consolidatedStatusBadgeClass(status);
 }
