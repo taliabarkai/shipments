@@ -58,6 +58,8 @@ export type ConsolidatedListColumnId =
   | 'totalValue'
   | 'totalShipments'
   | 'trackingId'
+  | 'carrier'
+  | 'cartsCarrier'
   | 'carrierType'
   | 'createdDate'
   | 'packedDate'
@@ -66,6 +68,25 @@ export type ConsolidatedListColumnId =
   | 'documents'
   | 'status'
   | 'alerts';
+
+function getCartsCarrier(carrier: string): string {
+  const c = (carrier ?? '').toLowerCase().trim();
+  if (c.includes('dhl royal hu')) return 'DHL Royal HU';
+  if (c.includes('dhl royal')) return 'DHL Royal';
+  if (c.includes('mydhlapi') || c.includes('my dhl api')) return 'MyDhlApi';
+  if (c.includes('dhl')) return 'Dhl';
+  if (c.includes('usps hu')) return 'USPS HU';
+  if (c.includes('usps th')) return 'USPS TH';
+  if (c.includes('usps')) return 'USPS HU';
+  if (c.includes('usp')) return 'Usp';
+  if (c.includes('fedexicp') || c.includes('fedex icp')) return 'FedexIcp HU';
+  if (c.includes('fedex hu')) return 'Fedex HU';
+  if (c.includes('fedex th')) return 'Fedex TH';
+  if (c.includes('fedex')) return 'Fedex HU';
+  if (c.includes('mailog express')) return 'Mailog Express';
+  if (c.includes('mailog')) return 'Mailog HU';
+  return carrier || '—';
+}
 
 /** Always visible; not controlled by column menu */
 const PINNED_CONSOLIDATED_COLUMNS: { id: ConsolidatedListColumnId; label: string }[] = [
@@ -80,6 +101,8 @@ const DEFAULT_OPTIONAL_COLUMNS: { id: ConsolidatedListColumnId; label: string; v
   { id: 'totalValue', label: 'Total value', visible: true },
   { id: 'totalShipments', label: 'Total shipments', visible: false },
   { id: 'trackingId', label: 'Tracking', visible: false },
+  { id: 'carrier', label: 'Carrier', visible: false },
+  { id: 'cartsCarrier', label: 'Carts Carrier', visible: false },
   { id: 'carrierType', label: 'Type', visible: false },
   { id: 'createdDate', label: 'Created date', visible: false },
   { id: 'packedDate', label: 'Packed date', visible: false },
@@ -310,6 +333,10 @@ export default function ShipmentsList({
         return s.totalValue;
       case 'totalShipments':
         return String(s.displayTotalShipments);
+      case 'carrier':
+        return s.carrier;
+      case 'cartsCarrier':
+        return getCartsCarrier(s.carrier);
       case 'carrierType':
         return String(s.displayCarrierType);
       case 'createdDate':
@@ -774,6 +801,12 @@ export default function ShipmentsList({
                                 )}
                                 {column.id === 'totalShipments' && (
                                   <span className="text-sm">{shipment.displayTotalShipments}</span>
+                                )}
+                                {column.id === 'carrier' && (
+                                  <span className="text-sm">{shipment.carrier}</span>
+                                )}
+                                {column.id === 'cartsCarrier' && (
+                                  <span className="text-sm">{getCartsCarrier(shipment.carrier)}</span>
                                 )}
                                 {column.id === 'carrierType' && (
                                   <span className="text-sm">{shipment.displayCarrierType}</span>

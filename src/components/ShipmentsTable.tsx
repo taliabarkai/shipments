@@ -31,6 +31,7 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'packingFacility', label: 'Packing Facility', visible: true },
   { id: 'destination', label: 'Destination', visible: true },
   { id: 'carrier', label: 'Carrier', visible: true },
+  { id: 'cartsCarrier', label: 'Carts Carrier', visible: false },
   { id: 'trackingId', label: 'Tracking ID', visible: true },
   { id: 'siteId', label: 'Site ID', visible: true },
   { id: 'documents', label: 'Documents', visible: true },
@@ -38,7 +39,26 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'alerts', label: 'Alerts', visible: false },
   { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'status', label: 'Status', visible: true },
-] as const;
+];
+
+function getCartsCarrier(carrier: string): string {
+  const c = (carrier ?? '').toLowerCase().trim();
+  if (c.includes('dhl royal hu')) return 'DHL Royal HU';
+  if (c.includes('dhl royal')) return 'DHL Royal';
+  if (c.includes('mydhlapi') || c.includes('my dhl api')) return 'MyDhlApi';
+  if (c.includes('dhl')) return 'Dhl';
+  if (c.includes('usps hu')) return 'USPS HU';
+  if (c.includes('usps th')) return 'USPS TH';
+  if (c.includes('usps')) return 'USPS HU';
+  if (c.includes('usp')) return 'Usp';
+  if (c.includes('fedexicp') || c.includes('fedex icp')) return 'FedexIcp HU';
+  if (c.includes('fedex hu')) return 'Fedex HU';
+  if (c.includes('fedex th')) return 'Fedex TH';
+  if (c.includes('fedex')) return 'Fedex HU';
+  if (c.includes('mailog express')) return 'Mailog Express';
+  if (c.includes('mailog')) return 'Mailog HU';
+  return carrier || '—';
+}
 
 export type ShipmentStatus =
   | 'Draft'
@@ -499,6 +519,8 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                                   ))
                                 )}
                               </div>
+                            ) : column.id === 'cartsCarrier' ? (
+                              <span className="text-gray-700">{getCartsCarrier(shipment.carrier)}</span>
                             ) : column.id === 'documents' ? (
                               <div className="flex items-center gap-3">
                                 <Tooltip>
