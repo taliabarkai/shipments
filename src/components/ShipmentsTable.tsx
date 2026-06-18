@@ -1,13 +1,16 @@
 import { useState, useMemo } from 'react';
-import { AlertFilterAddControl, AlertFilterActiveChips } from './AlertFilterTags';
+import { AlertFilterAddControl, AlertFilterActiveChips, RuleFilterAddControl, RuleFilterActiveChips } from './AlertFilterTags';
 import {
   matchesAnyAlertRule,
   shipmentAppliesAlert,
   countRowsPerAlertRule,
   getShipmentDisplayAlerts,
   alertLabelForId,
+  matchesAnyRuleFilter,
+  countRowsPerRule,
   type AlertFilterId,
 } from './alertFilterRules';
+import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
 import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -40,6 +43,11 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'status', label: 'Status', visible: true },
 ];
+
+const ACTIVE_RULES = MOCK_RULES.filter((r) => deriveRuleStatus(r) === 'active').map((r) => ({
+  id: r.id,
+  name: r.name,
+}));
 
 function getCartsCarrier(carrier: string): string {
   const c = (carrier ?? '').toLowerCase().trim();
@@ -90,6 +98,14 @@ export interface Shipment {
   pendingReason?: string;
   /** Reason text shown in the timeline when status is 'Cancelled'. */
   cancellationReason?: string;
+  /** IDs of active upgrade/downgrade rules applied to this shipment. */
+  appliedRuleIds?: string[];
+  /** Carrier service type name (e.g. "DHL Express"). Shown for Shipped status. */
+  carrierServiceType?: string;
+  /** Estimated delivery date (ISO yyyy-mm-dd). Shown for Shipped status. */
+  estimatedDeliveryDate?: string;
+  /** Order ETA date (ISO yyyy-mm-dd). Shown for Shipped status. */
+  orderEta?: string;
   /** order_shipment_price_amount: the price the customer paid for the shipment. */
   shipmentPrice?: number;
   /** actual_shipment_cost: cost of the assigned route once a route is set. */
@@ -124,6 +140,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     status: [] as string[],
   });
   const [appliedAlertFilters, setAppliedAlertFilters] = useState<AlertFilterId[]>([]);
+  const [appliedRuleFilters, setAppliedRuleFilters] = useState<string[]>([]);
 
   const [columns, setColumns] = useState(() => DEFAULT_SHIPMENTS_COLUMNS.map((c) => ({ ...c })));
 
@@ -148,6 +165,11 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
 
   const alertCounts = useMemo(
     () => countRowsPerAlertRule(shipments, shipmentAppliesAlert),
+    [shipments]
+  );
+
+  const ruleCounts = useMemo(
+    () => countRowsPerRule(shipments, ACTIVE_RULES.map((r) => r.id)),
     [shipments]
   );
 
@@ -185,6 +207,9 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
       return false;
     }
     if (!matchesAnyAlertRule(shipment, appliedAlertFilters, shipmentAppliesAlert)) {
+      return false;
+    }
+    if (!matchesAnyRuleFilter(shipment, appliedRuleFilters)) {
       return false;
     }
     return true;
@@ -269,6 +294,14 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                       setCurrentPage(1);
                     }}
                   />
+                  <RuleFilterAddControl
+                    appliedIds={appliedRuleFilters}
+                    rules={ACTIVE_RULES}
+                    onAppliedIdsChange={(ids) => {
+                      setAppliedRuleFilters(ids);
+                      setCurrentPage(1);
+                    }}
+                  />
                   <div className="ml-auto flex shrink-0 items-center gap-2">
                     {hasActiveColumnFilters && (
                       <Button
@@ -294,6 +327,15 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                   alertCounts={alertCounts}
                   onAppliedIdsChange={(ids) => {
                     setAppliedAlertFilters(ids);
+                    setCurrentPage(1);
+                  }}
+                />
+                <RuleFilterActiveChips
+                  appliedIds={appliedRuleFilters}
+                  ruleCounts={ruleCounts}
+                  rules={ACTIVE_RULES}
+                  onAppliedIdsChange={(ids) => {
+                    setAppliedRuleFilters(ids);
                     setCurrentPage(1);
                   }}
                 />

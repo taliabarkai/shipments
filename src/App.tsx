@@ -477,6 +477,7 @@ export default function App() {
       orderCost: '$182.30',
       status: 'On Hold',
       holdReason: 'Waiting for pending item',
+      appliedRuleIds: ['rule_1'],
     },
     {
       orderId: '273134002',
@@ -490,6 +491,7 @@ export default function App() {
       orderCost: '$76.10',
       status: 'Pending',
       pendingReason: 'Supervisor inspection',
+      appliedRuleIds: ['rule_2'],
     },
     {
       orderId: '273134003',
@@ -527,6 +529,7 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$203.10',
       status: 'Packed',
+      appliedRuleIds: ['rule_2'],
     },
     {
       orderId: '273134006',
@@ -555,6 +558,7 @@ export default function App() {
       consolidatedId: '273133181',
       consolidatedPack: 1,
       shipmentAlerts: ['not_packed_24h'] as AlertFilterId[],
+      appliedRuleIds: ['rule_1'],
       shipmentPrice: 24.99,
       shippingCostAmount: 12.4,
       declaredValue: 245.5,
@@ -574,6 +578,9 @@ export default function App() {
       consolidatedId: '273133181',
       consolidatedPack: 2,
       shipmentAlerts: ['draft_12h'] as AlertFilterId[],
+      carrierServiceType: 'UPS Worldwide Expedited',
+      estimatedDeliveryDate: '2026-07-03',
+      orderEta: '2026-07-05',
     },
     {
       orderId: '273133183',
@@ -589,6 +596,9 @@ export default function App() {
       consolidatedId: '273133181',
       consolidatedPack: 3,
       shipmentAlerts: ['packed_12h'] as AlertFilterId[],
+      carrierServiceType: 'USPS Priority Mail International',
+      estimatedDeliveryDate: '2026-06-28',
+      orderEta: '2026-06-28',
     },
     {
       orderId: '273133184',
@@ -603,6 +613,9 @@ export default function App() {
       status: 'Shipped',
       consolidatedId: '273133182',
       consolidatedPack: 1,
+      carrierServiceType: 'Royal Mail Tracked 48',
+      estimatedDeliveryDate: '2026-06-27',
+      orderEta: '2026-06-25',
     },
     {
       orderId: '273133185',
@@ -617,6 +630,10 @@ export default function App() {
       status: 'Shipped',
       consolidatedId: '273133182',
       consolidatedPack: 2,
+      appliedRuleIds: ['rule_2'],
+      carrierServiceType: 'DHL Express Worldwide',
+      estimatedDeliveryDate: '2026-06-21',
+      orderEta: '2026-06-22',
     },
     {
       orderId: '273133186',
@@ -629,6 +646,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$734.20',
       status: 'Shipped',
+      carrierServiceType: 'DPD Classic',
+      estimatedDeliveryDate: '2026-06-26',
+      orderEta: '2026-06-24',
     },
     {
       orderId: '273133187',
@@ -641,6 +661,10 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$425.90',
       status: 'Shipped',
+      appliedRuleIds: ['rule_1'],
+      carrierServiceType: 'UPS Ground',
+      estimatedDeliveryDate: '2026-06-22',
+      orderEta: '2026-06-23',
     },
     {
       orderId: '273133188',
@@ -653,6 +677,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$2,134.65',
       status: 'Shipped',
+      carrierServiceType: 'Hermes Standard',
+      estimatedDeliveryDate: '2026-07-08',
+      orderEta: '2026-07-08',
     },
     {
       orderId: '273133189',
@@ -665,6 +692,10 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$315.75',
       status: 'Shipped',
+      appliedRuleIds: ['rule_1'],
+      carrierServiceType: 'FedEx International Priority',
+      estimatedDeliveryDate: '2026-06-20',
+      orderEta: '2026-06-22',
     },
     {
       orderId: '273133190',
@@ -677,6 +708,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$1,567.90',
       status: 'Shipped',
+      carrierServiceType: 'DHL Packet International',
+      estimatedDeliveryDate: '2026-07-01',
+      orderEta: '2026-06-30',
     },
     {
       orderId: '273133191',
@@ -701,6 +735,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$890.55',
       status: 'Shipped',
+      carrierServiceType: 'Correos Paquete Internacional',
+      estimatedDeliveryDate: '2026-07-02',
+      orderEta: '2026-07-04',
     },
     {
       orderId: '273133193',
@@ -713,6 +750,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$1,245.30',
       status: 'Shipped',
+      carrierServiceType: 'Poste Italiane International',
+      estimatedDeliveryDate: '2026-06-30',
+      orderEta: '2026-06-30',
     },
     {
       orderId: '273133194',
@@ -725,6 +765,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$2,456.80',
       status: 'Shipped',
+      carrierServiceType: 'China Post EMS',
+      estimatedDeliveryDate: '2026-07-10',
+      orderEta: '2026-07-07',
     },
     {
       orderId: '273133195',
@@ -737,6 +780,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$534.90',
       status: 'Shipped',
+      carrierServiceType: 'PostNL International Packet',
+      estimatedDeliveryDate: '2026-06-25',
+      orderEta: '2026-06-27',
     },
     {
       orderId: '273133196',
@@ -761,6 +807,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$987.60',
       status: 'Shipped',
+      carrierServiceType: 'Canada Post Xpresspost International',
+      estimatedDeliveryDate: '2026-06-24',
+      orderEta: '2026-06-26',
     },
     {
       orderId: '273133198',
@@ -773,6 +822,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$1,789.45',
       status: 'Shipped',
+      carrierServiceType: 'Korea Post EMS',
+      estimatedDeliveryDate: '2026-07-05',
+      orderEta: '2026-07-05',
     },
     {
       orderId: '273133199',
@@ -785,6 +837,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$623.80',
       status: 'Shipped',
+      carrierServiceType: 'PostNord Parcel International',
+      estimatedDeliveryDate: '2026-06-23',
+      orderEta: '2026-06-25',
     },
     {
       orderId: '273133200',
@@ -809,6 +864,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$1,156.70',
       status: 'Shipped',
+      carrierServiceType: 'PostNord DK International',
+      estimatedDeliveryDate: '2026-07-03',
+      orderEta: '2026-07-01',
     },
     {
       orderId: '273133202',
@@ -821,6 +879,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$2,234.55',
       status: 'Shipped',
+      carrierServiceType: 'SingPost Registered SAL',
+      estimatedDeliveryDate: '2026-06-29',
+      orderEta: '2026-07-01',
     },
     {
       orderId: '273133203',
@@ -833,6 +894,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$945.30',
       status: 'Shipped',
+      carrierServiceType: 'Swiss Post Priority International',
+      estimatedDeliveryDate: '2026-06-26',
+      orderEta: '2026-06-26',
     },
     {
       orderId: '273133204',
@@ -857,6 +921,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$678.95',
       status: 'Shipped',
+      carrierServiceType: 'Poczta Polska EMS',
+      estimatedDeliveryDate: '2026-07-07',
+      orderEta: '2026-07-09',
     },
     {
       orderId: '273133206',
@@ -869,6 +936,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$1,345.60',
       status: 'Shipped',
+      carrierServiceType: 'Correos de México Internacional',
+      estimatedDeliveryDate: '2026-07-12',
+      orderEta: '2026-07-10',
     },
     {
       orderId: '273133207',
@@ -881,6 +951,9 @@ export default function App() {
       invoice: 'View Invoice',
       orderCost: '$2,567.40',
       status: 'Shipped',
+      carrierServiceType: 'Correios SEDEX Internacional',
+      estimatedDeliveryDate: '2026-06-28',
+      orderEta: '2026-06-28',
     },
     {
       orderId: '273133208',

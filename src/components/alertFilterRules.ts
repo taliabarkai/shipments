@@ -56,6 +56,26 @@ export function getConsolidationDisplayAlerts(row: {
   return row.consolidationAlerts ?? [];
 }
 
+/** Row matches when `appliedRuleIds` contains the given rule id. */
+export function matchesAnyRuleFilter(
+  row: { appliedRuleIds?: string[] },
+  applied: string[],
+): boolean {
+  if (applied.length === 0) return true;
+  return applied.some((id) => row.appliedRuleIds?.includes(id) ?? false);
+}
+
+export function countRowsPerRule<T extends { appliedRuleIds?: string[] }>(
+  rows: T[],
+  ruleIds: string[],
+): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const id of ruleIds) {
+    counts[id] = rows.filter((r) => r.appliedRuleIds?.includes(id) ?? false).length;
+  }
+  return counts;
+}
+
 export function matchesAnyAlertRule<T>(
   row: T,
   applied: AlertFilterId[],

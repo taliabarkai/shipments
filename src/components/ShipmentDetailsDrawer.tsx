@@ -160,6 +160,15 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
                 <DrawerInfoRow label="Packing Facility" value={shipment.packingFacility} />
                 <DrawerInfoRow label="Destination" value={shipment.destination} />
                 <DrawerInfoRow label="Carrier" value={shipment.carrier} />
+                {shipment.status === 'Shipped' && shipment.carrierServiceType && (
+                  <DrawerInfoRow label="Carrier Service Type" value={shipment.carrierServiceType} />
+                )}
+                {shipment.status === 'Shipped' && shipment.estimatedDeliveryDate && (
+                  <DrawerInfoRow label="Estimated Delivery Date" value={shipment.estimatedDeliveryDate} />
+                )}
+                {shipment.status === 'Shipped' && shipment.orderEta && (
+                  <DrawerInfoRow label="Order ETA" value={shipment.orderEta} />
+                )}
               </DrawerShippingInformationSection>
 
               <DefaultShipmentHistorySection shipment={shipment} />

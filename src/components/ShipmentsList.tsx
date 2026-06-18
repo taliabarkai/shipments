@@ -22,15 +22,23 @@ import InvoiceDialog from './InvoiceDialog';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 import { Toaster } from './ui/sonner';
 import { DateRangePicker } from './DateRangePicker';
-import { AlertFilterAddControl, AlertFilterActiveChips } from './AlertFilterTags';
+import { AlertFilterAddControl, AlertFilterActiveChips, RuleFilterAddControl, RuleFilterActiveChips } from './AlertFilterTags';
 import {
   matchesAnyAlertRule,
   consolidationAppliesAlert,
   countRowsPerAlertRule,
   getConsolidationDisplayAlerts,
   alertLabelForId,
+  matchesAnyRuleFilter,
+  countRowsPerRule,
   type AlertFilterId,
 } from './alertFilterRules';
+import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
+
+const ACTIVE_RULES = MOCK_RULES.filter((r) => deriveRuleStatus(r) === 'active').map((r) => ({
+  id: r.id,
+  name: r.name,
+}));
 
 type ConsolidatedListStatusTab = 'All' | 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
@@ -161,11 +169,17 @@ export default function ShipmentsList({
     status: [] as string[],
   });
   const [appliedAlertFilters, setAppliedAlertFilters] = useState<AlertFilterId[]>([]);
+  const [appliedRuleFilters, setAppliedRuleFilters] = useState<string[]>([]);
 
   const enrichedShipments = useMemo(() => enrichConsolidated(shipments), [shipments]);
 
   const alertCounts = useMemo(
     () => countRowsPerAlertRule(shipments, consolidationAppliesAlert),
+    [shipments]
+  );
+
+  const ruleCounts = useMemo(
+    () => countRowsPerRule(shipments, ACTIVE_RULES.map((r) => r.id)),
     [shipments]
   );
 
@@ -269,6 +283,10 @@ export default function ShipmentsList({
         return false;
       }
 
+      if (!matchesAnyRuleFilter(shipment, appliedRuleFilters)) {
+        return false;
+      }
+
       return true;
     });
   }, [
@@ -278,6 +296,7 @@ export default function ShipmentsList({
     selectedStatusTab,
     dateRange,
     appliedAlertFilters,
+    appliedRuleFilters,
   ]);
 
   // Pagination logic
@@ -433,6 +452,14 @@ export default function ShipmentsList({
                         setCurrentPage(1);
                       }}
                     />
+                    <RuleFilterAddControl
+                      appliedIds={appliedRuleFilters}
+                      rules={ACTIVE_RULES}
+                      onAppliedIdsChange={(ids) => {
+                        setAppliedRuleFilters(ids);
+                        setCurrentPage(1);
+                      }}
+                    />
                     <div className="ml-auto flex shrink-0 items-center gap-2">
                       {hasActiveColumnFilters && (
                         <Button
@@ -457,6 +484,15 @@ export default function ShipmentsList({
                     alertCounts={alertCounts}
                     onAppliedIdsChange={(ids) => {
                       setAppliedAlertFilters(ids);
+                      setCurrentPage(1);
+                    }}
+                  />
+                  <RuleFilterActiveChips
+                    appliedIds={appliedRuleFilters}
+                    ruleCounts={ruleCounts}
+                    rules={ACTIVE_RULES}
+                    onAppliedIdsChange={(ids) => {
+                      setAppliedRuleFilters(ids);
                       setCurrentPage(1);
                     }}
                   />

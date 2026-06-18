@@ -59,6 +59,8 @@ export interface ConsolidatedShipment {
   cancelledBy?: string;
   /** When set, shows alert chips in the list and participates in alert filters. */
   consolidationAlerts?: AlertFilterId[];
+  /** IDs of active upgrade/downgrade rules applied to this consolidation. */
+  appliedRuleIds?: string[];
 }
 
 interface ConsolidatedShipmentsAppProps {
@@ -127,6 +129,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       ],
       dateCreated: '10/1/2023',
       consolidationAlerts: ['not_packed_24h'],
+      appliedRuleIds: ['rule_1'],
     },
     {
       id: '273133199',
@@ -166,6 +169,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       cancelledOrders: ['ORD-1105'],
       dateCreated: '10/2/2023',
       consolidationAlerts: ['packed_12h'],
+      appliedRuleIds: ['rule_2'],
     },
     {
       id: '273133183',
@@ -188,7 +192,8 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
       totalValue: '$22,150.00',
       status: 'Shipped',
       orders: Array.from({ length: 38 }, (_, i) => `ORD-${1300 + i}`),
-      dateCreated: '10/4/2023'
+      dateCreated: '10/4/2023',
+      appliedRuleIds: ['rule_1'],
     },
     {
       id: '273133185',
