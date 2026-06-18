@@ -138,6 +138,12 @@ const ACTIVATION_FIELDS: ActivationFieldDef[] = [
     placeholder: 'e.g. SKU-001, SKU-002',
   },
   { id: 'total_order_value', label: 'Total Order Value', operators: ['gt', 'lt', 'eq'], control: 'number_usd' },
+  {
+    id: 'eligible_carrier_service_types',
+    label: 'Eligible Shipping Carrier Service Types',
+    operators: ['in'],
+    control: 'multiselect',
+  },
 ];
 
 const FIELD_BY_ID = Object.fromEntries(ACTIVATION_FIELDS.map((f) => [f.id, f])) as Record<
@@ -834,7 +840,9 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
-                                {ACTIVATION_FIELDS.map((f) => (
+                                {ACTIVATION_FIELDS.filter(
+                                  (f) => f.id !== 'eligible_carrier_service_types' || form.action === 'downgrade'
+                                ).map((f) => (
                                   <SelectItem key={f.id} value={f.id}>
                                     {f.label}
                                   </SelectItem>

@@ -22,7 +22,8 @@ export type ActivationFieldId =
   | 'event_level'
   | 'packing_facility'
   | 'skus'
-  | 'total_order_value';
+  | 'total_order_value'
+  | 'eligible_carrier_service_types';
 
 export type ActivationOperator = 'in' | 'not_in' | 'gt' | 'lt' | 'eq';
 
