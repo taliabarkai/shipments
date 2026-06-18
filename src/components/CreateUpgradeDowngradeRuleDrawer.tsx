@@ -285,7 +285,8 @@ function ActivationValueMultiSelect({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-[var(--radix-popover-trigger-width)] max-w-[min(100vw-2rem,20rem)] p-2"
+        className="w-[var(--radix-popover-trigger-width)] max-w-[min(100vw-2rem,20rem)] overflow-hidden p-2"
+        style={{ maxHeight: 'var(--radix-popover-content-available-height)' }}
         align="start"
       >
         <div className="max-h-60 space-y-0.5 overflow-y-auto pr-1" role="listbox" aria-multiselectable="true">
