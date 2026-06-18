@@ -49,7 +49,7 @@ export function AlertFilterAddControl({
           )}
         >
           <CampaignOutlined sx={{ fontSize: 18 }} className="text-gray-600 shrink-0" aria-hidden />
-          <span>Add Alerts</span>
+          <span>Filter by Alerts</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
         </button>
       </PopoverTrigger>
@@ -182,7 +182,7 @@ export function RuleFilterAddControl({
           )}
         >
           <ArrowUpDown className="h-[18px] w-[18px] text-gray-600 shrink-0" aria-hidden />
-          <span>Add Rules</span>
+          <span>Filter by Rules</span>
           <ChevronDown className="h-4 w-4 shrink-0 text-gray-500" aria-hidden />
         </button>
       </PopoverTrigger>
