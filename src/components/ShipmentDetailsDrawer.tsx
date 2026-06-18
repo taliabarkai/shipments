@@ -11,6 +11,7 @@ import {
   type DrawerTimelineItem,
 } from './shipmentDrawerSections';
 import { DefaultShipmentHistorySection } from './ShipmentHistorySection';
+import { MOCK_RULES } from './upgradeDowngradeTypes';
 
 interface ShipmentDetailsDrawerProps {
   shipment: Shipment | null;
@@ -160,6 +161,12 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
                 <DrawerInfoRow label="Packing Facility" value={shipment.packingFacility} />
                 <DrawerInfoRow label="Destination" value={shipment.destination} />
                 <DrawerInfoRow label="Carrier" value={shipment.carrier} />
+                {shipment.appliedRuleIds?.map((ruleId) => {
+                  const rule = MOCK_RULES.find((r) => r.id === ruleId);
+                  if (!rule) return null;
+                  const label = rule.action === 'upgrade' ? 'Upgrade Rule' : 'Downgrade Rule';
+                  return <DrawerInfoRow key={ruleId} label={label} value={rule.name} />;
+                })}
                 {shipment.status === 'Shipped' && shipment.carrierServiceType && (
                   <DrawerInfoRow label="Carrier Service Type" value={shipment.carrierServiceType} />
                 )}
