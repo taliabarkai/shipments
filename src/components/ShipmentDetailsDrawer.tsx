@@ -175,23 +175,8 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
                   </div>
 
                   <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Shipment price:</span>
-                    <span className="text-sm text-gray-900">{formatMoney(shipment.shipmentPrice)}</span>
-                  </div>
-
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Shipping cost:</span>
-                    <span className="text-sm text-gray-900">{formatMoney(shipment.shippingCostAmount)}</span>
-                  </div>
-
-                  <div className="flex items-center">
-                    <span className="text-sm text-gray-600 min-w-[200px]">Declared value:</span>
-                    <span className="text-sm text-gray-900">{formatMoney(shipment.declaredValue)}</span>
-                  </div>
-
-                  <div className="flex items-center">
                     <span className="text-sm text-gray-600 min-w-[200px]">Financial Incoterm:</span>
-                    <span className="text-sm text-gray-900">{shipment.financialIncoterm ?? '—'}</span>
+                    <span className="text-sm text-gray-900">{shipment.financialIncoterm ?? 'DAP'}</span>
                   </div>
                 </div>
               </div>
