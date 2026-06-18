@@ -7,6 +7,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import type { ConsolidatedShipment } from './ConsolidatedShipmentsApp';
+import type { RouteChangeEvent } from './ShipmentsTable';
 
 /** Fields used for default-shipment mock history (structurally compatible with `Shipment` from `ShipmentsTable`). */
 export type ShipmentHistoryShipmentLike = {
@@ -14,6 +15,7 @@ export type ShipmentHistoryShipmentLike = {
   trackingId: string;
   carrier: string;
   status: string;
+  routeChangeEvent?: RouteChangeEvent;
 };
 
 export interface ShipmentHistoryEntry {
@@ -136,6 +138,24 @@ export function buildDefaultShipmentHistory(shipment: ShipmentHistoryShipmentLik
       message: 'Order linked to packing facility',
     },
   ];
+
+  if (shipment.routeChangeEvent) {
+    const ev = shipment.routeChangeEvent;
+    let message: string;
+    if (ev.type === 'auto-upgrade') {
+      message = `Shipment was upgraded from ${ev.initialCarrierServiceType}${ev.initialEta ? ` with ETA ${ev.initialEta}` : ''} to ${ev.newCarrierServiceType}${ev.newEta ? ` with ETA ${ev.newEta}` : ''} triggered by ${ev.triggeredBy}.`;
+    } else if (ev.type === 'auto-downgrade') {
+      message = `Shipment was downgraded from ${ev.initialCarrierServiceType}${ev.initialEta ? ` with ETA ${ev.initialEta}` : ''} to ${ev.newCarrierServiceType}${ev.newEta ? ` with ETA ${ev.newEta}` : ''} triggered by ${ev.triggeredBy}.`;
+    } else {
+      message = `Shipment carrier service type was changed from ${ev.initialCarrierServiceType} to ${ev.newCarrierServiceType} by ${ev.triggeredBy}.`;
+    }
+    entries.unshift({
+      id: 'h-route-change',
+      source: 'UPGRADE/DOWNGRADE RULES',
+      occurredAtLabel: ev.occurredAtLabel ?? '1/6/2026 9:00 AM',
+      message,
+    });
+  }
 
   if (shipment.status === 'Shipped') {
     entries.unshift({

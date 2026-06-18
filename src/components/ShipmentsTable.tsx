@@ -114,6 +114,19 @@ export interface Shipment {
   declaredValue?: number;
   /** Outcome of DAP/DDP process. */
   financialIncoterm?: 'DAP' | 'DDP' | 'Merukaz';
+  /** Carrier service type change event to show in history log. */
+  routeChangeEvent?: RouteChangeEvent;
+}
+
+export interface RouteChangeEvent {
+  type: 'auto-upgrade' | 'auto-downgrade' | 'manual';
+  initialCarrierServiceType: string;
+  initialEta?: string;
+  newCarrierServiceType: string;
+  newEta?: string;
+  /** Rule name for auto events; user name for manual events. */
+  triggeredBy: string;
+  occurredAtLabel?: string;
 }
 
 interface ShipmentsTableProps {
