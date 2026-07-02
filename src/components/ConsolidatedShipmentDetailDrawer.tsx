@@ -364,12 +364,14 @@ export default function ConsolidatedShipmentDetailDrawer({
                     </span>
                   </div>
                 )}
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
-                  <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
-                    API Method
-                  </span>
-                  <span className="text-sm leading-5 tracking-tight text-[#101828]">DHL</span>
-                </div>
+                {!requiresManualTrackingEntry && (
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                    <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                      API Method
+                    </span>
+                    <span className="text-sm leading-5 tracking-tight text-[#101828]">DHL</span>
+                  </div>
+                )}
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
                     Type
