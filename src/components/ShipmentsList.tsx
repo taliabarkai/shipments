@@ -66,6 +66,7 @@ export type ConsolidatedListColumnId =
   | 'totalValue'
   | 'totalShipments'
   | 'trackingId'
+  | 'apiMethod'
   | 'carrier'
   | 'cartsCarrier'
   | 'carrierType'
@@ -109,7 +110,8 @@ const DEFAULT_OPTIONAL_COLUMNS: { id: ConsolidatedListColumnId; label: string; v
   { id: 'totalValue', label: 'Total value', visible: true },
   { id: 'totalShipments', label: 'Total shipments', visible: false },
   { id: 'trackingId', label: 'Tracking', visible: false },
-  { id: 'carrier', label: 'Carrier', visible: false },
+  { id: 'apiMethod', label: 'API Method', visible: false },
+  { id: 'carrier', label: 'Carrier Service', visible: false },
   { id: 'cartsCarrier', label: 'Carts Carrier', visible: false },
   { id: 'carrierType', label: 'Type', visible: false },
   { id: 'createdDate', label: 'Created date', visible: false },
@@ -354,6 +356,8 @@ export default function ShipmentsList({
         return String(s.displayTotalShipments);
       case 'carrier':
         return s.carrier;
+      case 'apiMethod':
+        return 'DHL';
       case 'cartsCarrier':
         return getCartsCarrier(s.carrier);
       case 'carrierType':
@@ -771,6 +775,9 @@ export default function ShipmentsList({
                                 )}
                                 {column.id === 'trackingId' && (
                                   <span className="text-sm">{shipment.trackingId}</span>
+                                )}
+                                {column.id === 'apiMethod' && (
+                                  <span className="text-sm">DHL</span>
                                 )}
                                 {column.id === 'createdDate' && (
                                   <span className="text-sm">{shipment.dateCreated}</span>

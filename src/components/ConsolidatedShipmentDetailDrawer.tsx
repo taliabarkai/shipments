@@ -366,6 +366,12 @@ export default function ConsolidatedShipmentDetailDrawer({
                 )}
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                    API Method
+                  </span>
+                  <span className="text-sm leading-5 tracking-tight text-[#101828]">DHL</span>
+                </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                  <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
                     Type
                   </span>
                   <span className="text-sm leading-5 tracking-tight text-[#101828]">
@@ -386,9 +392,15 @@ export default function ConsolidatedShipmentDetailDrawer({
                 </div>
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
                   <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
-                    Carrier
+                    Carrier Service
                   </span>
                   <span className="text-sm leading-5 tracking-tight text-[#101828]">{shipment.carrier}</span>
+                </div>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center">
+                  <span className="w-full shrink-0 text-sm leading-5 tracking-tight text-[#4a5565] sm:w-[180px]">
+                    Number of Units
+                  </span>
+                  <span className="text-sm leading-5 tracking-tight text-[#101828]">54</span>
                 </div>
               </div>
             </section>
