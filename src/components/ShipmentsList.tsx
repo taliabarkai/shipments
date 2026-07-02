@@ -65,6 +65,7 @@ export type ConsolidatedListColumnId =
   | 'destination'
   | 'totalValue'
   | 'totalShipments'
+  | 'numberOfUnits'
   | 'trackingId'
   | 'apiMethod'
   | 'carrier'
@@ -88,6 +89,7 @@ const DEFAULT_OPTIONAL_COLUMNS: { id: ConsolidatedListColumnId; label: string; v
   { id: 'packingFacility', label: 'Facility', visible: true },
   { id: 'destination', label: 'Destination Country', visible: true },
   { id: 'totalValue', label: 'Total value', visible: true },
+  { id: 'numberOfUnits', label: 'Number of Units', visible: true },
   { id: 'totalShipments', label: 'Total shipments', visible: false },
   { id: 'trackingId', label: 'Tracking', visible: false },
   { id: 'apiMethod', label: 'API Method', visible: false },
@@ -333,6 +335,8 @@ export default function ShipmentsList({
         return s.totalValue;
       case 'totalShipments':
         return String(s.displayTotalShipments);
+      case 'numberOfUnits':
+        return '54';
       case 'carrier':
         return s.carrier;
       case 'apiMethod':
@@ -821,6 +825,9 @@ export default function ShipmentsList({
                                 )}
                                 {column.id === 'totalShipments' && (
                                   <span className="text-sm">{shipment.displayTotalShipments}</span>
+                                )}
+                                {column.id === 'numberOfUnits' && (
+                                  <span className="text-sm">54</span>
                                 )}
                                 {column.id === 'carrier' && (
                                   <span className="text-sm">{shipment.carrier}</span>
