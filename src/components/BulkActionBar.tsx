@@ -68,6 +68,8 @@ interface BulkActionBarProps {
   /** Optional demo toggle rendered in the bar; omit the handler to hide it. */
   simulateLargeExport?: boolean;
   onSimulateLargeExportChange?: (value: boolean) => void;
+  /** When set (demo mode), the count badge/labels display this number instead of the real counts. */
+  simulatedCount?: number;
 }
 
 /** Leading-icon + title + description layout shared by every menu item. */
@@ -187,7 +189,10 @@ export default function BulkActionBar({
   menuLoading,
   simulateLargeExport,
   onSimulateLargeExportChange,
+  simulatedCount,
 }: BulkActionBarProps) {
+  const displaySelectedCount = simulatedCount ?? selectedCount;
+  const displayTotal = simulatedCount ?? total;
   return (
     <div
       role="status"
@@ -195,12 +200,12 @@ export default function BulkActionBar({
       className="flex flex-wrap items-center gap-3 rounded-lg bg-gray-100 p-4 text-gray-900 transition-colors"
     >
       <span className="flex items-center gap-2">
-        <span className="inline-flex size-7 items-center justify-center rounded-full bg-[#1976d2] text-sm font-medium tabular-nums text-white">
-          {allSelected ? total : selectedCount}
+        <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-[#1976d2] px-2 text-sm font-medium tabular-nums text-white">
+          {(allSelected ? displayTotal : displaySelectedCount).toLocaleString()}
         </span>
         {allSelected ? (
           <span className="text-sm font-medium text-gray-900">
-            All {total} shipments selected
+            All {displayTotal.toLocaleString()} shipments selected
           </span>
         ) : (
           <span className="text-sm font-normal text-gray-600">selected on this page</span>
@@ -229,7 +234,7 @@ export default function BulkActionBar({
               className="h-auto p-0 text-sm text-[#1976d2] underline underline-offset-4"
               onClick={onSelectAllMatching}
             >
-              Select all {total} shipments
+              Select all {displayTotal.toLocaleString()} shipments
             </Button>
           </>
         )
@@ -247,7 +252,7 @@ export default function BulkActionBar({
               htmlFor="simulate-large-export"
               className="cursor-pointer text-xs text-gray-500"
             >
-              Simulate 1000+ docs
+              1000+ docs
             </Label>
           </div>
         )}

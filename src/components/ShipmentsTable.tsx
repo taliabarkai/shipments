@@ -51,6 +51,9 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
 /** Above this many documents, the export is delivered async via an emailed link instead of a direct download. */
 const DOCUMENTS_EMAIL_THRESHOLD = 1000;
 
+/** Mocked document/selection count used by the "Simulate 1000+ docs" demo toggle. */
+const SIMULATED_DOCUMENT_COUNT = 1240;
+
 const ACTIVE_RULES = MOCK_RULES.filter((r) => deriveRuleStatus(r) === 'active').map((r) => ({
   id: r.id,
   name: r.name,
@@ -371,7 +374,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
 
   // Documents across a set of orders (each row may carry a label and an invoice).
   const countDocumentsFor = (orderIds: string[]) => {
-    if (simulateLargeExport) return 1240; // demo: force the emailed-link threshold
+    if (simulateLargeExport) return SIMULATED_DOCUMENT_COUNT; // demo: force the emailed-link threshold
     const ids = new Set(orderIds);
     return filteredShipments.reduce(
       (n, s) => (ids.has(s.orderId) ? n + (s.label ? 1 : 0) + (s.invoice ? 1 : 0) : n),
@@ -585,6 +588,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                       menuLoading={exporting}
                       simulateLargeExport={simulateLargeExport}
                       onSimulateLargeExportChange={setSimulateLargeExport}
+                      simulatedCount={simulateLargeExport ? SIMULATED_DOCUMENT_COUNT : undefined}
                     />
                   </div>
                 </div>
