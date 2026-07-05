@@ -11,10 +11,10 @@ import {
   type AlertFilterId,
 } from './alertFilterRules';
 import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
-import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Loader2, Files } from 'lucide-react';
+import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Files, Sparkles } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { Toaster } from './ui/sonner';
-import BulkActionBar, { type BulkAction } from './BulkActionBar';
+import BulkActionBar, { type BulkMenuItem, type BulkMenuSelection } from './BulkActionBar';
 import { useRowSelection } from './useRowSelection';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -47,6 +47,9 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'status', label: 'Status', visible: true },
 ];
+
+/** Above this many documents, the export is delivered async via an emailed link instead of a direct download. */
+const DOCUMENTS_EMAIL_THRESHOLD = 1000;
 
 const ACTIVE_RULES = MOCK_RULES.filter((r) => deriveRuleStatus(r) === 'active').map((r) => ({
   id: r.id,
@@ -331,6 +334,9 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
   const pageIds = useMemo(() => paginatedShipments.map((s) => s.orderId), [paginatedShipments]);
   const selection = useRowSelection(allMatchingIds);
   const [exporting, setExporting] = useState(false);
+  // Demo aid: pretend the selection holds 1000+ documents so the emailed-link
+  // export path is reachable with the small mock dataset.
+  const [simulateLargeExport, setSimulateLargeExport] = useState(false);
 
   // Clear the selection whenever the selection context changes (search / filters).
   // Pagination does not change this key, so selection persists across pages.
@@ -363,37 +369,79 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     selection.setPageSelected(pageIds, !selection.isPageFullySelected(pageIds));
   };
 
-  const handleBulkExport = async () => {
+  // Documents across a set of orders (each row may carry a label and an invoice).
+  const countDocumentsFor = (orderIds: string[]) => {
+    if (simulateLargeExport) return 1240; // demo: force the emailed-link threshold
+    const ids = new Set(orderIds);
+    return filteredShipments.reduce(
+      (n, s) => (ids.has(s.orderId) ? n + (s.label ? 1 : 0) + (s.invoice ? 1 : 0) : n),
+      0,
+    );
+  };
+
+  // NOTE: prototype — there is no backend, so the direct-download path reuses the
+  // client-side CSV export and the emailed-link path is a mocked toast.
+  const handleExportDocuments = async (sel: BulkMenuSelection) => {
+    const fileCount = countDocumentsFor(sel.orderIds);
+    if (fileCount > DOCUMENTS_EMAIL_THRESHOLD) {
+      // Async path: enqueue a job and let the user go (no blocking wait).
+      toast("We'll email you when your download is ready");
+      return;
+    }
     setExporting(true);
     try {
-      const ids = new Set(selection.getSelectedIds());
+      const ids = new Set(sel.orderIds);
       // All rows are available client-side, so all-matching mode needs no extra fetch.
       const rows = filteredShipments.filter((s) => ids.has(s.orderId));
       downloadShipmentsCsv(rows, visibleColumns);
+      toast.success(`${fileCount.toLocaleString()} documents exported`);
     } catch {
       toast.error('Export failed', {
-        action: { label: 'Retry', onClick: () => { void handleBulkExport(); } },
+        action: { label: 'Retry', onClick: () => { void handleExportDocuments(sel); } },
       });
     } finally {
       setExporting(false);
     }
   };
 
-  // NOTE: this is a prototype — "Export documents" currently runs the CSV export
-  // (no backend, no real document files to stream).
-  const bulkActions: BulkAction[] = [
+  const menuSelection: BulkMenuSelection = {
+    count: selection.selectedCount,
+    total: filteredShipments.length,
+    allSelected: selection.allSelected,
+    orderIds: selection.getSelectedIds(),
+  };
+
+  // Config-driven bulk-actions menu. To add a new bulk action later, append one
+  // entry here — the menu's rendering and a11y logic don't need to change.
+  const bulkMenuItems: BulkMenuItem[] = [
     {
       key: 'export-documents',
-      label: 'Export documents',
-      icon: exporting ? (
-        <Loader2 className="size-4 animate-spin" />
-      ) : (
-        <Files className="size-4" />
-      ),
-      onClick: () => { void handleBulkExport(); },
-      loading: exporting,
-      variant: 'default',
-      className: 'bg-[#1976d2] hover:bg-[#1565c0] text-white',
+      icon: <Files className="size-5" />,
+      title: 'Export documents',
+      variant: 'direct',
+      getDescription: (sel) => {
+        const fileCount = countDocumentsFor(sel.orderIds);
+        return fileCount > DOCUMENTS_EMAIL_THRESHOLD
+          ? `${fileCount.toLocaleString()} files — we'll email you a download link`
+          : `${fileCount.toLocaleString()} files as ZIP`;
+      },
+      disabled: (sel) =>
+        countDocumentsFor(sel.orderIds) === 0
+          ? { disabled: true, reason: 'No documents in selection' }
+          : { disabled: false },
+      onSelect: (sel) => { void handleExportDocuments(sel); },
+    },
+    {
+      // TODO: replace with a real bulk action. Structural placeholder only —
+      // it demonstrates how to add another entry to this config array.
+      key: 'future-action',
+      icon: <Sparkles className="size-5" />,
+      title: 'Future bulk action example goes here',
+      variant: 'direct',
+      separatorBefore: true,
+      getDescription: (sel) => `Applies to ${sel.count} shipments`,
+      disabled: () => ({ disabled: true, reason: 'Coming soon' }),
+      onSelect: () => {},
     },
   ];
 
@@ -444,15 +492,10 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                 <div className="flex gap-3">
                   <Button
                     onClick={handleExportCSV}
-                    variant={selection.isAnySelected ? 'outline' : 'default'}
-                    className={
-                      selection.isAnySelected
-                        ? 'transition-colors'
-                        : 'bg-[#1976d2] hover:bg-[#1565c0] text-white transition-colors'
-                    }
+                    className="bg-[#1976d2] hover:bg-[#1565c0] text-white"
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    {selection.isAnySelected ? `Export all (${filteredShipments.length})` : 'Export CSV'}
+                    Export CSV
                   </Button>
                 </div>
               </div>
@@ -535,8 +578,13 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                       allSelected={selection.allSelected}
                       canSelectAllMatching={canSelectAllMatching}
                       onSelectAllMatching={selection.selectAllMatching}
+                      onSelectThisPageOnly={() => selection.selectPageOnly(pageIds)}
                       onClear={selection.clear}
-                      actions={bulkActions}
+                      menuItems={bulkMenuItems}
+                      menuSelection={menuSelection}
+                      menuLoading={exporting}
+                      simulateLargeExport={simulateLargeExport}
+                      onSimulateLargeExportChange={setSimulateLargeExport}
                     />
                   </div>
                 </div>

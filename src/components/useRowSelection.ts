@@ -33,6 +33,8 @@ export interface RowSelection {
   setPageSelected: (pageIds: string[], selected: boolean) => void;
   /** Switch to all-matching mode. */
   selectAllMatching: () => void;
+  /** Exit all-matching mode and select exactly the given page's rows. */
+  selectPageOnly: (pageIds: string[]) => void;
   /** Clear selection and exit all-matching mode. */
   clear: () => void;
   /** Resolve the selection to concrete ids, in the order of `allMatchingIds`. */
@@ -106,6 +108,12 @@ export function useRowSelection(allMatchingIds: string[]): RowSelection {
     setSelected(new Set());
   }, []);
 
+  const selectPageOnly = useCallback((pageIds: string[]) => {
+    setAllSelected(false);
+    setExcluded(new Set());
+    setSelected(new Set(pageIds));
+  }, []);
+
   const clear = useCallback(() => {
     setAllSelected(false);
     setExcluded(new Set());
@@ -153,6 +161,7 @@ export function useRowSelection(allMatchingIds: string[]): RowSelection {
     toggle,
     setPageSelected,
     selectAllMatching,
+    selectPageOnly,
     clear,
     getSelectedIds,
   };
