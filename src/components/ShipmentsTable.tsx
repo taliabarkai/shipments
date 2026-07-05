@@ -11,7 +11,7 @@ import {
   type AlertFilterId,
 } from './alertFilterRules';
 import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
-import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Loader2, Sheet, Files, Package } from 'lucide-react';
+import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Loader2, Files } from 'lucide-react';
 import { toast } from 'sonner@2.0.3';
 import { Toaster } from './ui/sonner';
 import BulkActionBar, { type BulkAction } from './BulkActionBar';
@@ -379,53 +379,21 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     }
   };
 
-  // Document count across the selected rows (each row may carry a label and an invoice).
-  const selectedIdSet = new Set(selection.getSelectedIds());
-  const selectedDocCount = filteredShipments.reduce(
-    (n, s) => (selectedIdSet.has(s.orderId) ? n + (s.label ? 1 : 0) + (s.invoice ? 1 : 0) : n),
-    0,
-  );
-
-  // NOTE: this is a prototype — every menu item currently runs the CSV export.
-  // "Documents only" / "Export everything" are mocked (no backend, no real files).
+  // NOTE: this is a prototype — "Export documents" currently runs the CSV export
+  // (no backend, no real document files to stream).
   const bulkActions: BulkAction[] = [
     {
-      key: 'export-selected',
-      label: 'Export selected',
+      key: 'export-documents',
+      label: 'Export documents',
       icon: exporting ? (
         <Loader2 className="size-4 animate-spin" />
       ) : (
-        <Download className="size-4" />
+        <Files className="size-4" />
       ),
+      onClick: () => { void handleBulkExport(); },
       loading: exporting,
       variant: 'default',
       className: 'bg-[#1976d2] hover:bg-[#1565c0] text-white',
-      menuItems: [
-        {
-          key: 'csv',
-          title: 'Export as CSV',
-          description: `Shipment data for ${selection.selectedCount} rows`,
-          icon: <Sheet className="size-5" />,
-          onSelect: () => { void handleBulkExport(); },
-        },
-        {
-          key: 'documents',
-          title: 'Export documents only',
-          description: `${selectedDocCount} files (labels, invoices) as ZIP`,
-          icon: <Files className="size-5" />,
-          onSelect: () => { void handleBulkExport(); },
-          disabled: selectedDocCount === 0,
-          disabledTooltip: 'No documents in selection',
-        },
-        {
-          key: 'everything',
-          title: 'Export everything',
-          description: 'CSV and documents in one ZIP',
-          icon: <Package className="size-5" />,
-          onSelect: () => { void handleBulkExport(); },
-          separatorBefore: true,
-        },
-      ],
     },
   ];
 
