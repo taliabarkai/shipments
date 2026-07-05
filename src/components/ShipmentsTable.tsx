@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { AlertFilterAddControl, AlertFilterActiveChips, RuleFilterAddControl, RuleFilterActiveChips } from './AlertFilterTags';
 import {
   matchesAnyAlertRule,
@@ -11,7 +11,11 @@ import {
   type AlertFilterId,
 } from './alertFilterRules';
 import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
-import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical } from 'lucide-react';
+import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Loader2, Sheet, Files, Package } from 'lucide-react';
+import { toast } from 'sonner@2.0.3';
+import { Toaster } from './ui/sonner';
+import BulkActionBar, { type BulkAction } from './BulkActionBar';
+import { useRowSelection } from './useRowSelection';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
@@ -66,6 +70,94 @@ function getCartsCarrier(carrier: string): string {
   if (c.includes('mailog express')) return 'Mailog Express';
   if (c.includes('mailog')) return 'Mailog HU';
   return carrier || '—';
+}
+
+/**
+ * Native checkbox for the selection column. Uses a ref to drive the native
+ * `indeterminate` property, which cannot be expressed as a JSX attribute.
+ */
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  ariaLabel,
+}: {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: () => void;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={ariaLabel}
+      className="size-4 shrink-0 cursor-pointer rounded-sm accent-[#1976d2] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+    />
+  );
+}
+
+/** Escape a single CSV field: quote when it contains a comma, quote or newline; double embedded quotes. */
+function csvEscape(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
+/** Plain-text value for a shipment column, used when generating the CSV export. */
+function csvValueForColumn(shipment: Shipment, columnId: string): string {
+  switch (columnId) {
+    case 'status':
+      return shipment.status;
+    case 'statusReason':
+      return shipment.status === 'Pending'
+        ? shipment.pendingReason ?? '—'
+        : shipment.status === 'On Hold'
+          ? shipment.holdReason ?? '—'
+          : shipment.status === 'Cancelled'
+            ? shipment.cancellationReason ?? '—'
+            : '—';
+    case 'alerts': {
+      const alerts = getShipmentDisplayAlerts(shipment);
+      return alerts.length === 0 ? '—' : alerts.map((a) => alertLabelForId(a)).join('; ');
+    }
+    case 'cartsCarrier':
+      return getCartsCarrier(shipment.carrier);
+    case 'documents':
+      return [shipment.label, shipment.invoice].filter(Boolean).join(' / ');
+    default: {
+      const value = shipment[columnId as keyof Shipment];
+      return value == null ? '' : String(value);
+    }
+  }
+}
+
+/** Build and download a CSV from the given rows, named shipments-export-YYYY-MM-DD.csv. */
+function downloadShipmentsCsv(
+  rows: Shipment[],
+  exportColumns: { id: string; label: string }[],
+): void {
+  const header = exportColumns.map((c) => csvEscape(c.label)).join(',');
+  const body = rows
+    .map((row) => exportColumns.map((c) => csvEscape(csvValueForColumn(row, c.id))).join(','))
+    .join('\n');
+  const csv = `${header}\n${body}`;
+
+  const now = new Date();
+  const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `shipments-export-${stamp}.csv`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
 }
 
 export type ShipmentStatus =
@@ -234,6 +326,109 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     currentPage * rowsPerPage
   );
 
+  // --- Row selection with bulk actions ---
+  const allMatchingIds = useMemo(() => filteredShipments.map((s) => s.orderId), [filteredShipments]);
+  const pageIds = useMemo(() => paginatedShipments.map((s) => s.orderId), [paginatedShipments]);
+  const selection = useRowSelection(allMatchingIds);
+  const [exporting, setExporting] = useState(false);
+
+  // Clear the selection whenever the selection context changes (search / filters).
+  // Pagination does not change this key, so selection persists across pages.
+  const selectionContextKey = JSON.stringify({
+    searchQuery,
+    filters,
+    appliedAlertFilters,
+    appliedRuleFilters,
+  });
+  const prevSelectionContextKey = useRef(selectionContextKey);
+  useEffect(() => {
+    if (prevSelectionContextKey.current === selectionContextKey) return;
+    prevSelectionContextKey.current = selectionContextKey;
+    if (selection.isAnySelected) {
+      selection.clear();
+      toast('Selection cleared');
+    }
+  }, [selectionContextKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const headerChecked = selection.isPageFullySelected(pageIds);
+  const headerIndeterminate = selection.isPagePartiallySelected(pageIds);
+  const canSelectAllMatching =
+    !selection.allSelected && headerChecked && filteredShipments.length > pageIds.length;
+
+  const handleHeaderToggle = () => {
+    if (selection.allSelected) {
+      selection.clear();
+      return;
+    }
+    selection.setPageSelected(pageIds, !selection.isPageFullySelected(pageIds));
+  };
+
+  const handleBulkExport = async () => {
+    setExporting(true);
+    try {
+      const ids = new Set(selection.getSelectedIds());
+      // All rows are available client-side, so all-matching mode needs no extra fetch.
+      const rows = filteredShipments.filter((s) => ids.has(s.orderId));
+      downloadShipmentsCsv(rows, visibleColumns);
+    } catch {
+      toast.error('Export failed', {
+        action: { label: 'Retry', onClick: () => { void handleBulkExport(); } },
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Document count across the selected rows (each row may carry a label and an invoice).
+  const selectedIdSet = new Set(selection.getSelectedIds());
+  const selectedDocCount = filteredShipments.reduce(
+    (n, s) => (selectedIdSet.has(s.orderId) ? n + (s.label ? 1 : 0) + (s.invoice ? 1 : 0) : n),
+    0,
+  );
+
+  // NOTE: this is a prototype — every menu item currently runs the CSV export.
+  // "Documents only" / "Export everything" are mocked (no backend, no real files).
+  const bulkActions: BulkAction[] = [
+    {
+      key: 'export-selected',
+      label: 'Export selected',
+      icon: exporting ? (
+        <Loader2 className="size-4 animate-spin" />
+      ) : (
+        <Download className="size-4" />
+      ),
+      loading: exporting,
+      variant: 'default',
+      className: 'bg-[#1976d2] hover:bg-[#1565c0] text-white',
+      menuItems: [
+        {
+          key: 'csv',
+          title: 'Export as CSV',
+          description: `Shipment data for ${selection.selectedCount} rows`,
+          icon: <Sheet className="size-5" />,
+          onSelect: () => { void handleBulkExport(); },
+        },
+        {
+          key: 'documents',
+          title: 'Export documents only',
+          description: `${selectedDocCount} files (labels, invoices) as ZIP`,
+          icon: <Files className="size-5" />,
+          onSelect: () => { void handleBulkExport(); },
+          disabled: selectedDocCount === 0,
+          disabledTooltip: 'No documents in selection',
+        },
+        {
+          key: 'everything',
+          title: 'Export everything',
+          description: 'CSV and documents in one ZIP',
+          icon: <Package className="size-5" />,
+          onSelect: () => { void handleBulkExport(); },
+          separatorBefore: true,
+        },
+      ],
+    },
+  ];
+
   const hasActiveColumnFilters = Object.values(filters).some((arr) => arr.length > 0);
 
   const clearColumnFilter = (filterKey: keyof typeof filters) => {
@@ -281,10 +476,15 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                 <div className="flex gap-3">
                   <Button
                     onClick={handleExportCSV}
-                    className="bg-[#1976d2] hover:bg-[#1565c0] text-white"
+                    variant={selection.isAnySelected ? 'outline' : 'default'}
+                    className={
+                      selection.isAnySelected
+                        ? 'transition-colors'
+                        : 'bg-[#1976d2] hover:bg-[#1565c0] text-white transition-colors'
+                    }
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    Export CSV
+                    {selection.isAnySelected ? `Export all (${filteredShipments.length})` : 'Export CSV'}
                   </Button>
                 </div>
               </div>
@@ -356,13 +556,43 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
             </div>
 
             {/* Table Section */}
-            <div className="bg-white rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+            <div className="relative bg-white rounded-xl overflow-hidden flex flex-col flex-1 min-h-0">
+              {/* Floating bulk-action toolbar, anchored to the bottom of the table */}
+              {selection.isAnySelected && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-16 z-30 flex justify-center px-4">
+                  <div className="pointer-events-auto w-full max-w-3xl rounded-lg border border-gray-200 shadow-xl">
+                    <BulkActionBar
+                      selectedCount={selection.selectedCount}
+                      total={filteredShipments.length}
+                      allSelected={selection.allSelected}
+                      canSelectAllMatching={canSelectAllMatching}
+                      onSelectAllMatching={selection.selectAllMatching}
+                      onClear={selection.clear}
+                      actions={bulkActions}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="relative flex flex-col flex-1 min-h-0">
                 {/* Table Content */}
-                <div className="overflow-auto flex-1 min-h-0">
+                {/* Extra bottom padding while the floating bar is shown so the last rows scroll clear of it. */}
+                <div className={`overflow-auto flex-1 min-h-0 ${selection.isAnySelected ? 'pb-28' : ''}`}>
                   <table className="w-full relative">
                     <thead className="bg-white sticky top-0 border-b z-10">
                     <tr className="relative">
+                      <th
+                        className="w-12 px-2 py-4 align-middle"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <label className="flex min-h-[40px] min-w-[40px] cursor-pointer items-center justify-center">
+                          <SelectionCheckbox
+                            checked={headerChecked}
+                            indeterminate={headerIndeterminate}
+                            onChange={handleHeaderToggle}
+                            ariaLabel="Select all shipments on this page"
+                          />
+                        </label>
+                      </th>
                       {visibleColumns.map((column) => {
                         const isFilterable = ['packingFacility', 'destination', 'carrier', 'siteId', 'status'].includes(column.id);
                         const filterKey = column.id as keyof typeof filters;
@@ -532,14 +762,28 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                   </thead>
                   <tbody>
                     {paginatedShipments.map((shipment) => (
-                      <tr 
-                        key={shipment.orderId} 
-                        className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
+                      <tr
+                        key={shipment.orderId}
+                        className={`border-b cursor-pointer transition-colors ${
+                          selection.isSelected(shipment.orderId) ? 'bg-gray-100' : 'hover:bg-gray-50'
+                        }`}
                         onClick={() => {
                           setSelectedShipment(shipment);
                           setShowDetailsDrawer(true);
                         }}
                       >
+                        <td
+                          className="w-12 px-2 py-4 align-middle"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <label className="flex min-h-[40px] min-w-[40px] cursor-pointer items-center justify-center">
+                            <SelectionCheckbox
+                              checked={selection.isSelected(shipment.orderId)}
+                              onChange={() => selection.toggle(shipment.orderId)}
+                              ariaLabel={`Select order ${shipment.orderId}`}
+                            />
+                          </label>
+                        </td>
                         {visibleColumns.map((column) => (
                           <td key={column.id} className="px-4 py-4 whitespace-nowrap text-sm">
                             {column.id === 'status' ? (
@@ -684,6 +928,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
         onClose={() => setShowDetailsDrawer(false)}
         shipment={selectedShipment}
       />
+      <Toaster />
     </div>
   );
 }
