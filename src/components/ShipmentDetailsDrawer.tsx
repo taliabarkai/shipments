@@ -13,6 +13,8 @@ import {
 } from './shipmentDrawerSections';
 import { DefaultShipmentHistorySection } from './ShipmentHistorySection';
 import { MOCK_RULES } from './upgradeDowngradeTypes';
+import { getShipmentDeliveryDates } from './shipmentDeliveryDates';
+import { DeliveryStatus } from './DeliveryStatus';
 
 interface ShipmentDetailsDrawerProps {
   shipment: Shipment | null;
@@ -20,34 +22,6 @@ interface ShipmentDetailsDrawerProps {
   onClose: () => void;
 }
 
-/** Format a date as MM/DD/YYYY. */
-function formatMmDdYyyy(date: Date): string {
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${mm}/${dd}/${date.getFullYear()}`;
-}
-
-/**
- * Deterministic mock Order ETA / Shipment EDD per order. The EDD is offset from
- * the ETA so that across shipments some match, some land later, and some earlier.
- */
-function mockEtaAndEdd(orderId: string): {
-  orderEta: string;
-  shipmentEdd: string;
-  isDelayed: boolean;
-} {
-  let hash = 0;
-  for (let i = 0; i < orderId.length; i += 1) hash = (hash * 31 + orderId.charCodeAt(i)) >>> 0;
-  const eta = new Date(2026, 6, 15); // Jul 15, 2026 baseline (month is 0-indexed)
-  eta.setDate(eta.getDate() + (hash % 21)); // spread ETAs across ~3 weeks
-  const edd = new Date(eta);
-  edd.setDate(eta.getDate() + [0, 4, -3][hash % 3]); // same day / 4 later / 3 earlier
-  return {
-    orderEta: formatMmDdYyyy(eta),
-    shipmentEdd: formatMmDdYyyy(edd),
-    isDelayed: edd.getTime() > eta.getTime(),
-  };
-}
 
 export default function ShipmentDetailsDrawer({ shipment, open, onClose }: ShipmentDetailsDrawerProps) {
   const [showInvoicePreview, setShowInvoicePreview] = useState(false);
@@ -97,7 +71,7 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
 
   if (!shipment) return null;
 
-  const { orderEta, shipmentEdd, isDelayed } = mockEtaAndEdd(shipment.orderId);
+  const { orderEta, shipmentEdd, isLate } = getShipmentDeliveryDates(shipment.orderId);
 
   // Mock event dates. Real impl reads these off the shipment record.
   const readyToPackDate = '10/06/2025 at 08:15';
@@ -184,21 +158,18 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
               <DrawerShippingInformationSection title="Shipping information">
                 {/* Delivery — dates first; these are the most-scanned values, so slightly bold. */}
                 <DrawerInfoGroup label="Delivery">
+                  <DrawerInfoRow label="Shipment EDD" valueClassName="font-medium" value={shipmentEdd} />
+                  <DrawerInfoRow label="Order ETA" valueClassName="font-medium" value={orderEta} />
                   <DrawerInfoRow
-                    label="Shipment EDD"
-                    valueClassName="font-medium"
+                    label="Delivery status"
                     value={
-                      <span className="inline-flex items-center gap-2">
-                        {shipmentEdd}
-                        {isDelayed && (
-                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
-                            DELAYED
-                          </span>
-                        )}
-                      </span>
+                      shipment.status === 'Shipped' ? (
+                        <DeliveryStatus isLate={isLate} className="text-sm" />
+                      ) : (
+                        '—'
+                      )
                     }
                   />
-                  <DrawerInfoRow label="Order ETA" valueClassName="font-medium" value={orderEta} />
                 </DrawerInfoGroup>
 
                 {/* Route — the shipment's path as one mental unit. */}

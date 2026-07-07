@@ -12,6 +12,8 @@ import {
 } from './alertFilterRules';
 import { MOCK_RULES, deriveRuleStatus } from './upgradeDowngradeTypes';
 import { Download, Search, RefreshCw, X, FileText, Receipt, MoreVertical, Files, Sparkles } from 'lucide-react';
+import { getShipmentDeliveryDates } from './shipmentDeliveryDates';
+import { DeliveryStatus } from './DeliveryStatus';
 import { toast } from 'sonner@2.0.3';
 import { Toaster } from './ui/sonner';
 import BulkActionBar, { type BulkMenuItem, type BulkMenuSelection } from './BulkActionBar';
@@ -43,9 +45,12 @@ const DEFAULT_SHIPMENTS_COLUMNS = [
   { id: 'siteId', label: 'Site ID', visible: true },
   { id: 'documents', label: 'Documents', visible: true },
   { id: 'orderCost', label: 'Order Cost', visible: true },
+  { id: 'orderEta', label: 'Order ETA', visible: false },
+  { id: 'shipmentEdd', label: 'Shipment EDD', visible: false },
   { id: 'alerts', label: 'Alerts', visible: false },
   { id: 'statusReason', label: 'Status Reason', visible: false },
   { id: 'status', label: 'Status', visible: true },
+  { id: 'deliveryStatus', label: 'Delivery Status', visible: false },
 ];
 
 /** Above this many documents, the export is delivered async via an emailed link instead of a direct download. */
@@ -133,6 +138,16 @@ function csvValueForColumn(shipment: Shipment, columnId: string): string {
     }
     case 'cartsCarrier':
       return getCartsCarrier(shipment.carrier);
+    case 'orderEta':
+      return getShipmentDeliveryDates(shipment.orderId).orderEta;
+    case 'shipmentEdd':
+      return getShipmentDeliveryDates(shipment.orderId).shipmentEdd;
+    case 'deliveryStatus':
+      return shipment.status === 'Shipped'
+        ? getShipmentDeliveryDates(shipment.orderId).isLate
+          ? 'Late'
+          : 'On Time'
+        : '—';
     case 'documents':
       return [shipment.label, shipment.invoice].filter(Boolean).join(' / ');
     default: {
@@ -877,6 +892,23 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                                   </TooltipContent>
                                 </Tooltip>
                               </div>
+                            ) : column.id === 'orderEta' ? (
+                              <span className="text-gray-900">
+                                {getShipmentDeliveryDates(shipment.orderId).orderEta}
+                              </span>
+                            ) : column.id === 'shipmentEdd' ? (
+                              <span className="text-gray-900">
+                                {getShipmentDeliveryDates(shipment.orderId).shipmentEdd}
+                              </span>
+                            ) : column.id === 'deliveryStatus' ? (
+                              shipment.status === 'Shipped' ? (
+                                <DeliveryStatus
+                                  isLate={getShipmentDeliveryDates(shipment.orderId).isLate}
+                                  className="text-[13px]"
+                                />
+                              ) : (
+                                <span className="text-gray-400">—</span>
+                              )
                             ) : (
                               shipment[column.id as keyof Shipment]
                             )}
