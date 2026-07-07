@@ -74,7 +74,24 @@ export function DrawerShippingInformationSection({
   return (
     <div className="border rounded-lg p-4 bg-white">
       <h3 className="font-semibold mb-4">{title}</h3>
-      <div className="space-y-3">{children}</div>
+      {/* Groups are separated by hairline dividers via divide-y. */}
+      <div className="divide-y divide-gray-200">{children}</div>
+    </div>
+  );
+}
+
+/** A labeled group of info rows inside the shipping information card. */
+export function DrawerInfoGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="py-4 first:pt-0 last:pb-0">
+      <p className="mb-2 text-xs font-normal text-gray-400">{label}</p>
+      <div className="space-y-2">{children}</div>
     </div>
   );
 }
@@ -82,14 +99,17 @@ export function DrawerShippingInformationSection({
 export function DrawerInfoRow({
   label,
   value,
+  valueClassName,
 }: {
   label: string;
   value: ReactNode;
+  /** Extra classes for the value cell (e.g. font-medium for dates, font-mono for IDs). */
+  valueClassName?: string;
 }) {
   return (
     <div className="flex items-start gap-2 sm:items-center">
-      <span className="text-sm text-gray-600 min-w-[180px] shrink-0">{label}</span>
-      <div className="text-sm text-gray-900 min-w-0">{value}</div>
+      <span className="w-[45%] shrink-0 text-sm text-gray-600">{label}</span>
+      <div className={`min-w-0 flex-1 text-sm text-gray-900 ${valueClassName ?? ''}`}>{value}</div>
     </div>
   );
 }

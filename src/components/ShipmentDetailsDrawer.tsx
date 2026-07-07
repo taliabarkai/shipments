@@ -7,6 +7,7 @@ import { ImageWithFallback } from './figma/ImageWithFallback';
 import {
   DrawerTimelineSection,
   DrawerShippingInformationSection,
+  DrawerInfoGroup,
   DrawerInfoRow,
   type DrawerTimelineItem,
 } from './shipmentDrawerSections';
@@ -17,6 +18,35 @@ interface ShipmentDetailsDrawerProps {
   shipment: Shipment | null;
   open: boolean;
   onClose: () => void;
+}
+
+/** Format a date as MM/DD/YYYY. */
+function formatMmDdYyyy(date: Date): string {
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${mm}/${dd}/${date.getFullYear()}`;
+}
+
+/**
+ * Deterministic mock Order ETA / Shipment EDD per order. The EDD is offset from
+ * the ETA so that across shipments some match, some land later, and some earlier.
+ */
+function mockEtaAndEdd(orderId: string): {
+  orderEta: string;
+  shipmentEdd: string;
+  isDelayed: boolean;
+} {
+  let hash = 0;
+  for (let i = 0; i < orderId.length; i += 1) hash = (hash * 31 + orderId.charCodeAt(i)) >>> 0;
+  const eta = new Date(2026, 6, 15); // Jul 15, 2026 baseline (month is 0-indexed)
+  eta.setDate(eta.getDate() + (hash % 21)); // spread ETAs across ~3 weeks
+  const edd = new Date(eta);
+  edd.setDate(eta.getDate() + [0, 4, -3][hash % 3]); // same day / 4 later / 3 earlier
+  return {
+    orderEta: formatMmDdYyyy(eta),
+    shipmentEdd: formatMmDdYyyy(edd),
+    isDelayed: edd.getTime() > eta.getTime(),
+  };
 }
 
 export default function ShipmentDetailsDrawer({ shipment, open, onClose }: ShipmentDetailsDrawerProps) {
@@ -66,6 +96,8 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
   };
 
   if (!shipment) return null;
+
+  const { orderEta, shipmentEdd, isDelayed } = mockEtaAndEdd(shipment.orderId);
 
   // Mock event dates. Real impl reads these off the shipment record.
   const readyToPackDate = '10/06/2025 at 08:15';
@@ -149,33 +181,65 @@ export default function ShipmentDetailsDrawer({ shipment, open, onClose }: Shipm
             <div className="space-y-4">
               <DrawerTimelineSection items={timelineItems} />
 
-              <DrawerShippingInformationSection>
-                {shipment.consolidatedId && (
-                  <>
-                    <DrawerInfoRow label="Consolidated ID:" value={shipment.consolidatedId} />
-                    <DrawerInfoRow label="Consolidated Pack:" value={`#${shipment.consolidatedPack}`} />
-                  </>
-                )}
-                <DrawerInfoRow label="Shipping ID:" value={shipment.trackingId} />
-                <DrawerInfoRow label="Shipment Collection ID:" value={shipmentCollectionId} />
-                <DrawerInfoRow label="Packing Facility" value={shipment.packingFacility} />
-                <DrawerInfoRow label="Destination" value={shipment.destination} />
-                <DrawerInfoRow label="Carrier" value={shipment.carrier} />
-                {shipment.appliedRuleIds?.map((ruleId) => {
-                  const rule = MOCK_RULES.find((r) => r.id === ruleId);
-                  if (!rule) return null;
-                  const label = rule.action === 'upgrade' ? 'Upgrade Rule' : 'Downgrade Rule';
-                  return <DrawerInfoRow key={ruleId} label={label} value={rule.name} />;
-                })}
-                {shipment.status === 'Shipped' && shipment.carrierServiceType && (
-                  <DrawerInfoRow label="Carrier Service Type" value={shipment.carrierServiceType} />
-                )}
-                {shipment.status === 'Shipped' && shipment.estimatedDeliveryDate && (
-                  <DrawerInfoRow label="Estimated Delivery Date" value={shipment.estimatedDeliveryDate} />
-                )}
-                {shipment.status === 'Shipped' && shipment.orderEta && (
-                  <DrawerInfoRow label="Order ETA" value={shipment.orderEta} />
-                )}
+              <DrawerShippingInformationSection title="Shipping information">
+                {/* Delivery — dates first; these are the most-scanned values, so slightly bold. */}
+                <DrawerInfoGroup label="Delivery">
+                  <DrawerInfoRow
+                    label="Shipment EDD"
+                    valueClassName="font-medium"
+                    value={
+                      <span className="inline-flex items-center gap-2">
+                        {shipmentEdd}
+                        {isDelayed && (
+                          <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700">
+                            DELAYED
+                          </span>
+                        )}
+                      </span>
+                    }
+                  />
+                  <DrawerInfoRow label="Order ETA" valueClassName="font-medium" value={orderEta} />
+                </DrawerInfoGroup>
+
+                {/* Route — the shipment's path as one mental unit. */}
+                <DrawerInfoGroup label="Route">
+                  <DrawerInfoRow label="Packing facility" value={shipment.packingFacility} />
+                  <DrawerInfoRow label="Destination" value={shipment.destination} />
+                  <DrawerInfoRow label="Carrier" value={shipment.carrier} />
+                  {shipment.appliedRuleIds?.map((ruleId) => {
+                    const rule = MOCK_RULES.find((r) => r.id === ruleId);
+                    if (!rule) return null;
+                    const label = rule.action === 'upgrade' ? 'Upgrade rule' : 'Downgrade rule';
+                    return <DrawerInfoRow key={ruleId} label={label} value={rule.name} />;
+                  })}
+                  {shipment.status === 'Shipped' && shipment.carrierServiceType && (
+                    <DrawerInfoRow label="Carrier service type" value={shipment.carrierServiceType} />
+                  )}
+                </DrawerInfoGroup>
+
+                {/* References — IDs for support lookups; monospace for easy reading/copying. */}
+                <DrawerInfoGroup label="References">
+                  <DrawerInfoRow
+                    label="Shipping ID"
+                    valueClassName="font-mono"
+                    value={shipment.trackingId}
+                  />
+                  <DrawerInfoRow
+                    label="Shipment collection ID"
+                    valueClassName="font-mono"
+                    value={shipmentCollectionId}
+                  />
+                  {shipment.consolidatedId && (
+                    <>
+                      <DrawerInfoRow
+                        label="Consolidated ID"
+                        valueClassName="font-mono"
+                        value={shipment.consolidatedId}
+                      />
+                      <DrawerInfoRow label="Consolidated pack" value={`#${shipment.consolidatedPack}`} />
+                    </>
+                  )}
+                </DrawerInfoGroup>
               </DrawerShippingInformationSection>
 
               <DefaultShipmentHistorySection shipment={shipment} />
