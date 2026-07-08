@@ -264,6 +264,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     carrier: [] as string[],
     siteId: [] as string[],
     status: [] as string[],
+    deliveryStatus: [] as string[],
   });
   const [appliedAlertFilters, setAppliedAlertFilters] = useState<AlertFilterId[]>([]);
   const [appliedRuleFilters, setAppliedRuleFilters] = useState<string[]>([]);
@@ -287,6 +288,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     carrier: Array.from(new Set(shipments.map(s => s.carrier))).sort(),
     siteId: Array.from(new Set(shipments.map(s => s.siteId))).sort(),
     status: Array.from(new Set(shipments.map(s => s.status))).sort(),
+    deliveryStatus: ['On Time', 'Late'],
   };
 
   const alertCounts = useMemo(
@@ -332,6 +334,18 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     if (filters.status.length > 0 && !filters.status.includes(shipment.status)) {
       return false;
     }
+    if (filters.deliveryStatus.length > 0) {
+      // Only Shipped shipments have a delivery status; others never match.
+      const deliveryLabel =
+        shipment.status === 'Shipped'
+          ? getShipmentDeliveryDates(shipment.orderId).isLate
+            ? 'Late'
+            : 'On Time'
+          : null;
+      if (!deliveryLabel || !filters.deliveryStatus.includes(deliveryLabel)) {
+        return false;
+      }
+    }
     if (!matchesAnyAlertRule(shipment, appliedAlertFilters, shipmentAppliesAlert)) {
       return false;
     }
@@ -341,14 +355,20 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
     return true;
   });
 
-  const totalPages = Math.ceil(filteredShipments.length / rowsPerPage);
-  const paginatedShipments = filteredShipments.slice(
+  // Default ordering: Shipped shipments first (the common case for this screen),
+  // then everything else. Stable sort preserves the original order within each group.
+  const orderedShipments = [...filteredShipments].sort(
+    (a, b) => (a.status === 'Shipped' ? 0 : 1) - (b.status === 'Shipped' ? 0 : 1),
+  );
+
+  const totalPages = Math.ceil(orderedShipments.length / rowsPerPage);
+  const paginatedShipments = orderedShipments.slice(
     (currentPage - 1) * rowsPerPage,
     currentPage * rowsPerPage
   );
 
   // --- Row selection with bulk actions ---
-  const allMatchingIds = useMemo(() => filteredShipments.map((s) => s.orderId), [filteredShipments]);
+  const allMatchingIds = useMemo(() => orderedShipments.map((s) => s.orderId), [orderedShipments]);
   const pageIds = useMemo(() => paginatedShipments.map((s) => s.orderId), [paginatedShipments]);
   const selection = useRowSelection(allMatchingIds);
   const [exporting, setExporting] = useState(false);
@@ -556,6 +576,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                             carrier: [],
                             siteId: [],
                             status: [],
+                            deliveryStatus: [],
                           });
                         }}
                       >
@@ -629,7 +650,7 @@ export default function ShipmentsTable({ shipments, onSectionChange }: Shipments
                         </label>
                       </th>
                       {visibleColumns.map((column) => {
-                        const isFilterable = ['packingFacility', 'destination', 'carrier', 'siteId', 'status'].includes(column.id);
+                        const isFilterable = ['packingFacility', 'destination', 'carrier', 'siteId', 'status', 'deliveryStatus'].includes(column.id);
                         const filterKey = column.id as keyof typeof filters;
                         const hasFilter = isFilterable && filters[filterKey]?.length > 0;
                         
