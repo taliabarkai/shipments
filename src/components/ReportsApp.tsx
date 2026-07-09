@@ -52,6 +52,9 @@ const NAMED_SITES = SITE_OPTIONS.filter((s) => s.value !== 'all');
 /** Sentinel value for the select-all row inside the Site IDs dropdown. */
 const ALL_SITES_VALUE = '__all__';
 
+/** Toggle the Current Export / Recent Exports pill tabs (hidden for now). */
+const SHOW_RESULT_TABS = false;
+
 const SECTION_LABEL_SX = {
   fontSize: 11,
   fontWeight: 600,
@@ -65,6 +68,16 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
       {children}
     </Typography>
   );
+}
+
+/** Free-text identity columns (customer name, address, zip) aren't worth filtering. */
+function isColumnFilterable(col: ColumnDef): boolean {
+  const k = col.key.toLowerCase();
+  const label = col.label.toLowerCase();
+  if (k === 'name' || k === 'customername') return false;
+  if (k.includes('address')) return false;
+  if (k.includes('zip') || label.includes('post code')) return false;
+  return true;
 }
 
 function csvEscape(value: string): string {
@@ -250,6 +263,12 @@ export default function ReportsApp() {
     setSelectedSites(value);
   };
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (generating || !reportType || (currentExport && !isDirty)) return;
+    void handleGenerate();
+  };
+
   const handleClearAll = () => {
     setReportType('');
     setDateFrom(dayjs().subtract(7, 'day'));
@@ -369,8 +388,8 @@ export default function ReportsApp() {
               </div>
             </div>
 
-            {/* Single-row parameters */}
-            <div className="flex flex-wrap items-start gap-3">
+            {/* Single-row parameters — Enter submits (generates). */}
+            <form onSubmit={handleSubmit} className="flex flex-wrap items-start gap-3">
               <Box sx={{ width: 300 }}>
                 <FieldLabel>Report</FieldLabel>
                 <FormControl fullWidth size="small" error={errors.report} required>
@@ -519,7 +538,7 @@ export default function ReportsApp() {
                   </Button>
                 )}
               </Box>
-            </div>
+            </form>
 
             {errorMsg && (
               <Alert severity="error" sx={{ mt: 2 }}>
@@ -528,25 +547,27 @@ export default function ReportsApp() {
             )}
           </div>
 
-          {/* Pill tabs between the parameters and results sections */}
-          <div className="flex items-center gap-2 shrink-0">
-            {([
-              { value: 'current', label: 'Current Export' },
-              { value: 'recent', label: 'Recent Exports' },
-            ] as const).map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
-                  activeTab === tab.value
-                    ? 'bg-[#1976d2] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          {/* Pill tabs between the parameters and results sections. Hidden for now — may return. */}
+          {SHOW_RESULT_TABS && (
+            <div className="flex items-center gap-2 shrink-0">
+              {([
+                { value: 'current', label: 'Current Export' },
+                { value: 'recent', label: 'Recent Exports' },
+              ] as const).map((tab) => (
+                <button
+                  key={tab.value}
+                  onClick={() => setActiveTab(tab.value)}
+                  className={`px-3 py-1.5 text-sm rounded-full transition-colors ${
+                    activeTab === tab.value
+                      ? 'bg-[#1976d2] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Results section */}
           <div className="bg-white rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
@@ -558,6 +579,7 @@ export default function ReportsApp() {
                       <tr>
                         {columns.map((col) => {
                           const active = tableFilters[col.key]?.length > 0;
+                          const filterable = isColumnFilterable(col) && uniqueValues(col.key).length > 0;
                           return (
                             <th
                               key={col.key}
@@ -571,7 +593,7 @@ export default function ReportsApp() {
                                 >
                                   <span className="whitespace-nowrap">{col.label}</span>
                                 </button>
-                                {active && (
+                                {filterable && active && (
                                   <span className="flex items-center gap-1">
                                     <span className="text-[#1976d2]">({tableFilters[col.key].length})</span>
                                     <X
@@ -583,6 +605,7 @@ export default function ReportsApp() {
                                     />
                                   </span>
                                 )}
+                                {filterable && (
                                 <Popover>
                                   <PopoverTrigger asChild>
                                     <button className="p-1 rounded hover:bg-gray-100 transition-colors text-gray-500">
@@ -628,6 +651,7 @@ export default function ReportsApp() {
                                     </div>
                                   </PopoverContent>
                                 </Popover>
+                                )}
                               </div>
                             </th>
                           );
