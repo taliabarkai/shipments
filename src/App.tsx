@@ -16,6 +16,7 @@ import ShippingProductCatalogApp from './components/ShippingProductCatalogApp';
 import PackingInstructionsApp from './components/PackingInstructionsApp';
 import UpgradeDowngradeRulesApp from './components/UpgradeDowngradeRulesApp';
 import CarrierServiceTypesApp from './components/CarrierServiceTypesApp';
+import ReportsApp from './components/ReportsApp';
 import type { CarrierServiceType } from './components/carrierServiceTypes';
 
 type ActiveView =
@@ -28,6 +29,7 @@ type ActiveView =
   | 'packingInstructions'
   | 'upgradeDowngradeRules'
   | 'carrierServiceTypes'
+  | 'reports'
   | 'globalCarrier';
 
 export default function App() {
@@ -1212,6 +1214,7 @@ export default function App() {
                 onSave={handleSaveCarrierServiceType}
               />
             )}
+            {resolvedView === 'reports' && <ReportsApp />}
             {resolvedView === 'globalCarrier' && (
               <GlobalCarrierConfiguration />
             )}

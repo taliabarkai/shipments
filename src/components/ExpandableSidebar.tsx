@@ -4,6 +4,7 @@ import ConnectingAirports from '@mui/icons-material/ConnectingAirports';
 import LocalShippingOutlined from '@mui/icons-material/LocalShippingOutlined';
 import RouteOutlined from '@mui/icons-material/RouteOutlined';
 import SpeakerNotesOutlined from '@mui/icons-material/SpeakerNotesOutlined';
+import SummarizeOutlined from '@mui/icons-material/SummarizeOutlined';
 import { SHOW_SHIPMENT_COLLECTIONS, SHOW_SHIPPING_PRODUCT_CATALOG } from '../featureFlags';
 import svgPaths from '../imports/svg-356o2y1fns';
 import { ArrowUpDown, ChevronLeft, ChevronRight, Package, Settings } from 'lucide-react';
@@ -20,6 +21,7 @@ export type ExpandableNavSection =
   | 'packingInstructions'
   | 'upgradeDowngradeRules'
   | 'carrierServiceTypes'
+  | 'reports'
   | 'globalCarrier';
 
 interface ExpandableSidebarProps {
@@ -485,6 +487,54 @@ export default function ExpandableSidebar({ activeSection = 'consolidated', onSe
                 {!isExpanded && (
                   <TooltipContent side="bottom">
                     <p>Upgrade &amp; Downgrade Rules</p>
+                  </TooltipContent>
+                )}
+              </Tooltip>
+            </div>
+
+            {/* Reports */}
+            <div className="content-stretch flex flex-col gap-[10px] items-start relative shrink-0 w-full">
+              <Tooltip key={`reports-${isExpanded}`}>
+                <TooltipTrigger asChild>
+                  <div
+                    className="content-stretch flex flex-col items-start overflow-clip relative rounded-[4px] shrink-0 w-full cursor-pointer hover:bg-gray-50"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSectionChange?.('reports');
+                    }}
+                  >
+                    <div className="relative shrink-0 w-full">
+                      <div className="flex flex-row items-center overflow-clip rounded-[inherit] size-full">
+                        <div className="box-border content-stretch flex items-center px-[16px] py-[8px] relative w-full pt-[8px] pr-[16px] pb-[8px] pl-[10px]">
+                          <div className="box-border content-stretch flex flex-col items-center justify-center overflow-clip p-[8px] relative rounded-[100px] shrink-0 w-[40px]">
+                            <div className="content-stretch flex items-center justify-center relative shrink-0">
+                              <div className="relative shrink-0 size-[24px] flex items-center justify-center">
+                                <SummarizeOutlined
+                                  sx={{
+                                    fontSize: 24,
+                                    color: activeSection === 'reports' ? '#1976D2' : 'rgba(0,0,0,0.56)',
+                                  }}
+                                  aria-hidden
+                                />
+                              </div>
+                            </div>
+                            {activeSection === 'reports' && (
+                              <div className="absolute bg-[rgba(25,118,210,0.3)] left-1/2 rounded-[100px] size-[36px] top-1/2 translate-x-[-50%] translate-y-[-50%]" />
+                            )}
+                          </div>
+                          <div className={`box-border content-stretch flex flex-col items-start px-0 py-[4px] relative overflow-hidden transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto ml-[8px]' : 'opacity-0 w-0'}`}>
+                            <p className="font-['Roboto',sans-serif] leading-[1.5] relative shrink-0 text-[14px] text-[rgba(0,0,0,0.87)] tracking-[0.15px] whitespace-nowrap">
+                              Reports
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TooltipTrigger>
+                {!isExpanded && (
+                  <TooltipContent side="bottom">
+                    <p>Reports</p>
                   </TooltipContent>
                 )}
               </Tooltip>
