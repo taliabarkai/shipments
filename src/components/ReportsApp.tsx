@@ -549,7 +549,7 @@ export default function ReportsApp() {
           </div>
 
           {/* Results section */}
-          <div className="bg-white rounded-xl p-6 flex-1 flex flex-col min-h-0">
+          <div className="bg-white rounded-xl overflow-hidden flex-1 flex flex-col min-h-0">
             <div className="flex-1 min-h-0 overflow-auto">
               {activeTab === 'current' ? (
                 currentExport ? (
@@ -700,7 +700,7 @@ export default function ReportsApp() {
             </div>
 
             {/* Footer — Last updated + (when viewing a generated table) pagination. */}
-            <div className="mt-3 flex items-center justify-between gap-6 border-t pt-3">
+            <div className="flex items-center justify-between gap-6 px-4 py-2 border-t bg-white shrink-0">
               <div className="flex items-center gap-2 text-gray-500 text-xs">
                 <RefreshCw className="w-4 h-4" />
                 Last updated at {lastUpdated}
