@@ -11,6 +11,7 @@ import svgPaths from '../imports/svg-8i0hxkhc97';
 import ShipmentAlertConfigurationDrawer from './ShipmentAlertConfigurationDrawer';
 import type { CreatedAlertConfiguration } from './ShipmentAlertConfigurationDrawer';
 import {
+  formatAlertDuration,
   releaseLogicCsvValue,
   releaseLogicFilterValue,
   type ShipmentAlertReleaseLogic,
@@ -712,6 +713,13 @@ function LogicExpression({ text }: { text: string }) {
 function ReleaseLogicCell({ logic }: { logic: ShipmentAlertReleaseLogic }) {
   if (logic.kind === 'manual') {
     return <span className="text-sm text-[#101828]">Manual</span>;
+  }
+  if (logic.kind === 'stuck') {
+    return (
+      <span className="text-sm text-[#101828]">
+        Stuck — {logic.value} &gt; {formatAlertDuration(logic.durationValue, logic.durationUnit)}
+      </span>
+    );
   }
   return (
     <span className="text-sm text-[#101828]">

@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from './ui/utils';
 import type {
+  ShipmentAlertDurationUnit,
   ShipmentAlertReleaseLogic,
   ShipmentAlertRow,
   ShipmentAlertStatus,
@@ -61,6 +62,14 @@ const FIELD_BY_ID = Object.fromEntries(ACTIVATION_FIELDS.map((f) => [f.id, f])) 
 >;
 
 const RELEASE_STATUSES = ['Draft', 'Ready to Pack', 'Packed', 'Shipped', 'Delivered', 'Label issued'] as const;
+
+/** Matches the persisted `releaseLogic.kind` values that represent a real release condition. */
+type ReleaseTrigger = 'status' | 'stuck';
+
+const DURATION_UNITS: { value: ShipmentAlertDurationUnit; label: string }[] = [
+  { value: 'hours', label: 'hours' },
+  { value: 'days', label: 'days' },
+];
 
 type ConditionRow = {
   joiner?: RuleJoiner;
@@ -482,8 +491,11 @@ function buildInitialStateFromAlert(alert: ShipmentAlertRow | null) {
     return {
       alertName: '',
       rows: [newFirstRow()] as ConditionRow[],
-      releaseTrigger: 'status' as const,
+      releaseConditionEnabled: false,
+      releaseTrigger: undefined as ReleaseTrigger | undefined,
       releaseStatus: undefined as string | undefined,
+      stuckDurationValue: '',
+      stuckDurationUnit: 'hours' as ShipmentAlertDurationUnit,
       configStatus: 'Draft' as ShipmentAlertStatus,
       startDay: '',
       addEndDate: false,
@@ -491,9 +503,14 @@ function buildInitialStateFromAlert(alert: ShipmentAlertRow | null) {
     };
   }
   const parsedRows = activationStringToRows(alert.activationLogic);
-  const releaseTrigger = alert.releaseLogic.kind === 'manual' ? ('manual' as const) : ('status' as const);
-  const releaseStatus =
-    alert.releaseLogic.kind === 'manual' ? undefined : alert.releaseLogic.value;
+  const logic = alert.releaseLogic;
+  // `manual` is how "no release condition" is persisted, so it seeds the checkbox off.
+  const releaseConditionEnabled = logic.kind !== 'manual';
+  const releaseTrigger = logic.kind === 'manual' ? undefined : logic.kind;
+  const releaseStatus = logic.kind === 'manual' ? undefined : logic.value;
+  const stuckDurationValue = logic.kind === 'stuck' ? String(logic.durationValue) : '';
+  const stuckDurationUnit: ShipmentAlertDurationUnit =
+    logic.kind === 'stuck' ? logic.durationUnit : 'hours';
   const configStatus = alert.status;
   const startDay = alert.startDay ?? '';
   const endDay = alert.endDay ?? '';
@@ -501,8 +518,11 @@ function buildInitialStateFromAlert(alert: ShipmentAlertRow | null) {
   return {
     alertName: alert.alertName,
     rows: parsedRows,
+    releaseConditionEnabled,
     releaseTrigger,
     releaseStatus,
+    stuckDurationValue,
+    stuckDurationUnit,
     configStatus,
     startDay,
     addEndDate,
@@ -532,9 +552,19 @@ export default function ShipmentAlertConfigurationDrawer({
 
   const [alertName, setAlertName] = useState(initSeed.alertName);
   const [rows, setRows] = useState(initSeed.rows);
-  const [releaseTrigger, setReleaseTrigger] = useState(initSeed.releaseTrigger);
-  /** Set only after user picks a status when release trigger is "By reaching status". */
+  const [releaseConditionEnabled, setReleaseConditionEnabled] = useState(
+    initSeed.releaseConditionEnabled,
+  );
+  /** Undefined until the user makes an explicit choice, so the Select shows its placeholder. */
+  const [releaseTrigger, setReleaseTrigger] = useState<ReleaseTrigger | undefined>(
+    initSeed.releaseTrigger,
+  );
+  /** Set only after the user picks a status; used by both trigger types. */
   const [releaseStatus, setReleaseStatus] = useState<string | undefined>(initSeed.releaseStatus);
+  const [stuckDurationValue, setStuckDurationValue] = useState(initSeed.stuckDurationValue);
+  const [stuckDurationUnit, setStuckDurationUnit] = useState<ShipmentAlertDurationUnit>(
+    initSeed.stuckDurationUnit,
+  );
   const [configStatus, setConfigStatus] = useState<ShipmentAlertStatus>(initSeed.configStatus);
   const [startDay, setStartDay] = useState(initSeed.startDay);
   const [addEndDate, setAddEndDate] = useState(initSeed.addEndDate);
@@ -571,9 +601,25 @@ export default function ShipmentAlertConfigurationDrawer({
     }
     return parts.length > 0;
   });
-  const releaseComplete =
-    releaseTrigger === 'manual' ||
-    (releaseTrigger === 'status' && !!releaseStatus && releaseStatus.trim() !== '');
+  const stuckDurationNumber = Number(stuckDurationValue);
+  const stuckDurationValid =
+    stuckDurationValue.trim() !== '' &&
+    Number.isFinite(stuckDurationNumber) &&
+    stuckDurationNumber > 0;
+  /** Only surfaced once the user has typed something, so an untouched field isn't red. */
+  const stuckDurationInvalid =
+    releaseConditionEnabled &&
+    releaseTrigger === 'stuck' &&
+    stuckDurationValue.trim() !== '' &&
+    !stuckDurationValid;
+  const hasReleaseStatus = !!releaseStatus && releaseStatus.trim() !== '';
+  const releaseComplete = !releaseConditionEnabled
+    ? true
+    : releaseTrigger === 'status'
+      ? hasReleaseStatus
+      : releaseTrigger === 'stuck'
+        ? hasReleaseStatus && stuckDurationValid
+        : false; // no trigger picked yet
   const canSubmit =
     alertName.trim().length > 0 &&
     rows.length > 0 &&
@@ -585,8 +631,11 @@ export default function ShipmentAlertConfigurationDrawer({
     JSON.stringify({
       alertName: alertName.trim(),
       rows,
-      releaseTrigger,
+      releaseConditionEnabled,
+      releaseTrigger: releaseTrigger ?? '',
       releaseStatus: releaseStatus ?? '',
+      stuckDurationValue: stuckDurationValue.trim(),
+      stuckDurationUnit,
       configStatus,
       startDay,
       addEndDate,
@@ -629,6 +678,30 @@ export default function ShipmentAlertConfigurationDrawer({
     });
   };
 
+  /** Wipe everything under the checkbox so no stale hidden value can be submitted. */
+  const resetReleaseFields = () => {
+    setReleaseTrigger(undefined);
+    setReleaseStatus(undefined);
+    setStuckDurationValue('');
+    setStuckDurationUnit('hours');
+  };
+
+  const handleReleaseConditionToggle = (checked: boolean) => {
+    setReleaseConditionEnabled(checked);
+    resetReleaseFields();
+    // Checking the box lands on the common case; the user can switch to "stuck" from there.
+    if (checked) setReleaseTrigger('status');
+  };
+
+  const handleReleaseTriggerChange = (next: ReleaseTrigger) => {
+    setReleaseTrigger(next);
+    // Both triggers use Shipment Status, but the status is re-chosen per trigger, and the
+    // duration only belongs to "stuck".
+    setReleaseStatus(undefined);
+    setStuckDurationValue('');
+    setStuckDurationUnit('hours');
+  };
+
   const handleSubmit = () => {
     setSubmitError(null);
     if (!alertName.trim()) {
@@ -643,14 +716,31 @@ export default function ShipmentAlertConfigurationDrawer({
       setSubmitError('End day cannot be in the past.');
       return;
     }
-    if (releaseTrigger === 'status' && (!releaseStatus || !releaseStatus.trim())) {
+    if (releaseConditionEnabled && !releaseTrigger) {
+      setSubmitError('Select a release trigger.');
+      return;
+    }
+    if (releaseConditionEnabled && !hasReleaseStatus) {
       setSubmitError('Select a shipment status for release.');
       return;
     }
-    const releaseLogic: ShipmentAlertReleaseLogic =
-      releaseTrigger === 'manual'
-        ? { kind: 'manual' }
-        : { kind: 'status', value: releaseStatus!.trim() };
+    if (releaseConditionEnabled && releaseTrigger === 'stuck' && !stuckDurationValid) {
+      setSubmitError('Enter how long the shipment must stay in the status (a positive number).');
+      return;
+    }
+    let releaseLogic: ShipmentAlertReleaseLogic;
+    if (!releaseConditionEnabled) {
+      releaseLogic = { kind: 'manual' };
+    } else if (releaseTrigger === 'stuck') {
+      releaseLogic = {
+        kind: 'stuck',
+        value: releaseStatus!.trim(),
+        durationValue: stuckDurationNumber,
+        durationUnit: stuckDurationUnit,
+      };
+    } else {
+      releaseLogic = { kind: 'status', value: releaseStatus!.trim() };
+    }
     const payload: CreatedAlertConfiguration = {
       alertName: alertName.trim(),
       activationLogic: buildActivationLogic(rows),
@@ -838,55 +928,104 @@ export default function ShipmentAlertConfigurationDrawer({
             </div>
 
             <div>
-              <p className={cn(sectionTitleClass, 'mb-3')}>Release Condition</p>
+              {/* Checkbox stands in for the section title; unchecked hides the card entirely. */}
               <div
                 className={cn(
-                  cardClass,
-                  'flex flex-row flex-wrap items-end gap-4',
+                  'flex items-center space-x-2',
+                  releaseConditionEnabled && 'mb-3',
                 )}
               >
-                <div
-                  className={cn(
-                    'space-y-1.5',
-                    releaseTrigger === 'status' ? 'min-w-0 flex-1' : 'w-full min-w-0',
-                  )}
+                <Checkbox
+                  id="add-release-condition"
+                  checked={releaseConditionEnabled}
+                  onCheckedChange={(c) => handleReleaseConditionToggle(c === true)}
+                />
+                <Label
+                  htmlFor="add-release-condition"
+                  className={cn(sectionTitleClass, 'cursor-pointer')}
                 >
-                  <Label className="text-xs text-gray-600">Release trigger</Label>
-                  <Select
-                    value={releaseTrigger}
-                    onValueChange={(v) => {
-                      const t = v as 'status' | 'manual';
-                      setReleaseTrigger(t);
-                      setReleaseStatus(undefined);
-                    }}
-                  >
-                    <SelectTrigger className="border-gray-300">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="status">By reaching status</SelectItem>
-                      <SelectItem value="manual">Manual</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                {releaseTrigger === 'status' ? (
-                  <div className="min-w-0 flex-1 space-y-1.5">
-                    <Label className="text-xs text-gray-600">Shipment Status</Label>
-                    <Select value={releaseStatus} onValueChange={(v) => setReleaseStatus(v)}>
-                      <SelectTrigger className="border-gray-300">
-                        <SelectValue placeholder="Select shipment status..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {RELEASE_STATUSES.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ) : null}
+                  Add Release condition
+                </Label>
               </div>
+              {releaseConditionEnabled ? (
+                <div className={cn(cardClass, 'flex flex-col gap-4')}>
+                  <div className="flex flex-row flex-wrap items-end gap-4">
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Label className="text-xs text-gray-600">Release trigger</Label>
+                      {/* '' (not undefined) keeps Radix controlled while showing the placeholder. */}
+                      <Select
+                        value={releaseTrigger ?? ''}
+                        onValueChange={(v) => handleReleaseTriggerChange(v as ReleaseTrigger)}
+                      >
+                        <SelectTrigger className="border-gray-300">
+                          <SelectValue placeholder="Select release trigger..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="status">By reaching status</SelectItem>
+                          <SelectItem value="stuck">Stuck in status</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      <Label className="text-xs text-gray-600">Shipment Status</Label>
+                      <Select value={releaseStatus ?? ''} onValueChange={(v) => setReleaseStatus(v)}>
+                        <SelectTrigger className="border-gray-300">
+                          <SelectValue placeholder="Select shipment status..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RELEASE_STATUSES.map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {s}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  {releaseTrigger === 'stuck' ? (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-gray-600" htmlFor="stuck-duration">
+                        For more than
+                      </Label>
+                      <div className="flex items-end gap-2">
+                        <Input
+                          id="stuck-duration"
+                          className={cn(
+                            'w-20 tabular-nums',
+                            stuckDurationInvalid ? 'border-red-500' : 'border-gray-300',
+                          )}
+                          inputMode="numeric"
+                          placeholder="0"
+                          value={stuckDurationValue}
+                          onChange={(e) =>
+                            setStuckDurationValue(e.target.value.replace(/\D/g, '').slice(0, 4))
+                          }
+                          aria-label="Duration in status"
+                          aria-invalid={stuckDurationInvalid || undefined}
+                        />
+                        <Select
+                          value={stuckDurationUnit}
+                          onValueChange={(v) => setStuckDurationUnit(v as ShipmentAlertDurationUnit)}
+                        >
+                          <SelectTrigger className="w-32 border-gray-300">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {DURATION_UNITS.map((u) => (
+                              <SelectItem key={u.value} value={u.value}>
+                                {u.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {stuckDurationInvalid ? (
+                        <p className="text-xs text-red-600">Enter a number greater than 0.</p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
             <div>
