@@ -1,10 +1,10 @@
 /**
- * Manual = no release condition configured (the "Add release condition" checkbox is off);
+ * none = the "Add Release condition" checkbox is unchecked (nothing configured);
  * status = released on reaching a status; stuck = released after dwelling in a status.
- * All three render as plain text in table cells.
+ * All three render as plain text, from `releaseLogicLabel`, in table cells and exports.
  */
 export type ShipmentAlertReleaseLogic =
-  | { kind: 'manual' }
+  | { kind: 'none' }
   | { kind: 'status'; value: string }
   | {
       kind: 'stuck';
@@ -29,17 +29,38 @@ export interface ShipmentAlertRow {
   endDay?: string;
 }
 
-export function formatAlertDuration(value: number, unit: ShipmentAlertDurationUnit): string {
-  const singular = unit === 'hours' ? 'hour' : 'day';
-  return `${value} ${value === 1 ? singular : unit}`;
+/** Compact threshold for table cells: 4 hours -> "4h+", 3 days -> "3d+". */
+export function formatAlertDurationThreshold(
+  value: number,
+  unit: ShipmentAlertDurationUnit,
+): string {
+  return `${value}${unit === 'hours' ? 'h' : 'd'}+`;
 }
 
-function releaseLogicLabel(logic: ShipmentAlertReleaseLogic): string {
-  if (logic.kind === 'manual') return 'Manual';
+/** Shown in the table when no release condition is configured. */
+export const RELEASE_LOGIC_EMPTY_CELL = '-';
+
+/**
+ * Descriptive label, used for the column filter options and the CSV export where there is
+ * no column header for context. The table cell uses `releaseLogicCellText` instead.
+ */
+export function releaseLogicLabel(logic: ShipmentAlertReleaseLogic): string {
+  if (logic.kind === 'none') return 'No release condition';
+  // A configured trigger always carries a status (the form requires one before saving);
+  // this guard keeps a malformed record from rendering the word "undefined" in the table.
+  const status = (logic.value ?? '').trim();
+  if (!status) return 'No release condition';
   if (logic.kind === 'stuck') {
-    return `Stuck — ${logic.value} > ${formatAlertDuration(logic.durationValue, logic.durationUnit)}`;
+    const threshold = formatAlertDurationThreshold(logic.durationValue, logic.durationUnit);
+    return `Stuck in status — ${status}, ${threshold}`;
   }
-  return `Status — ${logic.value}`;
+  return `Reaches status — ${status}`;
+}
+
+/** Table-cell text: a dash for the unconfigured state, otherwise the descriptive label. */
+export function releaseLogicCellText(logic: ShipmentAlertReleaseLogic): string {
+  const label = releaseLogicLabel(logic);
+  return label === 'No release condition' ? RELEASE_LOGIC_EMPTY_CELL : label;
 }
 
 export function releaseLogicFilterValue(logic: ShipmentAlertReleaseLogic): string {

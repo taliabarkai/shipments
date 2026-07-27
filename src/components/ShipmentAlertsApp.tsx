@@ -11,7 +11,8 @@ import svgPaths from '../imports/svg-8i0hxkhc97';
 import ShipmentAlertConfigurationDrawer from './ShipmentAlertConfigurationDrawer';
 import type { CreatedAlertConfiguration } from './ShipmentAlertConfigurationDrawer';
 import {
-  formatAlertDuration,
+  RELEASE_LOGIC_EMPTY_CELL,
+  releaseLogicCellText,
   releaseLogicCsvValue,
   releaseLogicFilterValue,
   type ShipmentAlertReleaseLogic,
@@ -39,14 +40,14 @@ const MOCK_ALERT_ROWS: Omit<ShipmentAlertRow, 'lastUpdated'>[] = [
     id: '1',
     alertName: 'Not Packed',
     activationLogic: '[product_category IN ring] AND [event_level IN not_packed]',
-    releaseLogic: { kind: 'manual' },
+    releaseLogic: { kind: 'none' },
     status: 'Live',
   },
   {
     id: '2',
     alertName: 'Not Packed - Over 12 hours',
     activationLogic: '[product_category IN ring, necklace] AND [shipment_total_item_value GREATER THAN 012.00]',
-    releaseLogic: { kind: 'manual' },
+    releaseLogic: { kind: 'stuck', value: 'Ready to Pack', durationValue: 12, durationUnit: 'hours' },
     status: 'Live',
   },
   {
@@ -60,7 +61,7 @@ const MOCK_ALERT_ROWS: Omit<ShipmentAlertRow, 'lastUpdated'>[] = [
     id: '4',
     alertName: 'Ready to Pack - SLA',
     activationLogic: '[shipment_service_level IN express] AND [packing_facility IN NZ]',
-    releaseLogic: { kind: 'manual' },
+    releaseLogic: { kind: 'none' },
     status: 'Live',
   },
   {
@@ -74,7 +75,7 @@ const MOCK_ALERT_ROWS: Omit<ShipmentAlertRow, 'lastUpdated'>[] = [
     id: '6',
     alertName: 'Packed - awaiting pickup',
     activationLogic: '[order_item_sku IN Prod-001, Prod-002] AND [event_level IN packed]',
-    releaseLogic: { kind: 'manual' },
+    releaseLogic: { kind: 'none' },
     status: 'Live',
   },
   {
@@ -711,19 +712,9 @@ function LogicExpression({ text }: { text: string }) {
 }
 
 function ReleaseLogicCell({ logic }: { logic: ShipmentAlertReleaseLogic }) {
-  if (logic.kind === 'manual') {
-    return <span className="text-sm text-[#101828]">Manual</span>;
-  }
-  if (logic.kind === 'stuck') {
-    return (
-      <span className="text-sm text-[#101828]">
-        Stuck — {logic.value} &gt; {formatAlertDuration(logic.durationValue, logic.durationUnit)}
-      </span>
-    );
-  }
+  const text = releaseLogicCellText(logic);
+  const isEmpty = text === RELEASE_LOGIC_EMPTY_CELL;
   return (
-    <span className="text-sm text-[#101828]">
-      Status — {logic.value}
-    </span>
+    <span className={cn('text-sm', isEmpty ? 'text-gray-500' : 'text-[#101828]')}>{text}</span>
   );
 }

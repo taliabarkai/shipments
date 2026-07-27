@@ -504,10 +504,10 @@ function buildInitialStateFromAlert(alert: ShipmentAlertRow | null) {
   }
   const parsedRows = activationStringToRows(alert.activationLogic);
   const logic = alert.releaseLogic;
-  // `manual` is how "no release condition" is persisted, so it seeds the checkbox off.
-  const releaseConditionEnabled = logic.kind !== 'manual';
-  const releaseTrigger = logic.kind === 'manual' ? undefined : logic.kind;
-  const releaseStatus = logic.kind === 'manual' ? undefined : logic.value;
+  // `none` is how an unchecked "Add Release condition" is persisted, so it seeds the box off.
+  const releaseConditionEnabled = logic.kind !== 'none';
+  const releaseTrigger = logic.kind === 'none' ? undefined : logic.kind;
+  const releaseStatus = logic.kind === 'none' ? undefined : logic.value;
   const stuckDurationValue = logic.kind === 'stuck' ? String(logic.durationValue) : '';
   const stuckDurationUnit: ShipmentAlertDurationUnit =
     logic.kind === 'stuck' ? logic.durationUnit : 'hours';
@@ -730,7 +730,7 @@ export default function ShipmentAlertConfigurationDrawer({
     }
     let releaseLogic: ShipmentAlertReleaseLogic;
     if (!releaseConditionEnabled) {
-      releaseLogic = { kind: 'manual' };
+      releaseLogic = { kind: 'none' };
     } else if (releaseTrigger === 'stuck') {
       releaseLogic = {
         kind: 'stuck',
