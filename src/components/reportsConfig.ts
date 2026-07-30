@@ -1,8 +1,9 @@
 /**
  * Static configuration for the Reports page. Each report declares its category,
- * description, any auto-applied conditions, data sources (color-coded), an
- * optional extra filter, and any fields not yet confirmed in the shipment
- * service (rendered as a developer-input warning).
+ * description, any auto-applied conditions, data sources (color-coded), and any
+ * fields not yet confirmed in the shipment service (rendered as a
+ * developer-input warning). Every report takes the same parameters: report type,
+ * From/To date, and Site IDs.
  */
 
 export type ReportCategory = 'Shipping' | 'Finance';
@@ -15,12 +16,6 @@ export interface ReportSource {
   type: ReportSourceType;
 }
 
-export interface ReportExtraFilter {
-  key: string;
-  label: string;
-  options: string[];
-}
-
 export interface ReportConfig {
   id: string;
   name: string;
@@ -28,7 +23,6 @@ export interface ReportConfig {
   description: string;
   autoConditions?: string[];
   sources: ReportSource[];
-  extraFilter?: ReportExtraFilter;
   problematicFields?: string[];
 }
 
@@ -37,13 +31,16 @@ export interface SiteOption {
   label: string;
 }
 
+/** The selectable sites. The "All sites (n)" summary label is derived from this length. */
 export const SITE_OPTIONS: SiteOption[] = [
-  { value: 'all', label: 'All sites (8)' },
   { value: 'OAL', label: 'Oak and Luna (OAL)' },
   { value: 'TGR', label: 'Theo Grace (TGR)' },
   { value: 'LAL', label: 'Lime and Lou (LAL)' },
   { value: 'IB', label: 'Israel Blessing (IB)' },
   { value: 'MNN', label: 'MYKA (MNN)' },
+  { value: 'SETT', label: 'Sett and Co (SETT)' },
+  { value: 'FEM', label: 'Forever My (FEM)' },
+  { value: 'MNN-IL', label: 'My Name Necklace IL (MNN-IL)' },
 ];
 
 export const REPORTS: ReportConfig[] = [
@@ -57,11 +54,6 @@ export const REPORTS: ReportConfig[] = [
       { label: 'Shipment', type: 'Shipment' },
       { label: 'OCS config', type: 'OCS' },
     ],
-    extraFilter: {
-      key: 'carrier',
-      label: 'Carrier',
-      options: ['All', 'FedEx', 'USPS', 'DHL', 'Mailog', 'UPS'],
-    },
   },
   {
     id: 'cs-eta',
@@ -73,11 +65,6 @@ export const REPORTS: ReportConfig[] = [
       { label: 'Shipment', type: 'Shipment' },
       { label: 'OCS/CRM', type: 'OCS' },
     ],
-    extraFilter: {
-      key: 'deliveryStatus',
-      label: 'Delivery status',
-      options: ['All', 'On time', 'Late', 'Lost', 'Returned', 'Hold'],
-    },
     problematicFields: ['Original cart carrier', 'Customer shipping price'],
   },
   {
@@ -104,11 +91,6 @@ export const REPORTS: ReportConfig[] = [
       { label: 'Shipment', type: 'Shipment' },
       { label: 'Finance/OM', type: 'OM' },
     ],
-    extraFilter: {
-      key: 'currency',
-      label: 'Currency',
-      options: ['All', 'USD', 'EUR', 'GBP', 'ILS'],
-    },
     problematicFields: ['Declared value', 'Customer shipping price'],
   },
   {
@@ -217,7 +199,7 @@ export interface ColumnDef {
 /** Column definitions keyed by report id (see REPORTS above). */
 export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   aftership: [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'courier', label: 'Courier', source: 'SHIPMENT', fieldPath: 'shipping_carrier_id', notes: 'carrier_id → carrier service type name e.g. FedexHU' },
     { key: 'trackingNumber', label: 'tracking_number', source: 'SHIPMENT', fieldPath: 'tracking_id' },
     { key: 'customerEmail', label: 'CustomerEmail', source: 'FULFILLMENT', fieldPath: 'customer_email' },
@@ -244,7 +226,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'cs-eta': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'id', label: 'ID', source: 'SHIPMENT', fieldPath: 'order_id' },
     { key: 'orderDate', label: 'Order Date', source: 'FULFILLMENT', fieldPath: 'created_date' },
     { key: 'eta', label: 'ETA', source: 'SHIPMENT', fieldPath: 'fulfillment.estimed_delivery_date' },
@@ -281,7 +263,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'fedex-hu-customs': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'shippingDate', label: 'Shipping Date', source: 'SHIPMENT', notes: 'timestamp: when status changed to shipped' },
     { key: 'shippingCountry', label: 'Shipping Country', source: 'SHIPMENT', fieldPath: 'customer_country' },
     { key: 'recipientCountry', label: 'Recipient Country', source: 'SHIPMENT', fieldPath: 'customer_country' },
@@ -295,7 +277,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'hungary-non-eu': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'customerName', label: 'Customer Name', source: 'SHIPMENT', fieldPath: 'customer_name' },
     { key: 'shippingAddress', label: 'Shipping address', source: 'SHIPMENT', fieldPath: 'customer_street1' },
     { key: 'shippingCity', label: 'Shipping City', source: 'SHIPMENT', fieldPath: 'customer_city' },
@@ -317,7 +299,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'hungary-eu': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'customerName', label: 'Customer Name', source: 'SHIPMENT', fieldPath: 'customer_name' },
     { key: 'shippingAddress', label: 'Shipping address', source: 'SHIPMENT', fieldPath: 'customer_street1' },
     { key: 'shippingCity', label: 'Shipping City', source: 'SHIPMENT', fieldPath: 'customer_city' },
@@ -345,7 +327,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'mailog-il-us': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'orderNo', label: 'Order No', source: 'SHIPMENT', fieldPath: 'order_id' },
     { key: 'name', label: 'Name', source: 'SHIPMENT', fieldPath: 'customer_name' },
     { key: 'address1', label: 'Address 1', source: 'SHIPMENT', fieldPath: 'customer_street1' },
@@ -372,7 +354,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'multiple-shipment-items': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'id', label: 'id', source: 'SHIPMENT', fieldPath: 'order_id' },
     { key: 'customerName', label: 'Customer name', source: 'SHIPMENT', fieldPath: 'customer_name' },
     { key: 'address1', label: 'Customer address 1', source: 'SHIPMENT', fieldPath: 'customer_street1' },
@@ -394,7 +376,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'usps-item-detail': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'date', label: 'Date', source: 'STATIC' },
     { key: 'time', label: 'Time', source: 'STATIC' },
     { key: 'orderDate', label: 'Order Date', source: 'FULFILLMENT', fieldPath: 'created_date' },
@@ -435,7 +417,7 @@ export const REPORT_COLUMNS: Record<string, ColumnDef[]> = {
   ],
 
   'vat-eu-order': [
-    { key: 'webSite', label: 'Web Site', source: 'SHIPMENT', fieldPath: 'order_site_id' },
+    { key: 'webSite', label: 'Website', source: 'SHIPMENT', fieldPath: 'order_site_id' },
     { key: 'orderNumber', label: 'Order Number', source: 'SHIPMENT', fieldPath: 'order_id' },
     { key: 'customerCountry', label: 'Customer Country', source: 'SHIPMENT', fieldPath: 'customer_country' },
     { key: 'reorder', label: 'Reorder', source: 'OCS' },

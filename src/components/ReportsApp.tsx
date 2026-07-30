@@ -15,7 +15,6 @@ import TableRow from '@mui/material/TableRow';
 import TableCell from '@mui/material/TableCell';
 import IconButton from '@mui/material/IconButton';
 import FileDownloadOutlined from '@mui/icons-material/FileDownloadOutlined';
-import Insights from '@mui/icons-material/Insights';
 import SummarizeOutlined from '@mui/icons-material/SummarizeOutlined';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -47,8 +46,9 @@ interface GeneratedExport {
   paramsKey: string;
 }
 
-/** Selectable site options (excludes the "All sites" summary pseudo-option). */
-const NAMED_SITES = SITE_OPTIONS.filter((s) => s.value !== 'all');
+const NAMED_SITES = SITE_OPTIONS;
+/** Derived so the count can never drift from the actual site list. */
+const ALL_SITES_LABEL = `All sites (${NAMED_SITES.length})`;
 /** Sentinel value for the select-all row inside the Site IDs dropdown. */
 const ALL_SITES_VALUE = '__all__';
 
@@ -209,7 +209,6 @@ export default function ReportsApp() {
   const [dateFrom, setDateFrom] = useState<Dayjs | null>(() => dayjs().subtract(7, 'day'));
   const [dateTo, setDateTo] = useState<Dayjs | null>(() => dayjs().add(1, 'day'));
   const [selectedSites, setSelectedSites] = useState<string[]>(() => NAMED_SITES.map((s) => s.value));
-  const [extraFilterValue, setExtraFilterValue] = useState('');
 
   const [errors, setErrors] = useState({ report: false, from: false, to: false });
   const [generating, setGenerating] = useState(false);
@@ -228,7 +227,7 @@ export default function ReportsApp() {
   const report = getReportById(reportType);
   const allSitesSelected = selectedSites.length === NAMED_SITES.length;
   const siteLabel = allSitesSelected
-    ? 'All sites (8)'
+    ? ALL_SITES_LABEL
     : selectedSites.length === 0
       ? 'None'
       : selectedSites.join(', ');
@@ -238,7 +237,6 @@ export default function ReportsApp() {
     from: dateFrom ? dateFrom.format('YYYY-MM-DD') : '',
     to: dateTo ? dateTo.format('YYYY-MM-DD') : '',
     sites: [...selectedSites].sort(),
-    extra: extraFilterValue,
   });
   const isDirty = currentExport ? currentExport.paramsKey !== currentParamsKey : false;
 
@@ -251,8 +249,6 @@ export default function ReportsApp() {
   const handleReportChange = (value: string) => {
     setReportType(value);
     setErrors((prev) => ({ ...prev, report: false }));
-    const next = getReportById(value);
-    setExtraFilterValue(next?.extraFilter?.options[0] ?? '');
   };
 
   const handleSiteChange = (value: string[]) => {
@@ -274,7 +270,6 @@ export default function ReportsApp() {
     setDateFrom(dayjs().subtract(7, 'day'));
     setDateTo(dayjs().add(1, 'day'));
     setSelectedSites(NAMED_SITES.map((s) => s.value));
-    setExtraFilterValue('');
     setErrors({ report: false, from: false, to: false });
     setErrorMsg('');
     setCurrentExport(null);
@@ -461,7 +456,7 @@ export default function ReportsApp() {
                     onChange={(e) => handleSiteChange(e.target.value as string[])}
                     renderValue={(selected) => {
                       const arr = selected as string[];
-                      if (arr.length === NAMED_SITES.length) return 'All sites (8)';
+                      if (arr.length === NAMED_SITES.length) return ALL_SITES_LABEL;
                       if (arr.length === 0) return <span style={{ color: 'rgba(0,0,0,0.4)' }}>No sites</span>;
                       return (
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -482,7 +477,7 @@ export default function ReportsApp() {
                       <span style={{ pointerEvents: 'none', display: 'inline-flex', marginRight: 12 }}>
                         <Checkbox checked={allSitesSelected} tabIndex={-1} />
                       </span>
-                      All sites (8)
+                      {ALL_SITES_LABEL}
                     </MenuItem>
                     {NAMED_SITES.map((s) => (
                       <MenuItem key={s.value} value={s.value}>
@@ -496,25 +491,6 @@ export default function ReportsApp() {
                 </FormControl>
               </Box>
 
-              {/* Dynamic extra filter — only when the selected report defines one. */}
-              {report?.extraFilter && (
-                <Box sx={{ width: 200 }}>
-                  <FieldLabel>{report.extraFilter.label}</FieldLabel>
-                  <FormControl fullWidth size="small">
-                    <Select
-                      value={extraFilterValue}
-                      onChange={(e) => setExtraFilterValue(e.target.value as string)}
-                    >
-                      {report.extraFilter.options.map((opt) => (
-                        <MenuItem key={opt} value={opt}>
-                          {opt}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Box>
-              )}
-
               {/* Generate / Regenerate + Clear All — sit at the end of the filter row. */}
               <Box sx={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Button
@@ -522,15 +498,9 @@ export default function ReportsApp() {
                   onClick={handleGenerate}
                   disabled={generating || !reportType || (!!currentExport && !isDirty)}
                   sx={{ height: 40 }}
-                  startIcon={
-                    generating ? (
-                      <CircularProgress size={16} color="inherit" />
-                    ) : (
-                      <Insights fontSize="small" />
-                    )
-                  }
+                  startIcon={generating ? <CircularProgress size={16} color="inherit" /> : undefined}
                 >
-                  {generating ? 'Generating…' : currentExport ? 'Regenerate' : 'GENERATE'}
+                  {generating ? 'Generating…' : 'Generate'}
                 </Button>
                 {currentExport && (
                   <Button variant="text" onClick={handleClearAll} sx={{ height: 40 }}>
