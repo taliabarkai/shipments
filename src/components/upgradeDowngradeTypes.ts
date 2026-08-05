@@ -11,10 +11,19 @@ export type CostControl =
   | { mode: 'per_rule'; budgetCap: number }
   | { mode: 'per_shipment'; maxPerShipment: number; formula?: PerShipmentFormula };
 
-/** Single delivery-day condition — exactly one of the two modes is stored. */
+/** Service the Auto Upgrade delivery condition upgrades a shipment toward. */
+export type AutoUpgradeTarget = 'expedited' | 'express' | 'carrier_service_type';
+
+/** Single delivery condition — exactly one of the modes is stored. */
 export type DeliveryCondition =
   | { mode: 'eta'; etaDays: number }
-  | { mode: 'specific_day'; date: string };
+  | { mode: 'specific_day'; date: string }
+  | {
+      mode: 'auto_upgrade';
+      target: AutoUpgradeTarget;
+      /** Carrier service type name; set only when target is 'carrier_service_type'. */
+      carrierServiceType?: string;
+    };
 
 export type ActivationFieldId =
   | 'brand'

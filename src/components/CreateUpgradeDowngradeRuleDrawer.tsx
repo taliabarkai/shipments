@@ -26,10 +26,12 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { cn } from './ui/utils';
+import { CARRIER_SERVICE_TYPE_TABLE } from './ShippingRoutesTable';
 import type {
   ActivationCondition,
   ActivationFieldId,
   ActivationOperator,
+  AutoUpgradeTarget,
   CostControl,
   DeliveryCondition,
   PerShipmentFormula,
@@ -320,12 +322,24 @@ function parseCsv(raw: string): string[] {
     .filter(Boolean);
 }
 
+type DeliveryMode = DeliveryCondition['mode'];
+
+const AUTO_UPGRADE_OPTIONS: { value: AutoUpgradeTarget; label: string }[] = [
+  { value: 'expedited', label: 'Expedited' },
+  { value: 'express', label: 'Express' },
+  { value: 'carrier_service_type', label: 'Specific Carrier Service Type' },
+];
+
 interface RuleFormState {
   action: RuleAction;
   name: string;
-  deliveryMode: 'eta' | 'specific_day';
+  deliveryMode: DeliveryMode;
   etaDays: string;
   specificDay: string;
+  /** Empty until the user picks one of AUTO_UPGRADE_OPTIONS. */
+  autoUpgradeTarget: AutoUpgradeTarget | '';
+  /** Only used when autoUpgradeTarget is 'carrier_service_type'. */
+  autoUpgradeCarrierServiceType: string;
   conditions: ActivationCondition[];
   costMode: 'per_shipment' | 'per_rule';
   maxPerShipment: string;
@@ -349,6 +363,8 @@ function emptyFormState(): RuleFormState {
     deliveryMode: 'eta',
     etaDays: '',
     specificDay: '',
+    autoUpgradeTarget: '',
+    autoUpgradeCarrierServiceType: '',
     conditions: [newConditionRow('brand')],
     costMode: 'per_shipment',
     maxPerShipment: '3',
@@ -361,12 +377,16 @@ function emptyFormState(): RuleFormState {
 
 function formFromRule(rule: UpgradeDowngradeRule): RuleFormState {
   const cc = rule.costControl;
+  const dc = rule.deliveryCondition;
   return {
     action: rule.action,
     name: rule.name,
-    deliveryMode: rule.deliveryCondition.mode,
-    etaDays: rule.deliveryCondition.mode === 'eta' ? String(rule.deliveryCondition.etaDays) : '',
-    specificDay: rule.deliveryCondition.mode === 'specific_day' ? rule.deliveryCondition.date : '',
+    deliveryMode: dc.mode,
+    etaDays: dc.mode === 'eta' ? String(dc.etaDays) : '',
+    specificDay: dc.mode === 'specific_day' ? dc.date : '',
+    autoUpgradeTarget: dc.mode === 'auto_upgrade' ? dc.target : '',
+    autoUpgradeCarrierServiceType:
+      dc.mode === 'auto_upgrade' ? dc.carrierServiceType ?? '' : '',
     conditions: rule.conditions.length
       ? rule.conditions.map((c) => ({ ...c, values: [...c.values] }))
       : [newConditionRow('brand')],
@@ -413,6 +433,7 @@ export default function CreateUpgradeDowngradeRuleDrawer({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showNameError, setShowNameError] = useState(false);
   const [showEndDateError, setShowEndDateError] = useState(false);
+  const [showAutoUpgradeError, setShowAutoUpgradeError] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [lookups, setLookups] = useState<UpgradeRuleLookups | null>(null);
   const [lookupsLoading, setLookupsLoading] = useState(false);
@@ -452,8 +473,33 @@ export default function CreateUpgradeDowngradeRuleDrawer({
     setSubmitError(null);
     setShowNameError(false);
     setShowEndDateError(false);
+    setShowAutoUpgradeError(false);
     setCancelDialogOpen(false);
   }, [open, editingRule]);
+
+  /**
+   * The delivery modes are mutually exclusive, so leaving a tab clears the
+   * fields that belong to it — a value left behind on a hidden tab must never
+   * reach the saved rule.
+   */
+  const handleDeliveryModeChange = (mode: DeliveryMode) => {
+    setShowAutoUpgradeError(false);
+    patch({
+      deliveryMode: mode,
+      ...(mode !== 'eta' ? { etaDays: '' } : {}),
+      ...(mode !== 'specific_day' ? { specificDay: '' } : {}),
+      ...(mode !== 'auto_upgrade' ? { autoUpgradeTarget: '', autoUpgradeCarrierServiceType: '' } : {}),
+    });
+  };
+
+  const handleAutoUpgradeTargetChange = (target: AutoUpgradeTarget) => {
+    setShowAutoUpgradeError(false);
+    patch({
+      autoUpgradeTarget: target,
+      // The dropdown only applies to the specific-service option.
+      ...(target !== 'carrier_service_type' ? { autoUpgradeCarrierServiceType: '' } : {}),
+    });
+  };
 
   const handleClone = (id: string) => {
     setCloneFromId(id);
@@ -491,7 +537,21 @@ export default function CreateUpgradeDowngradeRuleDrawer({
     d.setHours(0, 0, 0, 0);
     return d > today;
   }, [form.deliveryMode, form.specificDay, today]);
-  const deliveryValid = form.deliveryMode === 'eta' ? etaValid : specificDayValid;
+  // One of the three options is required, and the specific-service option also
+  // needs a carrier service type picked from the dropdown.
+  const showAutoUpgradeCarrierServiceType = form.autoUpgradeTarget === 'carrier_service_type';
+  const autoUpgradeCarrierServiceTypeMissing =
+    showAutoUpgradeCarrierServiceType && !form.autoUpgradeCarrierServiceType.trim();
+  const autoUpgradeValid =
+    form.deliveryMode === 'auto_upgrade' &&
+    form.autoUpgradeTarget !== '' &&
+    !autoUpgradeCarrierServiceTypeMissing;
+  const deliveryValid =
+    form.deliveryMode === 'eta'
+      ? etaValid
+      : form.deliveryMode === 'specific_day'
+        ? specificDayValid
+        : autoUpgradeValid;
 
   const costValid = useMemo(() => {
     if (form.action === 'downgrade') return true;
@@ -577,7 +637,16 @@ export default function CreateUpgradeDowngradeRuleDrawer({
       return;
     }
     if (!deliveryValid) {
-      setSubmitError('Set a valid delivery day condition.');
+      if (form.deliveryMode === 'auto_upgrade') {
+        setShowAutoUpgradeError(true);
+        setSubmitError(
+          autoUpgradeCarrierServiceTypeMissing
+            ? 'Select a carrier service type for the auto upgrade.'
+            : 'Select an auto upgrade option.',
+        );
+        return;
+      }
+      setSubmitError('Set a valid delivery condition.');
       return;
     }
     if (!costValid) {
@@ -757,23 +826,26 @@ export default function CreateUpgradeDowngradeRuleDrawer({
             <div>
               <p className={cn(sectionTitleClass, 'mb-2')}>Rule Builder</p>
               <div className={cn(cardClass, 'flex flex-col gap-5')}>
-                {/* Delivery days conditions */}
+                {/* Delivery Conditions */}
                 <div className="flex flex-col gap-3">
                   <Label className={fieldLabelClass}>
                     <span>
-                      Delivery days conditions<span className="text-gray-900">*</span>
+                      Delivery Conditions<span className="text-gray-900">*</span>
                     </span>
                   </Label>
                   <Tabs
                     value={form.deliveryMode}
-                    onValueChange={(v) => patch({ deliveryMode: v as 'eta' | 'specific_day' })}
+                    onValueChange={(v) => handleDeliveryModeChange(v as DeliveryMode)}
                   >
-                    <TabsList className={tabsListClass}>
+                    <TabsList className={cn(tabsListClass, 'max-w-full flex-wrap')}>
                       <TabsTrigger value="eta" disabled={fieldsDisabled} className={tabTriggerClass}>
                         ETA Threshold (Days)
                       </TabsTrigger>
                       <TabsTrigger value="specific_day" disabled={fieldsDisabled} className={tabTriggerClass}>
                         Specific delivery date
+                      </TabsTrigger>
+                      <TabsTrigger value="auto_upgrade" disabled={fieldsDisabled} className={tabTriggerClass}>
+                        Auto Upgrade
                       </TabsTrigger>
                     </TabsList>
                     <TabsContent value="eta" className="mt-3 flex flex-col gap-1.5">
@@ -808,6 +880,85 @@ export default function CreateUpgradeDowngradeRuleDrawer({
                       />
                       {!suppressErrors && !!form.specificDay.trim() && !specificDayValid ? (
                         <p className="text-xs text-red-600">Pick a future date.</p>
+                      ) : null}
+                    </TabsContent>
+                    <TabsContent value="auto_upgrade" className="mt-3 flex flex-col gap-1.5">
+                      {/* The carrier service type dropdown sits beside the option it belongs to. */}
+                      <div
+                        className={cn(
+                          'grid gap-3',
+                          showAutoUpgradeCarrierServiceType ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1',
+                        )}
+                      >
+                        <div className="flex flex-col gap-1.5">
+                          <Label htmlFor="udr-auto-upgrade" className="text-xs text-gray-600">
+                            Upgrade to
+                          </Label>
+                          <Select
+                            value={form.autoUpgradeTarget || undefined}
+                            onValueChange={(v) => handleAutoUpgradeTargetChange(v as AutoUpgradeTarget)}
+                            disabled={fieldsDisabled}
+                          >
+                            <SelectTrigger
+                              id="udr-auto-upgrade"
+                              className={cn(
+                                'w-full border-gray-300 bg-white',
+                                !suppressErrors && showAutoUpgradeError && !form.autoUpgradeTarget && 'border-red-500',
+                              )}
+                            >
+                              <SelectValue placeholder="Select upgrade option" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {AUTO_UPGRADE_OPTIONS.map(({ value, label }) => (
+                                <SelectItem key={value} value={value}>
+                                  {label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        {showAutoUpgradeCarrierServiceType ? (
+                          <div className="flex flex-col gap-1.5">
+                            <Label htmlFor="udr-auto-upgrade-cst" className="text-xs text-gray-600">
+                              Carrier service type
+                            </Label>
+                            <Select
+                              value={form.autoUpgradeCarrierServiceType || undefined}
+                              onValueChange={(v) => {
+                                setShowAutoUpgradeError(false);
+                                patch({ autoUpgradeCarrierServiceType: v });
+                              }}
+                              disabled={fieldsDisabled}
+                            >
+                              <SelectTrigger
+                                id="udr-auto-upgrade-cst"
+                                className={cn(
+                                  'w-full border-gray-300 bg-white',
+                                  !suppressErrors &&
+                                    showAutoUpgradeError &&
+                                    autoUpgradeCarrierServiceTypeMissing &&
+                                    'border-red-500',
+                                )}
+                              >
+                                <SelectValue placeholder="Select carrier service type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CARRIER_SERVICE_TYPE_TABLE.map((opt) => (
+                                  <SelectItem key={opt.name} value={opt.name}>
+                                    {opt.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        ) : null}
+                      </div>
+                      {!suppressErrors && showAutoUpgradeError && !autoUpgradeValid ? (
+                        <p className="text-xs text-red-600">
+                          {autoUpgradeCarrierServiceTypeMissing
+                            ? 'Select a carrier service type.'
+                            : 'Select an auto upgrade option.'}
+                        </p>
                       ) : null}
                     </TabsContent>
                   </Tabs>
@@ -1146,6 +1297,13 @@ function buildCostControl(form: RuleFormState): CostControl | undefined {
 }
 
 function buildDeliveryCondition(form: RuleFormState): DeliveryCondition {
+  if (form.deliveryMode === 'auto_upgrade') {
+    // Also called for the live status preview, where no option may be picked yet.
+    const target: AutoUpgradeTarget = form.autoUpgradeTarget || 'expedited';
+    return target === 'carrier_service_type'
+      ? { mode: 'auto_upgrade', target, carrierServiceType: form.autoUpgradeCarrierServiceType.trim() }
+      : { mode: 'auto_upgrade', target };
+  }
   if (form.deliveryMode === 'specific_day') {
     return { mode: 'specific_day', date: form.specificDay.trim() };
   }
