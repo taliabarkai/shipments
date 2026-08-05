@@ -12,9 +12,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
+import ProgressMeter from './ProgressMeter';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Switch } from './ui/switch';
 import { cn } from './ui/utils';
+import {
+  USAGE_LIMIT_MIN,
+  formatUsageLimit,
+  isUsageWarning,
+  parseUsageLimit,
+  resolvePreferred,
+  usageLimitWarning,
+  usagePercent,
+} from './shippingRouteUsage';
 import {
   CARRIER_SERVICE_TYPE_TABLE,
   SHIPPING_ROUTE_COUNTRY_CODES,
@@ -32,6 +42,8 @@ interface RouteFormData {
   carrierServiceType: string;
   serviceLevel: ServiceLevel | '';
   priority: boolean;
+  /** Raw field text; blank means unlimited. Parsed on submit. */
+  usageLimit: string;
   fromCountryCode: string;
   toCountryCode: string;
   maxShippingValue: string;
@@ -42,10 +54,21 @@ interface RouteFormData {
   shippingWorkingDays: number[];
 }
 
+/**
+ * What the panel hands back: the usage limit parsed to a number (or null for
+ * unlimited) and `priority` already resolved against the current usage count,
+ * so a limit at or below the count arrives with preferred stripped.
+ */
+export interface RouteFormSubmitData extends Omit<RouteFormData, 'usageLimit'> {
+  usageLimit: number | null;
+  /** Set when this save is what dropped preferred status. See resolvePreferred. */
+  preferredClearedByLimit: boolean;
+}
+
 interface CreateShippingRouteDialogProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (routeData: RouteFormData) => void;
+  onSubmit: (routeData: RouteFormSubmitData) => void;
   route?: ShippingRoute | null;
 }
 
@@ -62,6 +85,7 @@ function buildInitialForm(route?: ShippingRoute | null): RouteFormData {
     carrierServiceType: route?.carrierServiceType || '',
     serviceLevel: route?.serviceLevel || '',
     priority: route?.priority ?? false,
+    usageLimit: formatUsageLimit(route?.usageLimit),
     fromCountryCode: route?.fromCountryCode || '',
     toCountryCode: route?.toCountryCode || '',
     maxShippingValue: route?.maxShippingValue || '',
@@ -226,6 +250,36 @@ function MultiSelectField({
   );
 }
 
+/**
+ * Current usage on an existing route. With a limit set we show "742 / 1000"
+ * plus a bar; unlimited routes show the count alone, with no limit and no bar.
+ * Tracks the *entered* limit so the reading updates as the admin types.
+ */
+function UsageProgress({ usageCount, usageLimit }: { usageCount: number; usageLimit: number | null }) {
+  // Unlimited: the count alone, no meter — there's no ratio to show.
+  if (usageLimit === null) {
+    return (
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs text-gray-600">Usage</span>
+        <span className="text-xs font-medium text-[#101828]">
+          {usageCount.toLocaleString()} <span className="font-normal text-gray-500">packed · unlimited</span>
+        </span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <span className="block text-xs text-gray-600">Usage</span>
+      <ProgressMeter
+        label={`${usageCount.toLocaleString()} / ${usageLimit.toLocaleString()}`}
+        percent={usagePercent({ usageCount, usageLimit }) ?? 0}
+        warning={isUsageWarning({ usageCount, usageLimit })}
+      />
+    </div>
+  );
+}
+
 function Field({
   label,
   required,
@@ -289,8 +343,19 @@ export default function CreateShippingRouteDialog({
     }
   }, [formData.carrierServiceType, formData.serviceLevel]);
 
+  const usageCount = route?.usageCount ?? 0;
+  const parsedUsageLimit = useMemo(() => parseUsageLimit(formData.usageLimit), [formData.usageLimit]);
+
+  // Only surfaced while Priority is on — the input is hidden otherwise, and a
+  // hidden field must never be able to block saving.
+  const usageLimitWarningText = formData.priority
+    ? usageLimitWarning(formData.priority, parsedUsageLimit.value, usageCount)
+    : null;
+
   const errors = useMemo(() => {
     return {
+      usageLimit:
+        formData.priority && parsedUsageLimit.error ? { format: parsedUsageLimit.error } : {},
       carrierServiceType: formData.carrierServiceType ? {} : { required: 'Required.' },
       fromCountryCode: formData.fromCountryCode ? {} : { required: 'Required.' },
       toCountryCode: formData.toCountryCode ? {} : { required: 'Required.' },
@@ -302,7 +367,7 @@ export default function CreateShippingRouteDialog({
       shippingWorkingDays:
         formData.shippingWorkingDays.length > 0 ? {} : { required: 'Select at least one day.' },
     } as Record<string, FieldError>;
-  }, [formData]);
+  }, [formData, parsedUsageLimit]);
 
   const isValid = !Object.values(errors).some(hasError);
 
@@ -317,7 +382,13 @@ export default function CreateShippingRouteDialog({
       setShowErrors(true);
       return;
     }
-    onSubmit(formData);
+    // Blank the limit when Priority is off — an unused cap shouldn't linger on
+    // the record. Preferred is resolved here so a limit at or below the current
+    // count strips it on save, matching the automatic packing-event behaviour.
+    const usageLimit = formData.priority ? parsedUsageLimit.value : null;
+    const { usageLimit: _rawUsageLimit, ...rest } = formData;
+    const preferred = resolvePreferred(formData.priority, { usageLimit, usageCount });
+    onSubmit({ ...rest, usageLimit, ...preferred });
     onClose();
   };
 
@@ -415,14 +486,59 @@ export default function CreateShippingRouteDialog({
                   </Field>
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-gray-600">
-                    Priority<span className="text-gray-900">*</span>
-                  </Label>
-                  <Switch
-                    checked={formData.priority}
-                    onCheckedChange={(v) => setFormData({ ...formData, priority: v })}
-                  />
+                <div className="flex flex-col gap-3 rounded-md border border-gray-300 bg-white p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <Label className="text-sm font-medium text-[#101828]">
+                        Priority<span className="text-gray-900">*</span>
+                      </Label>
+                      <p className="mt-1 text-xs leading-snug text-gray-600">
+                        This route is selected over other matching routes when assigning a shipment.
+                      </p>
+                    </div>
+                    <Switch
+                      className="mt-0.5 shrink-0"
+                      checked={formData.priority}
+                      onCheckedChange={(v) => setFormData({ ...formData, priority: v })}
+                    />
+                  </div>
+
+                  {/* Usage limit only applies to preferred routes. */}
+                  {formData.priority ? (
+                    <div className="flex flex-col gap-2">
+                      <Field label="Usage limit" error={liveError(errors.usageLimit, showErrors)}>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            className="border-gray-300 bg-white"
+                            type="number"
+                            min={USAGE_LIMIT_MIN}
+                            step="1"
+                            placeholder="Leave blank for unlimited"
+                            value={formData.usageLimit}
+                            onChange={(e) => setFormData({ ...formData, usageLimit: e.target.value })}
+                          />
+                          {formData.usageLimit.trim() ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="shrink-0 px-2 text-xs font-medium text-[#1976d2] hover:bg-blue-50 hover:text-[#1565c0]"
+                              onClick={() => setFormData({ ...formData, usageLimit: '' })}
+                            >
+                              Clear limit
+                            </Button>
+                          ) : null}
+                        </div>
+                      </Field>
+
+                      {usageLimitWarningText ? (
+                        <p className="rounded-md bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                          {usageLimitWarningText}
+                        </p>
+                      ) : null}
+
+                      {isEditMode ? <UsageProgress usageCount={usageCount} usageLimit={parsedUsageLimit.value} /> : null}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">

@@ -9,7 +9,9 @@ import type { AlertFilterId } from './components/alertFilterRules';
 import ShipmentCollectionsTable, { ShipmentCollection, CollectionStatus } from './components/ShipmentCollectionsTable';
 import ConsolidatedShipmentsApp from './components/ConsolidatedShipmentsApp';
 import AddCollectionDialog from './components/AddCollectionDialog';
-import ShippingRoutesTable, { ShippingRoute } from './components/ShippingRoutesTable';
+import ShippingRoutesTable, { ServiceLevel, ShippingRoute } from './components/ShippingRoutesTable';
+import type { RouteFormSubmitData } from './components/CreateShippingRouteDialog';
+import { recordRoutePacked } from './components/shippingRouteUsage';
 import GlobalCarrierConfiguration from './components/GlobalCarrierConfiguration';
 import ShipmentAlertsApp from './components/ShipmentAlertsApp';
 import ShippingProductCatalogApp from './components/ShippingProductCatalogApp';
@@ -32,6 +34,47 @@ type ActiveView =
   | 'reports'
   | 'globalCarrier';
 
+/**
+ * Demo usage figures for the mock routes. Anything not listed starts unlimited
+ * with a zero count, i.e. the pre-existing behaviour.
+ */
+type RouteUsageSeed = {
+  usageLimit: number | null;
+  usageCount: number;
+  preferredClearedByLimit?: boolean;
+};
+
+const ROUTE_USAGE_SEED: Record<string, RouteUsageSeed> = {
+  // Preferred, comfortably under its cap — neutral bar.
+  'SR-0001': { usageLimit: 1000, usageCount: 742 },
+  // Preferred, past the 80% warning threshold — amber bar.
+  'SR-0004': { usageLimit: 120, usageCount: 118 },
+  'SR-0007': { usageLimit: 250, usageCount: 40 },
+  // Preferred but uncapped: count accrues, preferred never lapses.
+  'SR-0012': { usageLimit: null, usageCount: 3891 },
+  // Auto-dropped on reaching its cap. Note the count kept climbing afterwards,
+  // which is why the note can read past the limit.
+  'SR-0016': { usageLimit: 1000, usageCount: 1043, preferredClearedByLimit: true },
+};
+
+function withSeededUsage(
+  seed: Omit<ShippingRoute, 'usageLimit' | 'usageCount'>[],
+): ShippingRoute[] {
+  return seed.map((route) => {
+    const usage = ROUTE_USAGE_SEED[route.id];
+    return {
+      ...route,
+      usageLimit: usage?.usageLimit ?? null,
+      usageCount: usage?.usageCount ?? 0,
+      // A route dropped by its limit is no longer preferred, whatever the mock
+      // row said — keeps the seed data self-consistent.
+      ...(usage?.preferredClearedByLimit
+        ? { priority: false, preferredClearedByLimit: true }
+        : {}),
+    };
+  });
+}
+
 export default function App() {
   const [activeView, setActiveView] = useState<ActiveView>('shipments');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -45,9 +88,10 @@ export default function App() {
   const [isAddCollectionDialogOpen, setIsAddCollectionDialogOpen] = useState(false);
   const [editingCollection, setEditingCollection] = useState<ShipmentCollection | null>(null);
 
-  // Shipping Routes data
-  const [routes] = useState<ShippingRoute[]>(() =>
-    [
+  // Shipping Routes data.
+  // Usage counters are seeded separately below so the 20 mock rows stay readable.
+  const [routes, setRoutes] = useState<ShippingRoute[]>(() =>
+    withSeededUsage([
       {
         id: 'SR-0001',
         externalId: 'EXT-1001',
@@ -388,8 +432,44 @@ export default function App() {
         packingFacility: 'Nazereth',
         shippingWorkingDays: [3, 4],
       },
-    ],
+    ]),
   );
+
+  const handleSaveRoute = (data: RouteFormSubmitData, existing: ShippingRoute | null) => {
+    setRoutes((prev) => {
+      if (existing) {
+        // usageCount is deliberately not taken from the form — only the packing
+        // event moves it. `priority` arrives already resolved against the limit.
+        return prev.map((r) =>
+          r.id === existing.id
+            ? { ...r, ...data, serviceLevel: (data.serviceLevel || r.serviceLevel) as ServiceLevel }
+            : r,
+        );
+      }
+      const nextNumber =
+        prev.reduce((max, r) => Math.max(max, Number(r.id.replace('SR-', '')) || 0), 0) + 1;
+      const suffix = String(nextNumber).padStart(4, '0');
+      return [
+        ...prev,
+        {
+          ...data,
+          serviceLevel: (data.serviceLevel || 'Basic') as ServiceLevel,
+          id: `SR-${suffix}`,
+          externalId: `EXT-${1000 + nextNumber}`,
+          currencyCode: 'USD',
+          usageCount: 0,
+        },
+      ];
+    });
+  };
+
+  /**
+   * The single entry point for the packing event. Called from every place a
+   * shipment transitions into Packed — never from route assignment or selection.
+   */
+  const handleRoutePacked = (routeId: string | null | undefined) => {
+    setRoutes((prev) => recordRoutePacked(prev, routeId));
+  };
 
   // Carrier Service Types data
   const [carrierServiceTypes, setCarrierServiceTypes] = useState<CarrierServiceType[]>([
@@ -1156,7 +1236,13 @@ export default function App() {
 
   // If viewing consolidated shipments, use the existing component
   if (resolvedView === 'consolidated') {
-    return <ConsolidatedShipmentsApp onSectionChange={setActiveView} />;
+    return (
+      <ConsolidatedShipmentsApp
+        onSectionChange={setActiveView}
+        routes={routes}
+        onRoutePacked={handleRoutePacked}
+      />
+    );
   }
 
   return (
@@ -1202,6 +1288,7 @@ export default function App() {
             {resolvedView === 'routes' && (
               <ShippingRoutesTable
                 routes={routes}
+                onSaveRoute={handleSaveRoute}
               />
             )}
             {resolvedView === 'shipmentAlerts' && <ShipmentAlertsApp />}

@@ -14,7 +14,9 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
-import CreateShippingRouteDialog from './CreateShippingRouteDialog';
+import CreateShippingRouteDialog, { RouteFormSubmitData } from './CreateShippingRouteDialog';
+import ProgressMeter from './ProgressMeter';
+import { describeRoutePriority } from './shippingRouteUsage';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 
 const DEFAULT_SHIPPING_ROUTE_COLUMNS = [
@@ -48,8 +50,26 @@ export interface ShippingRoute {
   carrierServiceType: string;
   /** Auto-assigned from the selected carrier service type. */
   serviceLevel: ServiceLevel;
-  /** Mandatory. Defaults to false. */
+  /**
+   * Mandatory. Defaults to false. Marks the route as preferred when a shipment
+   * qualifies for more than one. Cleared automatically once `usageCount`
+   * reaches `usageLimit` — see shippingRouteUsage.ts.
+   */
   priority: boolean;
+  /**
+   * Optional cap on how many shipments may be packed on this route while it is
+   * preferred. `null` means unlimited (the original behaviour).
+   */
+  usageLimit: number | null;
+  /** Shipments packed on this route. Incremented at the packing event only. */
+  usageCount: number;
+  /**
+   * True when the usage limit is what removed `priority`, as opposed to the
+   * route never having been preferred or an admin switching it off. Lets the
+   * table tell those cases apart. Set only by the two paths that clear the
+   * flag; cleared when an admin re-enables Priority within a raised limit.
+   */
+  preferredClearedByLimit?: boolean;
   /** 2-char ISO country code. */
   fromCountryCode: string;
   /** 2-char ISO country code. */
@@ -156,6 +176,40 @@ export function formatShippingWorkingDays(days: number[]): string {
   return sorted.map((d) => (d === 1 ? '1 day' : `${d} days`)).join(', ');
 }
 
+/**
+ * Priority cell. A capped preferred route shows only the meter — the bar and
+ * its reading already say the route is preferred, so a "Yes" above it is
+ * redundant. The states with no bar keep the Yes/No label to carry that
+ * meaning, and a route that was never preferred renders exactly as before.
+ */
+function PriorityCell({ route }: { route: ShippingRoute }) {
+  const display = describeRoutePriority(route);
+
+  if (display.kind === 'preferred-limited') {
+    return (
+      <ProgressMeter
+        label={`${display.usageCount.toLocaleString()} / ${display.usageLimit.toLocaleString()}`}
+        percent={display.percent}
+        warning={display.warning}
+      />
+    );
+  }
+
+  return (
+    <div className="flex flex-col">
+      <span>{route.priority ? 'Yes' : 'No'}</span>
+      {display.kind === 'preferred-unlimited' && (
+        <span className="mt-0.5 text-xs leading-tight text-gray-500">No limit</span>
+      )}
+      {display.kind === 'limit-reached' && (
+        <span className="mt-0.5 text-xs leading-tight text-gray-400 tabular-nums">
+          Limit reached {display.usageCount.toLocaleString()}/{display.usageLimit.toLocaleString()}
+        </span>
+      )}
+    </div>
+  );
+}
+
 const NUMERIC_SORT_COLUMNS = new Set([
   'maxShippingValue',
   'packingTimeFrame',
@@ -187,10 +241,15 @@ function compareRoutes(a: ShippingRoute, b: ShippingRoute, columnId: string): nu
 
 interface ShippingRoutesTableProps {
   routes: ShippingRoute[];
+  /**
+   * Persists a create or an edit. `existing` is null when creating. Usage
+   * counters are owned by the packing event, never by this form.
+   */
+  onSaveRoute?: (data: RouteFormSubmitData, existing: ShippingRoute | null) => void;
   onSectionChange?: (section: 'shipments' | 'collections' | 'consolidated' | 'routes') => void;
 }
 
-export default function ShippingRoutesTable({ routes, onSectionChange }: ShippingRoutesTableProps) {
+export default function ShippingRoutesTable({ routes, onSaveRoute, onSectionChange }: ShippingRoutesTableProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFiltersPanel, setShowFiltersPanel] = useState(false);
   const [columnMenuAnchor, setColumnMenuAnchor] = useState<null | HTMLElement>(null);
@@ -315,9 +374,8 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
     setShowCreateDialog(true);
   };
 
-  const handleCreateRouteSubmit = (routeData: any) => {
-    console.log('New route created:', routeData);
-    // In real app, this would add the route to the routes array
+  const handleCreateRouteSubmit = (routeData: RouteFormSubmitData) => {
+    onSaveRoute?.(routeData, selectedRoute);
   };
 
   return (
@@ -608,8 +666,14 @@ export default function ShippingRoutesTable({ routes, onSectionChange }: Shippin
                                   cellContent = route.serviceLevel;
                                   break;
                                 case 'priority':
-                                  cellContent = route.priority ? 'Yes' : 'No';
-                                  break;
+                                  // Literal key: `column.id` narrows to `never` here because
+                                  // `columns.filter(c => c.visible)` gives TS an inferred type
+                                  // predicate over the default-visible ids, which excludes this one.
+                                  return (
+                                    <td key="priority" className="p-4 text-sm">
+                                      <PriorityCell route={route} />
+                                    </td>
+                                  );
                                 case 'packingTimeFrame':
                                   cellContent = route.packingTimeFrame ? `${route.packingTimeFrame} days` : '';
                                   break;

@@ -223,6 +223,12 @@ export interface Shipment {
   shipmentPrice?: number;
   /** actual_shipment_cost: cost of the assigned route once a route is set. */
   shippingCostAmount?: number;
+  /**
+   * ID of the assigned shipping route (e.g. "SR-0001"), set whether the route
+   * was auto-selected or picked manually. Read at the packing event to
+   * attribute usage — assignment alone must never increment a route's counter.
+   */
+  shippingRouteId?: string;
   /** Declared value after DAP/DDP process completion. */
   declaredValue?: number;
   /** Outcome of DAP/DDP process. */

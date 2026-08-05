@@ -17,6 +17,8 @@ import {
 } from './ui/dialog';
 import { consolidatedCancelDialogCounts } from './consolidatedShipmentConstants';
 import type { AlertFilterId } from './alertFilterRules';
+import type { ShippingRoute } from './ShippingRoutesTable';
+import { isPackingTransition } from './shippingRouteUsage';
 
 export type ShipmentStatus = 'Draft' | 'Packed' | 'Shipped' | 'Cancelled';
 
@@ -64,6 +66,14 @@ export interface ConsolidatedShipment {
 }
 
 interface ConsolidatedShipmentsAppProps {
+  /** Shipping routes, so a packed shipment can be attributed to its route. */
+  routes?: ShippingRoute[];
+  /**
+   * Records the packing event against a shipping route. Invoked on every
+   * transition into Packed and nowhere else — assignment, reassignment and
+   * cancellation must not increment.
+   */
+  onRoutePacked?: (routeId: string | null | undefined) => void;
   onSectionChange?: (
     section:
       | 'shipments'
@@ -95,7 +105,11 @@ function formatCancellationTimestamp(): string {
   return `${datePart} at ${timePart}`;
 }
 
-export default function ConsolidatedShipmentsApp({ onSectionChange }: ConsolidatedShipmentsAppProps = {}) {
+export default function ConsolidatedShipmentsApp({
+  onSectionChange,
+  routes,
+  onRoutePacked,
+}: ConsolidatedShipmentsAppProps = {}) {
   const [currentView, setCurrentView] = useState<ViewType>('list');
   const [selectedShipment, setSelectedShipment] = useState<ConsolidatedShipment | null>(null);
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false);
@@ -395,6 +409,32 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
     }
   };
 
+  /**
+   * `shippingRoute` holds a route ID; older records may carry the external ID,
+   * so accept either. Returns null when the shipment has no route, in which
+   * case there is nothing to count.
+   */
+  const resolveRouteId = (shipment: ConsolidatedShipment): string | null => {
+    const ref = shipment.shippingRoute?.trim();
+    if (!ref) return null;
+    if (!routes) return ref;
+    const match = routes.find((r) => r.id === ref || r.externalId === ref);
+    return match ? match.id : null;
+  };
+
+  /**
+   * The one place this screen records a packing event. Every Packed transition
+   * routes through here, and the transition check keeps re-saving an
+   * already-packed shipment from double-counting.
+   */
+  const recordPackingEvent = (
+    shipment: ConsolidatedShipment,
+    previousStatus: ShipmentStatus | undefined,
+  ) => {
+    if (!isPackingTransition(previousStatus, shipment.status)) return;
+    onRoutePacked?.(resolveRouteId(shipment));
+  };
+
   const handleDetailTrackingCommit = (id: string, trackingId: string) => {
     setShipments((prev) =>
       prev.map((s) => (s.id === id && s.status !== 'Draft' ? { ...s, trackingId } : s))
@@ -403,6 +443,9 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
 
   const handleDraftPack = (id: string, trackingId: string) => {
     const trimmed = trackingId.trim();
+    // Read the pre-update shipment outside the updater: state updaters must stay
+    // pure (StrictMode runs them twice, which would double-count).
+    const draft = shipments.find((s) => s.id === id && s.status === 'Draft');
     setShipments((prev) =>
       prev.map((s) => {
         if (s.id !== id || s.status !== 'Draft') return s;
@@ -415,6 +458,7 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
         };
       })
     );
+    if (draft) recordPackingEvent({ ...draft, status: 'Packed' }, draft.status);
     setNotificationMessage(`Consolidated shipment ${id} was packed with tracking ID ${trimmed}.`);
     setShowNotification(true);
     setTimeout(() => setShowNotification(false), 5000);
@@ -422,6 +466,9 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
 
   const handleCreatePacked = (shipment: ConsolidatedShipment) => {
     setShipments((prev) => [...prev, shipment]);
+    // New record, so there is no previous status — a shipment created straight
+    // into Packed counts; one created as a Draft counts later, on its Pack.
+    recordPackingEvent(shipment, undefined);
     if (shipment.status !== 'Draft') {
       setNotificationMessage(`Consolidated shipment ${shipment.id} was created successfully!`);
       setShowNotification(true);
@@ -430,14 +477,18 @@ export default function ConsolidatedShipmentsApp({ onSectionChange }: Consolidat
   };
 
   const handleSaveShipment = (shipment: ConsolidatedShipment) => {
+    const previous = shipments.find((s) => s.id === shipment.id);
     setShipments(prev => prev.map(s => (s.id === shipment.id ? shipment : s)));
+    recordPackingEvent(shipment, previous?.status);
     setNotificationMessage(`Consolidated shipment ${shipment.id} was updated successfully!`);
     setShowNotification(true);
     setTimeout(() => setShowNotification(false), 5000);
   };
 
   const handleUpdateShipment = (updatedShipment: ConsolidatedShipment) => {
+    const previous = shipments.find((s) => s.id === updatedShipment.id);
     setShipments(prev => prev.map(s => s.id === updatedShipment.id ? updatedShipment : s));
+    recordPackingEvent(updatedShipment, previous?.status);
   };
 
   const beginCancelConsolidatedShipment = (shipment: ConsolidatedShipment) => {

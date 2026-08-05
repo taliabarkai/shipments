@@ -447,7 +447,8 @@ export default function ReportsApp() {
                 />
               </Box>
 
-              <Box sx={{ width: 220 }}>
+              {/* Pinned width: chips must wrap inside the field, never widen or shrink it. */}
+              <Box sx={{ width: 220, minWidth: 220, flexShrink: 0 }}>
                 <FieldLabel>Site IDs</FieldLabel>
                 <FormControl fullWidth size="small">
                   <Select
@@ -459,7 +460,7 @@ export default function ReportsApp() {
                       if (arr.length === NAMED_SITES.length) return ALL_SITES_LABEL;
                       if (arr.length === 0) return <span style={{ color: 'rgba(0,0,0,0.4)' }}>No sites</span>;
                       return (
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, maxWidth: '100%' }}>
                           {arr.map((v) => (
                             <Chip
                               key={v}

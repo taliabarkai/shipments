@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { cn } from './ui/utils';
 import svgPaths from '../imports/svg-8i0hxkhc97';
 import CreateUpgradeDowngradeRuleDrawer from './CreateUpgradeDowngradeRuleDrawer';
+import ProgressMeter from './ProgressMeter';
 import {
   deriveRuleStatus,
   MOCK_RULES,
@@ -100,17 +101,14 @@ function SpendCell({ rule }: { rule: UpgradeDowngradeRule }) {
     const cap = rule.costControl.budgetCap;
     const pct = cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : 0;
     return (
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center justify-between gap-2 text-xs tabular-nums text-gray-600">
-          <span>
+      <ProgressMeter
+        label={
+          <>
             {formatMoney(spent)} / {formatMoney(cap)}
-          </span>
-          <span>{pct}%</span>
-        </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-gray-200">
-          <div className="h-full rounded-full bg-[#1976d2] transition-all" style={{ width: `${pct}%` }} />
-        </div>
-      </div>
+          </>
+        }
+        percent={pct}
+      />
     );
   }
   // Flat/fixed spend (per-shipment) — no overall budget limit, so just the amount.
